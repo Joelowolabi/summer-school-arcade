@@ -56,6 +56,9 @@
   .gchip.on{border-color:var(--accent-play);background:var(--purple-50)}
   .gchip.on .ck{background:var(--accent-play);border-color:var(--accent-play)}
   .gchip.off{opacity:.62}
+  .modeseg{display:inline-flex;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:4px;gap:4px;margin:14px 0 2px}
+  .modeseg button{border:0;background:none;border-radius:var(--radius-pill);padding:9px 18px;font-family:var(--font-core);font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:var(--text-muted);cursor:pointer;transition:background .12s,color .12s}
+  .modeseg button.on{background:var(--surface-card);color:var(--accent-play);box-shadow:var(--shadow-xs)}
 </style>
 </head>
 <body>
@@ -107,7 +110,12 @@
       <button class="plink" id="selAll">Select all</button>
       <button class="plink" id="selNone">Clear</button>
     </div>
-    <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0">Tap to include or remove. The session plays your selected games top-to-bottom.</p>
+    <div class="modeseg" id="modeSeg">
+      <button data-m="mixed" class="on">🎲 Mixed</button>
+      <button data-m="solo">🙋 Individual</button>
+      <button data-m="team">👥 Group</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0" id="modeHint">Every game — individual play and team games mixed together.</p>
     <div class="gchips" id="gchips"></div>
   </div>
 </div>
@@ -149,7 +157,7 @@ function render(){
     return `<div class="pcard ${p.connected?'':'off'}">${av}<span class="nm">${p.name}</span></div>`;
   }).join('')
     : '<div class="empty">No one has joined yet. Share the code!</div>';
-  const min = room.settings?.minPlayers||4, n = players.length, chosen = selected.size;
+  const min = room.settings?.minPlayers||4, n = players.length, chosen = selectedGames().length;
   const enough = n >= min || force;
   $('#startBtn').disabled = !(enough && chosen>0 && n>=1);
   $('#forceStart').style.display = (!enough && n>=1) ? 'inline-block' : 'none';
@@ -160,35 +168,44 @@ function render(){
     :              `Ready · ${chosen} game${chosen===1?'':'s'}, ${n} player${n===1?'':'s'}.`;
 }
 
-// full catalog — host picks which of these play (default: all, in this order)
+// full catalog — each game tagged for individual (solo) and/or team (group) play
 const GAMES = [
-  {f:'trivia-sprint.html',        e:'🧠', n:'Trivia Sprint'},
-  {f:'number-ninjas.html',        e:'🥷', n:'Number Ninjas'},
-  {f:'this-or-that.html',         e:'🤔', n:'This or That'},
-  {f:'odd-one-out.html',          e:'🔍', n:'Odd One Out'},
-  {f:'click-rush.html',           e:'⚡', n:'Click Rush'},
-  {f:'color-wars-3d.html',        e:'🎨', n:'Color Wars'},
-  {f:'trail-blazer.html',         e:'🏁', n:'Trail Blazer'},
-  {f:'maze-dash.html',            e:'🌀', n:'Maze Dash'},
-  {f:'balloon-pop-race-3d.html',  e:'🎈', n:'Balloon Pop Race'},
-  {f:'team-tug-of-war.html',      e:'🪢', n:'Team Tug of War'},
-  {f:'build-a-monster.html',      e:'👾', n:'Build-a-Monster'},
-  {f:'doodle-duel.html',          e:'🖌️', n:'Doodle Duel'},
-  {f:'quick-draw-guess.html',     e:'✏️', n:'Quick Draw Guess'},
-  {f:'secret-spy.html',           e:'🕵️', n:'Secret Spy'},
-  {f:'word-chain-blitz.html',     e:'🔗', n:'Word Chain Blitz'},
-  {f:'copycat.html',              e:'🎯', n:'Copycat'},
+  {f:'trivia-sprint.html',        e:'🧠', n:'Trivia Sprint',      solo:1, team:1},
+  {f:'number-ninjas.html',        e:'🥷', n:'Number Ninjas',      solo:1, team:1},
+  {f:'this-or-that.html',         e:'🤔', n:'This or That',       solo:1, team:1},
+  {f:'odd-one-out.html',          e:'🔍', n:'Odd One Out',        solo:1, team:1},
+  {f:'click-rush.html',           e:'⚡', n:'Click Rush',         solo:1, team:1},
+  {f:'color-wars-3d.html',        e:'🎨', n:'Color Wars',         solo:0, team:1},
+  {f:'trail-blazer.html',         e:'🏁', n:'Trail Blazer',       solo:1, team:1},
+  {f:'maze-dash.html',            e:'🌀', n:'Maze Dash',          solo:1, team:1},
+  {f:'balloon-pop-race-3d.html',  e:'🎈', n:'Balloon Pop Race',   solo:1, team:1},
+  {f:'team-tug-of-war.html',      e:'🪢', n:'Team Tug of War',    solo:0, team:1},
+  {f:'build-a-monster.html',      e:'👾', n:'Build-a-Monster',    solo:1, team:0},
+  {f:'doodle-duel.html',          e:'🖌️', n:'Doodle Duel',        solo:1, team:0},
+  {f:'quick-draw-guess.html',     e:'✏️', n:'Quick Draw Guess',   solo:1, team:0},
+  {f:'secret-spy.html',           e:'🕵️', n:'Secret Spy',         solo:0, team:1},
+  {f:'word-chain-blitz.html',     e:'🔗', n:'Word Chain Blitz',   solo:1, team:1},
+  {f:'copycat.html',              e:'🎯', n:'Copycat',            solo:1, team:1},
 ];
+let mode='mixed';   // 'mixed' | 'solo' (individual) | 'team' (group)
+const MODE_HINT={ mixed:'Every game — individual play and team games mixed together.',
+  solo:'Free-for-all: only games where each player competes for themselves.',
+  team:'Team games: everyone plays for their Red / Blue / Green team.' };
+function visibleGames(){ return GAMES.filter(g=> mode==='mixed' ? true : mode==='solo' ? g.solo : g.team); }
 let selected = new Set(GAMES.map(g=>g.f));   // all on by default
-function selectedGames(){ return GAMES.filter(g=>selected.has(g.f)).map(g=>g.f); }
+function selectedGames(){ return visibleGames().filter(g=>selected.has(g.f)).map(g=>g.f); }
+function setMode(m){ mode=m; selected=new Set(visibleGames().map(g=>g.f));   // re-select all valid for the chosen mode
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.m===m));
+  $('#modeHint').textContent = MODE_HINT[m]; renderPicker(); render(); }
 function renderPicker(){
   const chips=$('#gchips'); if(!chips) return;
-  chips.innerHTML = GAMES.map(g=>`<div class="gchip ${selected.has(g.f)?'on':'off'}" data-f="${g.f}"><span class="em">${g.e}</span><span class="gn">${g.n}</span><span class="ck">${selected.has(g.f)?'✓':''}</span></div>`).join('');
+  chips.innerHTML = visibleGames().map(g=>`<div class="gchip ${selected.has(g.f)?'on':'off'}" data-f="${g.f}"><span class="em">${g.e}</span><span class="gn">${g.n}</span><span class="ck">${selected.has(g.f)?'✓':''}</span></div>`).join('');
   chips.querySelectorAll('.gchip').forEach(ch=>ch.addEventListener('click',()=>{ const f=ch.dataset.f; selected.has(f)?selected.delete(f):selected.add(f); renderPicker(); render(); }));
-  $('#gcount').textContent = selected.size;
+  $('#gcount').textContent = selectedGames().length;
 }
-$('#selAll').addEventListener('click', ()=>{ selected=new Set(GAMES.map(g=>g.f)); renderPicker(); render(); });
-$('#selNone').addEventListener('click', ()=>{ selected.clear(); renderPicker(); render(); });
+document.querySelectorAll('#modeSeg button').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.m)));
+$('#selAll').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.add(g.f)); renderPicker(); render(); });
+$('#selNone').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.delete(g.f)); renderPicker(); render(); });
 $('#forceStart').addEventListener('click', ()=>{ force=true; render(); });
 
 $('#startBtn').addEventListener('click', async ()=>{
