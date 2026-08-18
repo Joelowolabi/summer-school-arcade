@@ -11,6 +11,18 @@
   html,body{height:auto}
   body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;padding:20px}
   .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 30px 34px;width:100%;max-width:440px}
+  /* PC-first: forms stay narrow, but live-game controllers use the width */
+  @media (min-width:680px){
+    .card.play{max-width:min(94vw,860px);padding:34px 42px 40px}
+    .card.play .liveopt{font-size:var(--fs-h3);padding:22px 20px}
+    .card.play .liveopt span{width:38px;height:38px}
+    .card.play .livevcard{font-size:var(--fs-h2);padding:40px 18px}
+    .card.play .livetile{width:min(16vw,132px)}
+    .card.play .socpads{max-width:520px;margin-left:auto;margin-right:auto}
+    .card.play .tapbtn{max-width:560px;margin-left:auto;margin-right:auto;display:block;font-size:var(--fs-h1)}
+    .card.play .liveq{font-size:var(--fs-h1)}
+    .card.play .sprompt{font-size:var(--fs-h1)}
+  }
   .card .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px}
   .card h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);color:var(--text-strong);margin:0 0 4px}
   .card p.sub{color:var(--text-muted);margin:6px 0 22px}
@@ -229,7 +241,8 @@ async function enterLobby(){
   Net.onRoom(room.id, ({new:r})=>{ room=Object.assign(room,r); renderRoomState(); });
   players=await Net.listPlayers(room.id); renderLobby(); renderRoomState();
 }
-function roster(show){ const p=$('#plist'), y=$('#yourteam'); if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none'; }
+function roster(show){ const p=$('#plist'), y=$('#yourteam'); if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none';
+  const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); }
 function renderRoomState(){
   const w=$('#waiting');
   const live = room.state && room.state.live;
