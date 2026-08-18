@@ -125,7 +125,7 @@ function render(){
   $('#minNote').textContent = enough ? 'Ready when you are.' : `Waiting for at least ${room.settings?.minPlayers||4} players… (${players.length} so far)`;
 }
 
-const ROTATION = ['trivia-sprint.html','color-wars-3d.html','this-or-that.html','snake-royale-3d.html','build-a-monster.html','secret-spy.html','balloon-pop-race-3d.html','odd-one-out.html','copycat.html','maze-dash.html','quick-draw-guess.html','team-tug-of-war.html','word-chain-blitz.html','number-ninjas.html','doodle-duel.html','trail-blazer.html','click-rush.html'];
+const ROTATION = ['trivia-sprint.html','color-wars-3d.html','this-or-that.html','build-a-monster.html','secret-spy.html','balloon-pop-race-3d.html','odd-one-out.html','copycat.html','maze-dash.html','quick-draw-guess.html','team-tug-of-war.html','word-chain-blitz.html','number-ninjas.html','doodle-duel.html','trail-blazer.html','click-rush.html'];
 
 $('#startBtn').addEventListener('click', async ()=>{
   $('#startBtn').style.display='none'; $('#minNote').style.display='none';
