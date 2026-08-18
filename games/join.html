@@ -11,9 +11,27 @@
   html,body{height:auto}
   body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;padding:20px}
   .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 30px 34px;width:100%;max-width:440px}
-  /* PC-first: forms stay narrow, but live-game controllers use the width */
+  /* GAMEPLAY: full-bleed, in the shared-display style (purple ground, white text, translucent panels) */
+  body.playing{padding:0}
+  .card.play{
+    max-width:none;width:100%;min-height:100dvh;margin:0;border-radius:0;box-shadow:none;background:transparent;
+    padding:26px clamp(16px,4vw,64px);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;
+    --text-strong:#fff; --text-body:rgba(255,255,255,.92); --text-muted:rgba(255,255,255,.72);
+    --surface-sunken:rgba(255,255,255,.12); --surface-card:rgba(255,255,255,.16); --surface-page:transparent;
+    --border-soft:rgba(255,255,255,.26); --border-hairline:rgba(255,255,255,.18);
+    --purple-50:rgba(255,255,255,.16); --purple-100:rgba(255,255,255,.28); --purple-200:rgba(255,255,255,.42);
+  }
+  .card.play #stepLobby{width:100%;max-width:1040px;margin:0 auto}
+  .card.play .livehead,.card.play .ready .rk{color:rgba(255,255,255,.82)}
+  .card.play .qdword,.card.play .needline b{color:#fff}
+  .card.play .chainmini span:last-child{color:#fff;background:rgba(255,255,255,.28)}
+  .card.play .livetimer{color:#fff;background:rgba(255,255,255,.18)}
+  .card.play .pdot.on{background:#fff}
+  .card.play input{background:#fff;color:var(--ink-900)}
+  .card.play .votecard.voted{background:rgba(255,255,255,.28)}
+  /* PC-first size bumps */
   @media (min-width:680px){
-    .card.play{max-width:min(95vw,1080px);padding:38px 48px 44px}
+    .card.play{padding:40px clamp(24px,5vw,80px)}
     .card.play .liveopt{font-size:var(--fs-h3);padding:22px 20px}
     .card.play .liveopt span{width:38px;height:38px}
     .card.play .livevcard{font-size:var(--fs-h2);padding:40px 18px}
@@ -270,7 +288,7 @@ async function enterLobby(){
 }
 function roster(show){ const p=$('#plist'), y=$('#yourteam'), h=$('#lobbyHead');
   if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none'; if(h) h.style.display=show?'block':'none';
-  const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); }
+  const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); document.body.classList.toggle('playing', !show); }
 function renderRoomState(){
   const w=$('#waiting');
   const live = room.state && room.state.live;
