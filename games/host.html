@@ -40,6 +40,22 @@
   .empty{color:var(--text-muted);grid-column:1/-1;text-align:center;padding:30px 0}
   .startrow{display:flex;align-items:center;gap:14px;margin-top:20px}
   .status{color:#fff;text-align:center;padding:10px}
+  /* game picker */
+  .picker{margin-top:20px}
+  .pickhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .pickhead h2{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong);margin:0}
+  .pickhead .cnt{color:var(--text-muted);font-weight:var(--fw-semibold);font-size:var(--fs-body-s)} .pickhead .cnt b{color:var(--accent-play)}
+  .plink{background:none;border:0;color:var(--accent-play);font-family:var(--font-core);font-weight:var(--fw-bold);font-size:var(--fs-body-s);cursor:pointer;padding:6px 8px;border-radius:var(--radius-s)}
+  .plink:hover{background:var(--surface-sunken)}
+  .gchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:14px}
+  .gchip{display:flex;align-items:center;gap:10px;border:2px solid var(--border-soft);border-radius:var(--radius-l);background:var(--surface-sunken);padding:11px 14px;cursor:pointer;user-select:none;transition:transform .1s var(--ease-pop),border-color .12s,background .12s}
+  .gchip:hover{transform:translateY(-1px)}
+  .gchip .em{font-size:20px;line-height:1;flex:0 0 auto}
+  .gchip .gn{font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-body-s);line-height:1.15}
+  .gchip .ck{margin-left:auto;width:22px;height:22px;border-radius:7px;border:2px solid var(--border-soft);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:var(--fw-bold)}
+  .gchip.on{border-color:var(--accent-play);background:var(--purple-50)}
+  .gchip.on .ck{background:var(--accent-play);border-color:var(--accent-play)}
+  .gchip.off{opacity:.62}
 </style>
 </head>
 <body>
@@ -81,6 +97,18 @@
       <div class="plist" id="plist"><div class="empty">No one has joined yet. Share the code!</div></div>
     </div>
   </div>
+
+  <div class="card picker" id="pickerCard" style="display:none">
+    <div class="pickhead">
+      <h2>Choose games</h2>
+      <span class="cnt">· <b id="gcount">0</b> selected, in order</span>
+      <div style="flex:1"></div>
+      <button class="plink" id="selAll">Select all</button>
+      <button class="plink" id="selNone">Clear</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0">Tap to include or remove. The session plays your selected games top-to-bottom.</p>
+    <div class="gchips" id="gchips"></div>
+  </div>
 </div>
 
 <script type="module">
@@ -98,7 +126,7 @@ async function boot(){
     $('#code').textContent = room.code;
     $('#joinurl').textContent = location.origin + '/games/join.html';
     $('#displayBtn').href = 'display.html?code=' + room.code;
-    renderTeams(); render();
+    renderTeams(); renderPicker(); $('#pickerCard').style.display='block'; render();
     // live lobby
     Net.onPlayers(room.id, async ()=>{ players = await Net.listPlayers(room.id); render(); });
     players = await Net.listPlayers(room.id); render();
@@ -120,22 +148,56 @@ function render(){
     return `<div class="pcard ${p.connected?'':'off'}">${av}<span class="nm">${p.name}</span></div>`;
   }).join('')
     : '<div class="empty">No one has joined yet. Share the code!</div>';
-  const enough = players.length >= (room.settings?.minPlayers||4);
-  $('#startBtn').disabled = !enough;
-  $('#minNote').textContent = enough ? 'Ready when you are.' : `Waiting for at least ${room.settings?.minPlayers||4} players… (${players.length} so far)`;
+  const min = room.settings?.minPlayers||4;
+  const enough = players.length >= min, chosen = selected.size;
+  $('#startBtn').disabled = !enough || chosen===0;
+  $('#minNote').textContent = !enough ? `Waiting for at least ${min} players… (${players.length} so far)`
+    : chosen===0 ? 'Pick at least one game below to start.'
+    : `Ready · ${chosen} game${chosen===1?'':'s'} selected.`;
 }
 
-const ROTATION = ['trivia-sprint.html','color-wars-3d.html','this-or-that.html','build-a-monster.html','secret-spy.html','balloon-pop-race-3d.html','odd-one-out.html','copycat.html','maze-dash.html','quick-draw-guess.html','team-tug-of-war.html','word-chain-blitz.html','number-ninjas.html','doodle-duel.html','trail-blazer.html','click-rush.html'];
+// full catalog — host picks which of these play (default: all, in this order)
+const GAMES = [
+  {f:'trivia-sprint.html',        e:'🧠', n:'Trivia Sprint'},
+  {f:'number-ninjas.html',        e:'🥷', n:'Number Ninjas'},
+  {f:'this-or-that.html',         e:'🤔', n:'This or That'},
+  {f:'odd-one-out.html',          e:'🔍', n:'Odd One Out'},
+  {f:'click-rush.html',           e:'⚡', n:'Click Rush'},
+  {f:'color-wars-3d.html',        e:'🎨', n:'Color Wars'},
+  {f:'trail-blazer.html',         e:'🏁', n:'Trail Blazer'},
+  {f:'maze-dash.html',            e:'🌀', n:'Maze Dash'},
+  {f:'balloon-pop-race-3d.html',  e:'🎈', n:'Balloon Pop Race'},
+  {f:'team-tug-of-war.html',      e:'🪢', n:'Team Tug of War'},
+  {f:'build-a-monster.html',      e:'👾', n:'Build-a-Monster'},
+  {f:'doodle-duel.html',          e:'🖌️', n:'Doodle Duel'},
+  {f:'quick-draw-guess.html',     e:'✏️', n:'Quick Draw Guess'},
+  {f:'secret-spy.html',           e:'🕵️', n:'Secret Spy'},
+  {f:'word-chain-blitz.html',     e:'🔗', n:'Word Chain Blitz'},
+  {f:'copycat.html',              e:'🎯', n:'Copycat'},
+];
+let selected = new Set(GAMES.map(g=>g.f));   // all on by default
+function selectedGames(){ return GAMES.filter(g=>selected.has(g.f)).map(g=>g.f); }
+function renderPicker(){
+  const chips=$('#gchips'); if(!chips) return;
+  chips.innerHTML = GAMES.map(g=>`<div class="gchip ${selected.has(g.f)?'on':'off'}" data-f="${g.f}"><span class="em">${g.e}</span><span class="gn">${g.n}</span><span class="ck">${selected.has(g.f)?'✓':''}</span></div>`).join('');
+  chips.querySelectorAll('.gchip').forEach(ch=>ch.addEventListener('click',()=>{ const f=ch.dataset.f; selected.has(f)?selected.delete(f):selected.add(f); renderPicker(); render(); }));
+  $('#gcount').textContent = selected.size;
+}
+$('#selAll').addEventListener('click', ()=>{ selected=new Set(GAMES.map(g=>g.f)); renderPicker(); render(); });
+$('#selNone').addEventListener('click', ()=>{ selected.clear(); renderPicker(); render(); });
 
 $('#startBtn').addEventListener('click', async ()=>{
+  const games = selectedGames();
+  if(games.length===0) return;
+  $('#pickerCard').style.display='none';
   $('#startBtn').style.display='none'; $('#minNote').style.display='none';
-  await Net.startSession(room.id, ROTATION);        // broadcasts to display + players
-  room.state = { games:ROTATION, index:0 }; room.current_game = ROTATION[0]; room.status='in_game';
+  await Net.startSession(room.id, games);            // broadcasts to display + players
+  room.state = { games, index:0 }; room.current_game = games[0]; room.status='in_game';
   $('#sessionCtrl').style.display='block';
   updateCtrl();
 });
 function updateCtrl(){
-  const st=room.state||{games:ROTATION,index:0};
+  const st=room.state||{games:selectedGames(),index:0};
   $('#gmeta').textContent = `Game ${(st.index||0)+1} of ${st.games.length}`;
   $('#curGame').textContent = Net.gameLabel(room.current_game);
 }
