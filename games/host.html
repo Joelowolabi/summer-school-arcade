@@ -80,6 +80,7 @@
       </div>
       <a class="btn btn-secondary sm" id="displayBtn" target="_blank" style="margin-top:10px;width:100%;text-decoration:none">Open Shared Display →</a>
       <p id="minNote" style="margin-top:10px">Waiting for at least 4 players…</p>
+      <button class="plink" id="forceStart" style="display:none">Testing with fewer players? Start anyway →</button>
 
       <div id="sessionCtrl" style="display:none;margin-top:18px;border-top:1px solid var(--border-hairline);padding-top:16px">
         <div style="font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--text-muted);font-weight:var(--fw-bold)">Now Playing · <span id="gmeta">Game 1 of 5</span></div>
@@ -114,7 +115,7 @@
 <script type="module">
 import * as Net from './arcade-net.js';
 const $=s=>document.querySelector(s);
-let room=null, players=[];
+let room=null, players=[], force=false;
 
 async function boot(){
   try{
@@ -148,12 +149,15 @@ function render(){
     return `<div class="pcard ${p.connected?'':'off'}">${av}<span class="nm">${p.name}</span></div>`;
   }).join('')
     : '<div class="empty">No one has joined yet. Share the code!</div>';
-  const min = room.settings?.minPlayers||4;
-  const enough = players.length >= min, chosen = selected.size;
-  $('#startBtn').disabled = !enough || chosen===0;
-  $('#minNote').textContent = !enough ? `Waiting for at least ${min} players… (${players.length} so far)`
+  const min = room.settings?.minPlayers||4, n = players.length, chosen = selected.size;
+  const enough = n >= min || force;
+  $('#startBtn').disabled = !(enough && chosen>0 && n>=1);
+  $('#forceStart').style.display = (!enough && n>=1) ? 'inline-block' : 'none';
+  $('#minNote').textContent =
+      !enough    ? `Waiting for ${min} players… (${n} so far)`
+    : n===0      ? 'Open the join page on another device to add a player.'
     : chosen===0 ? 'Pick at least one game below to start.'
-    : `Ready · ${chosen} game${chosen===1?'':'s'} selected.`;
+    :              `Ready · ${chosen} game${chosen===1?'':'s'}, ${n} player${n===1?'':'s'}.`;
 }
 
 // full catalog — host picks which of these play (default: all, in this order)
@@ -185,6 +189,7 @@ function renderPicker(){
 }
 $('#selAll').addEventListener('click', ()=>{ selected=new Set(GAMES.map(g=>g.f)); renderPicker(); render(); });
 $('#selNone').addEventListener('click', ()=>{ selected.clear(); renderPicker(); render(); });
+$('#forceStart').addEventListener('click', ()=>{ force=true; render(); });
 
 $('#startBtn').addEventListener('click', async ()=>{
   const games = selectedGames();
