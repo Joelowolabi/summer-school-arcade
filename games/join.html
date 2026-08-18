@@ -13,7 +13,7 @@
   .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 30px 34px;width:100%;max-width:440px}
   /* PC-first: forms stay narrow, but live-game controllers use the width */
   @media (min-width:680px){
-    .card.play{max-width:min(94vw,860px);padding:34px 42px 40px}
+    .card.play{max-width:min(95vw,1080px);padding:38px 48px 44px}
     .card.play .liveopt{font-size:var(--fs-h3);padding:22px 20px}
     .card.play .liveopt span{width:38px;height:38px}
     .card.play .livevcard{font-size:var(--fs-h2);padding:40px 18px}
@@ -60,6 +60,28 @@
   .liveopt.picked{outline:3px solid var(--ink-900);outline-offset:-3px} .liveopt.right{outline:3px solid #fff;outline-offset:-3px} .liveopt.dim{opacity:.5}
   .liveopt span{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:var(--fs-body)}
   .livenote{text-align:center;color:var(--text-muted);margin-top:14px;font-weight:var(--fw-semibold)} .livenote b{color:var(--text-strong)}
+  .livetop{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .livetimer{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--accent-play);background:var(--purple-50);border-radius:var(--radius-pill);min-width:64px;text-align:center;padding:4px 16px;font-variant-numeric:tabular-nums;transition:color .2s,background .2s}
+  .livetimer.low{color:#fff;background:var(--status-danger,#E5484D)}
+  /* standings on player screen */
+  .ready{display:flex;flex-direction:column;gap:14px}
+  .readyhead{display:flex;align-items:center;gap:14px;justify-content:center}
+  .readyimg{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 3px 6px rgba(30,27,38,.18))}
+  .ready .rk{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold)}
+  .ready .rt{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);color:var(--text-strong);line-height:1.1}
+  .standtitle{font-weight:var(--fw-bold);color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-size:var(--fs-body-s);text-align:center;margin-top:2px}
+  .steams{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .steam{border-radius:var(--radius-l);padding:12px;color:#fff;text-align:center;display:flex;flex-direction:column;gap:2px}
+  .steam span{font-size:var(--fs-body-s);opacity:.92;font-weight:var(--fw-medium)} .steam b{font-family:var(--font-display);font-size:var(--fs-h2)}
+  .srows{display:flex;flex-direction:column;gap:6px}
+  .srow{display:flex;align-items:center;gap:10px;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:8px 14px}
+  .srow.me{background:var(--purple-50);box-shadow:0 0 0 2px var(--purple-200) inset}
+  .srow .sr{width:22px;text-align:center;font-weight:var(--fw-bold);color:var(--text-muted)}
+  .srow .sav{width:30px;height:30px;border-radius:99px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-body-s);overflow:hidden}
+  .srow .sav img{width:100%;height:100%;object-fit:contain}
+  .srow .sn{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)} .srow .sn em{font-style:normal;font-size:10px;background:var(--accent-play);color:#fff;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .srow .sp{font-family:var(--font-heading);font-weight:var(--fw-bold);color:var(--text-strong);font-variant-numeric:tabular-nums}
+  .readywait{text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);margin-top:4px}
   /* vote (This or That) */
   .livevote{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .livevcard{border:0;border-radius:var(--radius-xl);color:#fff;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);padding:26px 14px;cursor:pointer;box-shadow:var(--shadow-m);display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .1s var(--ease-pop);text-align:center}
@@ -153,8 +175,10 @@
 
   <!-- STEP 3: lobby -->
   <div id="stepLobby" class="hide">
-    <div class="kick">You're In!</div><h1 id="lobbyTitle">Lobby</h1>
-    <p class="sub">Room <b id="lobbyCode" style="font-family:var(--font-mono)"></b></p>
+    <div id="lobbyHead">
+      <div class="kick">You're In!</div><h1 id="lobbyTitle">Lobby</h1>
+      <p class="sub">Room <b id="lobbyCode" style="font-family:var(--font-mono)"></b></p>
+    </div>
     <div class="yourteam" id="yourteam"></div>
     <div class="plist" id="plist"></div>
     <div class="waiting" id="waiting">Waiting for the host to start…</div>
@@ -237,32 +261,64 @@ async function enterLobby(){
   $('#yourteam').style.background=Net.TEAM_COLORS[me.team];
   const myImg=Net.charImg(me.avatar);
   $('#yourteam').innerHTML=`${myImg?`<span class="avwrap" style="width:26px;height:26px;display:inline-flex">`+`<img src="${myImg}" alt=""></span>`:''}<span>You're on Team ${Net.TEAM_NAMES[me.team]}</span>`;
-  Net.onPlayers(room.id, async ()=>{ players=await Net.listPlayers(room.id); renderLobby(); if(room.state&&room.state.live&&room.state.live.phase==='reveal') renderRoomState(); });
+  Net.onPlayers(room.id, async ()=>{ players=await Net.listPlayers(room.id); renderLobby();
+    const live=room.state&&room.state.live; const inQ = room.status==='in_game' && Bank.isLive(room.current_game) && live && live.phase==='question';
+    if(!inQ) renderRoomState();   // refresh standings/reveal, but don't rebuild an active question
+  });
   Net.onRoom(room.id, ({new:r})=>{ room=Object.assign(room,r); renderRoomState(); });
   players=await Net.listPlayers(room.id); renderLobby(); renderRoomState();
 }
-function roster(show){ const p=$('#plist'), y=$('#yourteam'); if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none';
+function roster(show){ const p=$('#plist'), y=$('#yourteam'), h=$('#lobbyHead');
+  if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none'; if(h) h.style.display=show?'block':'none';
   const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); }
 function renderRoomState(){
   const w=$('#waiting');
   const live = room.state && room.state.live;
-  if(room.status==='in_game' && live && (live.phase==='question'||live.phase==='reveal')){ roster(false); closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); return renderLive(live); }
-  if(room.status==='in_game' && Arena.isMotion(room.current_game)){ roster(false); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); return renderMotion(room.current_game); }
-  if(room.status==='in_game' && Mash.isMash(room.current_game)){ roster(false); closeMotion(); closeStudio(); closeQuickDraw(); closeSocial(); return renderMash(room.current_game); }
-  if(room.status==='in_game' && live && live.family==='studio'){ roster(false); closeMotion(); closeMash(); closeQuickDraw(); closeSocial(); return renderStudio(live); }
-  if(room.status==='in_game' && Studio.isQuickDraw(room.current_game)){ roster(false); closeMotion(); closeMash(); closeStudio(); closeSocial(); return renderQuickDraw(room.current_game); }
-  if(room.status==='in_game' && live && (live.family==='spy'||live.family==='wordchain'||live.family==='copycat')){ roster(false); closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); return renderSocial(live); }
-  closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); roster(true);
-  if(room.status==='in_game' && room.current_game){
-    w.innerHTML=`<div style="margin-bottom:12px;color:var(--text-strong)"><b>Now playing: ${Net.gameLabel(room.current_game)}</b></div>
-      <a class="btn btn-spark" href="${room.current_game}?room=${room.id}&player=${me.id}&code=${room.code}" style="text-decoration:none">Play Now
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>`;
-  } else if(room.status==='results' || room.status==='ended'){
-    w.innerHTML='<b>Session complete!</b><br>Check the big screen for the final standings.';
-  } else {
-    w.textContent='Waiting for the host to start…';
+  const g = room.current_game;
+  if(room.status==='in_game' && g){
+    // route EVERY game by filename — never launch a standalone (simulated) page
+    if(Bank.isLive(g)){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial();
+      return (live && (live.phase==='question'||live.phase==='reveal')) ? renderLive(live) : getReady(g); }
+    if(Arena.isMotion(g)){ roster(false); closeMash();closeStudio();closeQuickDraw();closeSocial(); return renderMotion(g); }
+    if(Mash.isMash(g)){ roster(false); closeMotion();closeStudio();closeQuickDraw();closeSocial(); return renderMash(g); }
+    if(Studio.isStudio(g)){ roster(false); closeMotion();closeMash();closeQuickDraw();closeSocial();
+      return (live && live.family==='studio') ? renderStudio(live) : getReady(g); }
+    if(Studio.isQuickDraw(g)){ roster(false); closeMotion();closeMash();closeStudio();closeSocial(); return renderQuickDraw(g); }
+    if(Social.isSocial(g)){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();
+      return (live && (live.family==='spy'||live.family==='wordchain'||live.family==='copycat')) ? renderSocial(live) : getReady(g); }
+    roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial(); return getReady(g);
   }
+  closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial();
+  if(room.status==='results' || room.status==='ended'){ roster(false); return renderFinalStandings(); }
+  roster(true); w.textContent='Waiting for the host to start…';
 }
+/* ---- standings on the player's own screen (between games + finale) ---- */
+function avatarMini(p){ const img=Net.charImg(p.avatar);
+  return img ? `<span class="sav" style="background:${Net.TEAM_COLORS[p.team]}"><img src="${img}" alt=""></span>`
+             : `<span class="sav" style="background:${Net.TEAM_COLORS[p.team]}">${(p.name[0]||'?').toUpperCase()}</span>`; }
+function standingsPanel(){
+  const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
+  const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
+  return `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>
+    <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''}"><span class="sr">${i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
+}
+function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  $('#waiting').innerHTML=`<div class="ready">
+    <div class="readyhead"><img class="readyimg" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div><div class="rk">Get ready…</div><div class="rt">${Net.gameLabel(g)}</div></div></div>
+    <div class="standtitle">Standings so far</div>${standingsPanel()}
+    <div class="readywait">The host will start the next game shortly.</div></div>`;
+}
+function renderFinalStandings(){
+  const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
+  const winTeam=totals.indexOf(Math.max(...totals));
+  $('#waiting').innerHTML=`<div class="ready"><div class="rk" style="text-align:center">🏆 Session Complete</div>
+    <div class="rt" style="text-align:center">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</div>
+    <div class="standtitle">Final standings</div>${standingsPanel()}</div>`;
+}
+let liveTimerIv=null;
+function startLiveTimer(endsAt){ clearInterval(liveTimerIv); if(!endsAt){ const t=$('#livetimer'); if(t) t.textContent=''; return; }
+  const tick=()=>{ const t=$('#livetimer'); if(!t){ clearInterval(liveTimerIv); return; } const s=Math.max(0,Math.ceil((endsAt-Date.now())/1000)); t.textContent=s+'s'; t.classList.toggle('low', s<=5); };
+  tick(); liveTimerIv=setInterval(tick,250); }
 function renderLive(live){
   const w=$('#waiting'); const L=['A','B','C','D'], colors=['#F2683C','#7B5BE8','#3FBF7F','#4F9CF9'];
   const type=live.type||'mcq';
@@ -281,8 +337,9 @@ function renderLive(live){
       <div class="livegrid" style="grid-template-columns:repeat(${live.cols},auto)">${live.tiles.map((t,i)=>live.variant==='shape'
         ?`<button class="livetile shape tap" data-i="${i}" ${answered?'disabled':''}>${Bank.shapeSVG(t.s,t.c,46)}</button>`
         :`<button class="livetile tap" data-i="${i}" style="background:${t.c}" ${answered?'disabled':''}></button>`).join('')}</div>`;
-    w.innerHTML=`<div class="livehead">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</div>${body}
+    w.innerHTML=`<div class="livetop"><span class="livehead" style="margin:0">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</span><span class="livetimer" id="livetimer">–</span></div>${body}
       <div class="livenote" id="lnote">${answered?'Locked in — hang tight!':(type==='vote'?'Pick a side, fast!':type==='grid'?'Tap the right one, fast!':'Tap your answer, fast!')}</div>`;
+    startLiveTimer(live.endsAt);
     if(!answered) w.querySelectorAll('.tap').forEach(b=>b.addEventListener('click', async ()=>{
       if(answeredRound===live.round) return;
       w.querySelectorAll('.tap').forEach(x=>{ x.disabled=true; }); b.classList.add('picked');
@@ -290,6 +347,7 @@ function renderLive(live){
       await send(+b.dataset.i);
     }));
   } else {  // reveal
+    clearInterval(liveTimerIv);
     let body;
     if(type==='mcq') body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
       <div class="liveopts">${live.options.map((o,i)=>`<div class="liveopt ${i===live.correct?'right':'dim'}" style="background:${i===live.correct?colors[i]:'var(--surface-sunken)'};color:${i===live.correct?'#fff':'var(--text-muted)'}"><span style="${i===live.correct?'':'background:var(--border-soft)'}">${L[i]}</span>${o}${i===live.correct?' ✓':''}</div>`).join('')}</div>`;

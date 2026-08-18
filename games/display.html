@@ -302,7 +302,7 @@ function dispReveal(game, round, N, q, note){
 
 async function runLiveGame(game){
   driving=true;
-  const N=8, QT=12000, RT=4200;
+  const N=8, QT=20000, RT=4500;   // 20s to answer, then reveal
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
     const q=Bank.makeQuestion(game, round);
