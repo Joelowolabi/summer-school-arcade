@@ -50,7 +50,9 @@
   .gchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:14px}
   .gchip{display:flex;align-items:center;gap:10px;border:2px solid var(--border-soft);border-radius:var(--radius-l);background:var(--surface-sunken);padding:11px 14px;cursor:pointer;user-select:none;transition:transform .1s var(--ease-pop),border-color .12s,background .12s}
   .gchip:hover{transform:translateY(-1px)}
-  .gchip .em{font-size:20px;line-height:1;flex:0 0 auto}
+  .gchip .gicon{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+  .gchip .gimg{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(30,27,38,.14))}
+  .gchip .em{font-size:22px;line-height:1;flex:0 0 auto}
   .gchip .gn{font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-body-s);line-height:1.15}
   .gchip .ck{margin-left:auto;width:22px;height:22px;border-radius:7px;border:2px solid var(--border-soft);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:var(--fw-bold)}
   .gchip.on{border-color:var(--accent-play);background:var(--purple-50)}
@@ -199,7 +201,8 @@ function setMode(m){ mode=m; selected=new Set(visibleGames().map(g=>g.f));   // 
   $('#modeHint').textContent = MODE_HINT[m]; renderPicker(); render(); }
 function renderPicker(){
   const chips=$('#gchips'); if(!chips) return;
-  chips.innerHTML = visibleGames().map(g=>`<div class="gchip ${selected.has(g.f)?'on':'off'}" data-f="${g.f}"><span class="em">${g.e}</span><span class="gn">${g.n}</span><span class="ck">${selected.has(g.f)?'✓':''}</span></div>`).join('');
+  chips.innerHTML = visibleGames().map(g=>{ const slug=g.f.replace(/-3d\.html$/,'').replace(/\.html$/,'');
+    return `<div class="gchip ${selected.has(g.f)?'on':'off'}" data-f="${g.f}"><span class="gicon"><img class="gimg" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span class="em" style="display:none">${g.e}</span></span><span class="gn">${g.n}</span><span class="ck">${selected.has(g.f)?'✓':''}</span></div>`; }).join('');
   chips.querySelectorAll('.gchip').forEach(ch=>ch.addEventListener('click',()=>{ const f=ch.dataset.f; selected.has(f)?selected.delete(f):selected.add(f); renderPicker(); render(); }));
   $('#gcount').textContent = selectedGames().length;
 }
@@ -213,8 +216,8 @@ $('#startBtn').addEventListener('click', async ()=>{
   if(games.length===0) return;
   $('#pickerCard').style.display='none';
   $('#startBtn').style.display='none'; $('#minNote').style.display='none';
-  await Net.startSession(room.id, games);            // broadcasts to display + players
-  room.state = { games, index:0 }; room.current_game = games[0]; room.status='in_game';
+  await Net.startSession(room.id, games, { mode });  // broadcasts to display + players
+  room.state = { games, index:0, mode }; room.current_game = games[0]; room.status='in_game';
   $('#sessionCtrl').style.display='block';
   updateCtrl();
 });

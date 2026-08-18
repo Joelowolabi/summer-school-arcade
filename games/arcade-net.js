@@ -65,13 +65,13 @@ export function gameLabel(file){
   if(!file) return '';
   return file.replace(/-3d\.html$/,'').replace(/\.html$/,'').replace(/-/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
 }
-export async function startSession(roomId, games){
-  await setRoom(roomId, { status:'in_game', current_game:games[0], phase:'playing', state:{ games, index:0 } });
+export async function startSession(roomId, games, extra={}){
+  await setRoom(roomId, { status:'in_game', current_game:games[0], phase:'playing', state:Object.assign({ games, index:0 }, extra) });
 }
 export async function advanceGame(roomId, room){
   const st = room.state||{}; const games = st.games||[]; const idx = (st.index||0)+1;
   if(idx >= games.length){ await setRoom(roomId, { status:'results', phase:'summary' }); return true; }
-  await setRoom(roomId, { current_game:games[idx], state:{ games, index:idx } });
+  await setRoom(roomId, { current_game:games[idx], state:Object.assign({}, st, { games, index:idx }) });  // preserve mode etc.
   return false;
 }
 export async function endSession(roomId){ await setRoom(roomId, { status:'ended', phase:'ended' }); }

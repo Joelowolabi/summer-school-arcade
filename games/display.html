@@ -52,6 +52,13 @@
   .lrow .nm{flex:1;font-weight:var(--fw-bold);font-size:var(--fs-h4)}
   .lrow .pt{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);font-variant-numeric:tabular-nums}
   .lrow.top1{background:rgba(255,217,59,.22)} .lrow.top2{background:rgba(255,255,255,.16)} .lrow.top3{background:rgba(247,144,110,.2)}
+  /* mode emphasis: individual leaderboard vs team board */
+  .lead.em-solo{grid-template-columns:1.85fr .62fr}
+  .lead.em-solo .tbig{padding:14px 20px} .lead.em-solo .tbig .tn{font-size:var(--fs-h4)} .lead.em-solo .tbig .tv{font-size:var(--fs-h1)}
+  .lead.em-team{grid-template-columns:.72fr 1.6fr}
+  .lead.em-team .tbig{padding:32px 32px} .lead.em-team .tbig .tv{font-size:var(--fs-display-l)}
+  .lead.em-team .nowcard{padding:22px} .lead.em-team .nowcard h1{font-size:var(--fs-h1)} .lead.em-team .lrow{padding:8px 14px} .lead.em-team .lrow .nm,.lead.em-team .lrow .pt{font-size:var(--fs-body)}
+  .emlabel{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);font-weight:var(--fw-bold);color:#fff;opacity:.9;margin-bottom:10px}
   .teamsbig{display:flex;flex-direction:column;gap:16px}
   .tbig{border-radius:var(--radius-2xl);padding:22px 26px;color:#fff;display:flex;align-items:center;justify-content:space-between}
   .tbig .tn{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2)}
@@ -215,15 +222,16 @@ function renderLobby(){
 function renderGame(){
   const totals=teamTotals();
   const sorted=[...players].sort((a,b)=>b.points-a.points).slice(0,12);
+  const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
   $('#stage').innerHTML=`
-    <div class="lead">
+    <div class="lead ${cls}">
       <div class="nowcard">
-        <div class="k">Now Playing</div>
+        <div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div>
         <h1>${Net.gameLabel(room.current_game)}</h1>
         <div class="llist">${sorted.map((p,i)=>`
           <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}</div>
       </div>
-      <div class="teamsbig">${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}</div>
+      <div class="teamsbig">${mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':''}${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}</div>
     </div>`;
 }
 
@@ -232,8 +240,9 @@ function renderSummary(){
   const sorted=[...players].sort((a,b)=>b.points-a.points);
   const winTeam=totals.indexOf(Math.max(...totals));
   const top=sorted.slice(0,10);
+  const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
   $('#stage').innerHTML=`
-    <div class="lead">
+    <div class="lead ${cls}">
       <div class="nowcard">
         <div class="k">Session Summary</div>
         <h1>Final Standings</h1>
