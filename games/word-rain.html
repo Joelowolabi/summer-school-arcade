@@ -1,0 +1,160 @@
+<!-- Summer School Arcade — Word Rain (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Rain — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .field{flex:1;position:relative;border-radius:var(--radius-xl);border:1px solid var(--border-hairline);background:
+    linear-gradient(180deg,#FBFAFE,#F3F0FB);overflow:hidden;min-height:0}
+  .drop{position:absolute;top:-40px;transform:translateX(-50%);background:var(--surface-card);border:1px solid var(--border-soft);border-radius:var(--radius-pill);padding:8px 16px;font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong);box-shadow:var(--shadow-s);white-space:nowrap}
+  .drop .hit{color:var(--accent-play)}
+  .drop.zap{animation:zap .28s var(--ease-out-soft) forwards}
+  @keyframes zap{to{transform:translateX(-50%) scale(1.5);opacity:0}}
+  .field .baseline{position:absolute;left:0;right:0;bottom:52px;border-top:2px dashed var(--border-strong);opacity:.6}
+  .life-row{position:absolute;top:10px;right:14px;display:flex;gap:6px}
+  .heart{width:20px;height:20px;color:var(--red-400)}
+  .heart.gone{opacity:.25}
+  .typerow{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;padding:0 12px}
+  .typer{width:100%;max-width:420px;height:var(--control-h-l);border-radius:var(--radius-pill);border:2px solid var(--border-focus);padding:0 22px;font-family:var(--font-core);font-size:var(--fs-body-l);font-weight:var(--fw-semibold);text-align:center;color:var(--text-strong);box-shadow:var(--shadow-m)}
+  .typer:focus{outline:none;box-shadow:var(--focus-ring)}
+  .scorechip{position:absolute;top:10px;left:14px;display:inline-flex;align-items:center;gap:8px;background:var(--accent-deep);color:#fff;border-radius:var(--radius-pill);padding:6px 14px;font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow">All Players · Type To Zap</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:10px"><h1 id="promptTitle">Word <span class="hi">Rain</span></h1>
+        <p id="promptSub">Type a falling word and it zaps away. Don't let words hit the line!</p></div>
+
+      <div class="field" id="field">
+        <div class="scorechip">Score <b id="score">0</b></div>
+        <div class="life-row" id="lives"></div>
+        <div class="baseline"></div>
+        <div class="typerow"><input class="typer" id="typer" placeholder="type here…" autocomplete="off" spellcheck="false" disabled></div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Word Rain</h1>
+          <p class="goal">Goal: <b>zap words before they reach the line</b>.</p>
+          <ol class="steps">
+            <li>Words fall from the top of the screen.</li>
+            <li>Type a word exactly to zap it away.</li>
+            <li>Each word that crosses the line costs a life.</li>
+            <li>It speeds up — score as much as you can before time or lives run out.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Keyboard — type + <span class="keycap">Enter</span></span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Points per letter zapped · 3 lives</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const WORDS='cat dog sun moon star fish tree leaf cake milk jump play kite frog bird nest rock sand wave surf glow ring book lion bear duck goat corn drum bell ship rope gold ruby swim run fast wind rain snow cloud happy brave shiny fluffy rocket planet dragon cookie puzzle rabbit turtle monkey pumpkin unicorn dolphin penguin'.split(' ');
+const GAME_TIME=60;
+let drops=[], score=0, lives=3, running=false, raf=null, spawnT=0, elapsed=0, lastTs=0;
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Word Rain', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+renderLives();
+function heartSVG(){ return `<svg class="heart" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l-1.4-1.3C5 14.9 2 12.2 2 8.8 2 6.1 4 4 6.6 4c1.5 0 3 .7 3.9 1.9C11.5 4.7 13 4 14.5 4 17 4 19 6.1 19 8.8c0 3.4-3 6.1-8.6 10.9z"/></svg>`; }
+function renderLives(){ $('#lives').innerHTML=[0,1,2].map(i=>heartSVG().replace('class="heart"', 'class="heart'+(i<lives?'':' gone')+'"')).join(''); }
+
+const field=$('#field'), typer=$('#typer');
+function start(){
+  $('#preOverlay').classList.add('hide'); drops.forEach(d=>d.el.remove()); drops=[];
+  score=0; lives=3; elapsed=0; spawnT=0; running=false; renderLives(); $('#score').textContent='0';
+  A.countdown($('#countOverlay'), ()=>{
+    running=true; typer.disabled=false; typer.focus(); $('#timerLabel').textContent='Type!';
+    const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+    fill.style.transition=`width ${GAME_TIME}s linear`; fill.style.width='0%';
+    startBots(); lastTs=0; raf=requestAnimationFrame(loop);
+    endTimer=setTimeout(()=>finish('time'), GAME_TIME*1000);
+  });
+}
+let endTimer=null;
+
+function spawn(){
+  const w=A.pick(WORDS); const el=document.createElement('div'); el.className='drop';
+  const fw=field.clientWidth; const x=20+Math.random()*(fw-40);
+  el.style.left=x+'px'; el.textContent=w; field.appendChild(el);
+  drops.push({w, el, x, y:-30, speed: 34 + elapsed*0.9 + Math.random()*20});
+}
+function loop(ts){
+  if(!running) return; if(!lastTs) lastTs=ts; const dt=(ts-lastTs)/1000; lastTs=ts; elapsed+=dt;
+  spawnT-=dt; if(spawnT<=0){ spawn(); spawnT=Math.max(0.55, 1.6 - elapsed*0.02); }
+  const limit=field.clientHeight-52;
+  for(const d of drops){ if(d.dead) continue; d.y += d.speed*dt; d.el.style.top=d.y+'px';
+    if(d.y>=limit){ d.dead=true; d.el.remove(); loseLife(); }
+  }
+  drops=drops.filter(d=>!d.dead);
+  renderTyping();
+  raf=requestAnimationFrame(loop);
+}
+function loseLife(){ lives--; renderLives(); A.sfx('wrong'); if(lives<=0) finish('dead'); }
+
+function renderTyping(){
+  const val=typer.value.trim().toLowerCase();
+  for(const d of drops){ if(d.dead) continue;
+    if(val && d.w.startsWith(val)){ d.el.innerHTML=`<span class="hit">${d.w.slice(0,val.length)}</span>${d.w.slice(val.length)}`; }
+    else d.el.textContent=d.w;
+  }
+}
+function tryZap(){
+  const val=typer.value.trim().toLowerCase(); if(!val) return;
+  // zap the LOWEST matching word
+  let target=null; for(const d of drops){ if(!d.dead && d.w===val && (!target||d.y>target.y)) target=d; }
+  if(target){ target.dead=true; target.el.classList.add('zap'); setTimeout(()=>target.el.remove(),280); A.sfx('pop');
+    score += target.w.length; $('#score').textContent=score; players[0].pts=score; A.renderBoard(players);
+    typer.value=''; }
+}
+typer.addEventListener('input', renderTyping);
+typer.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); tryZap(); } });
+
+let botTimer=null;
+function startBots(){ clearInterval(botTimer); botTimer=setInterval(()=>{ if(!running) return;
+  players.forEach(p=>{ if(p.me||p.disconnected) return; if(Math.random()<p.skill*0.5) p.pts += Math.round(A.rand(3,7)); });
+  A.renderBoard(players);
+},700); }
+
+function finish(reason){
+  if(!running) return; running=false; cancelAnimationFrame(raf); clearInterval(botTimer); clearTimeout(endTimer);
+  typer.disabled=true; drops.forEach(d=>d.el.remove()); drops=[];
+  players[0].pts=score; A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  $('#promptTitle').innerHTML='Word Rain <span class="hi">Over</span>'; $('#timerLabel').textContent='Complete';
+  v.textContent = myRank===1?'Champion!':(reason==='dead'?'Out Of Lives!':`You Placed #${myRank}`);
+  v.className='verdict '+(myRank<=3?'win':'late');
+  sub.innerHTML=`You zapped words for <b>${score}</b> points. Season total <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  pts.textContent=`Rank ${myRank} of 30`; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+$('#startBtn').addEventListener('click', start);
+</script>
+</body>
+</html>

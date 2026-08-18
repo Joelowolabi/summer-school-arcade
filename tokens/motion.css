@@ -1,0 +1,26 @@
+:root{
+--dur-instant:80ms; /* @kind other */
+--dur-fast:140ms; /* @kind other */
+--dur-base:220ms; /* @kind other */
+--dur-slow:380ms; /* @kind other */
+--dur-lazy:600ms; /* @kind other */
+/* default enter/exit */
+--ease-standard:cubic-bezier(.22,.61,.36,1); /* @kind other */
+/* cards, sheets */
+--ease-out-soft:cubic-bezier(.16,1,.3,1); /* @kind other */
+/* the one springy overshoot — buttons, badges */
+--ease-pop:cubic-bezier(.34,1.56,.64,1); /* @kind other */
+--ease-in:cubic-bezier(.4,0,1,1); /* @kind other */
+
+--press-scale:.97; /* @kind other */
+--hover-lift:-2px; /* @kind spacing */
+--transition-control:background-color var(--dur-fast) var(--ease-standard),box-shadow var(--dur-fast) var(--ease-standard),transform var(--dur-fast) var(--ease-pop); /* @kind other */
+}
+@media (prefers-reduced-motion:reduce){:root{
+--dur-fast:0ms; /* @kind other */
+--dur-base:0ms; /* @kind other */
+--dur-slow:0ms; /* @kind other */
+--dur-lazy:0ms; /* @kind other */
+--press-scale:1; /* @kind other */
+--hover-lift:0px; /* @kind spacing */
+}}

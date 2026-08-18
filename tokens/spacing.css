@@ -1,0 +1,22 @@
+:root{
+--space-0:0;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;
+--space-6:24px;--space-7:32px;--space-8:40px;--space-9:48px;--space-10:64px;
+--space-11:80px;--space-12:104px;--space-13:140px;
+
+--gutter-card:20px;      /* interior padding of a standard card */
+--gutter-card-lg:28px;   /* feature / hero cards */
+--gutter-section:96px;   /* vertical rhythm between marketing sections */
+--gutter-grid:20px;      /* gap between sibling cards */
+
+--container-max:1180px;
+--container-narrow:720px;
+--rail-app:280px;
+
+--radius-xs:6px;--radius-s:10px;--radius-m:14px;--radius-l:20px;--radius-xl:28px;
+--radius-2xl:36px;--radius-pill:999px;
+
+--control-h-s:32px;--control-h-m:40px;--control-h-l:48px;
+--hit-min:44px; /* @kind spacing */
+--border-w:1px; /* @kind spacing */
+--border-w-thick:2px; /* @kind spacing */
+}

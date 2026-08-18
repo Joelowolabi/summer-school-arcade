@@ -1,0 +1,170 @@
+<!-- Summer School Arcade — Game Hub. Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  /* the home page scrolls (games do not) — override the viewport-locked game shell */
+  html,body{height:auto}
+  body{height:auto; min-height:100dvh; overflow-y:auto; overflow-x:hidden}
+  .wrap{max-width:1120px; height:auto; min-height:0}
+  .top{display:flex;align-items:center;gap:16px;color:#fff;padding:6px 4px}
+  .top .brand{display:flex;align-items:center;gap:12px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2);letter-spacing:var(--ls-heading)}
+  .top .brand .spark{width:38px;height:38px;border-radius:var(--radius-pill);background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900);box-shadow:var(--shadow-s)}
+  .top .brand small{display:block;font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.82;font-weight:var(--fw-medium);margin-top:1px}
+  .top .grow{flex:1}
+  .hero{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 32px;display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+  .hero .htext{flex:1;min-width:280px}
+  .hero .kicker{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:10px}
+  .hero h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);color:var(--text-strong);line-height:var(--lh-tight);margin:0}
+  .hero p{color:var(--text-muted);font-size:var(--fs-body-l);margin:12px 0 0;max-width:520px}
+  .hero .reassure{margin-top:16px;color:var(--text-muted);font-size:var(--fs-body-s);font-weight:var(--fw-medium)}
+  .season-card{background:var(--surface-sunken);border-radius:var(--radius-xl);padding:20px 22px;min-width:250px}
+  .season-card h3{margin:0 0 12px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong)}
+  .lb-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .lb-row .rk{width:18px;font-weight:var(--fw-bold);color:var(--text-muted);font-size:var(--fs-body-s)}
+  .lb-row .av{width:26px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-caption)}
+  .lb-row .nm{flex:1;font-weight:var(--fw-semibold);font-size:var(--fs-body-s);color:var(--text-strong)}
+  .lb-row .pt{font-weight:var(--fw-bold);font-variant-numeric:tabular-nums;font-size:var(--fs-body-s)}
+  .lb-teams{display:flex;gap:8px;margin-bottom:12px}
+  .lb-teams .t{flex:1;text-align:center;border-radius:var(--radius-m);padding:8px 4px;color:#fff;font-weight:var(--fw-bold)}
+  .lb-teams .t small{display:block;font-size:var(--fs-micro);opacity:.85;font-weight:var(--fw-medium)}
+  .cupbanner{display:flex;align-items:center;gap:20px;text-decoration:none;color:#fff;background:linear-gradient(120deg, var(--accent-deep), #6B4CD8 60%, var(--accent-play));border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:24px 28px;margin-top:4px;position:relative;overflow:hidden;transition:transform var(--dur-base) var(--ease-out-soft),box-shadow var(--dur-base)}
+  .cupbanner:hover{transform:translateY(-3px);box-shadow:var(--shadow-xl),0 0 0 3px rgba(255,217,59,.5)}
+  .cupbanner .cuptext{flex:1}
+  .cupbanner .cupkick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-sun);font-weight:var(--fw-bold);margin-bottom:6px}
+  .cupbanner h2{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);letter-spacing:var(--ls-display);margin:0}
+  .cupbanner p{margin:6px 0 0;color:rgba(255,255,255,.9);font-size:var(--fs-body);max-width:620px}
+  .cupbanner .cupgo{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;background:var(--accent-sun);color:var(--ink-900);font-weight:var(--fw-bold);border-radius:var(--radius-pill);padding:12px 22px;box-shadow:var(--shadow-s);font-size:var(--fs-body-l)}
+  @media(max-width:640px){ .cupbanner{flex-direction:column;align-items:flex-start;gap:14px} }
+  .sec-head{display:flex;align-items:baseline;gap:12px;color:#fff;margin:6px 4px -4px}
+  .sec-head h2{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2);margin:0}
+  .sec-head span{opacity:.82;font-size:var(--fs-body-s)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:18px}
+  .gcard{display:flex;flex-direction:column;background:var(--surface-page);border-radius:var(--radius-xl);box-shadow:var(--shadow-s);border:1px solid var(--border-hairline);overflow:hidden;text-decoration:none;color:inherit;transition:transform var(--dur-base) var(--ease-out-soft),box-shadow var(--dur-base) var(--ease-out-soft)}
+  .gcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-l)}
+  .gcard .cover{height:132px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .gcard .cover svg{width:52px;height:52px;color:#fff}
+  .gcard .cover .gicon{height:118px;width:auto;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(30,27,38,.22));transition:transform var(--dur-base) var(--ease-out-soft)}
+  .gcard:hover .cover .gicon{transform:scale(1.06) translateY(-2px)}
+  .gcard .mode{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.9);color:var(--ink-800);font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:4px 10px;border-radius:99px}
+  .gcard .badge3d{position:absolute;top:10px;left:10px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:4px 9px;border-radius:99px;letter-spacing:.04em}
+  .gcard .body{padding:14px 16px 16px}
+  .gcard h3{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong);margin:0}
+  .gcard p{color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0;line-height:var(--lh-normal)}
+  .gcard .go{margin-top:12px;display:inline-flex;align-items:center;gap:6px;color:var(--text-link);font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
+  .footnote{color:rgba(255,255,255,.85);font-size:var(--fs-body-s);text-align:center;padding:8px 0 4px}
+  .footnote a{color:#fff;text-decoration:underline;cursor:pointer}
+  .reset{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:var(--radius-pill);padding:8px 16px;font-weight:var(--fw-semibold);font-size:var(--fs-body-s);cursor:pointer}
+  .reset:hover{background:rgba(255,255,255,.22)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="spark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
+      <span>Summer School Arcade<small>Zappy · PC Game Hub</small></span></div>
+    <div class="grow"></div>
+    <a class="reset" href="landing.html" style="text-decoration:none;margin-right:10px">Home</a>
+    <a class="reset" href="host.html" style="text-decoration:none;margin-right:10px">Host</a>
+    <button class="reset" id="resetBtn">Reset Season</button>
+  </div>
+
+  <div class="hero">
+    <div class="htext">
+      <div class="kicker">Season Week 2 · Room ZAP-7Q</div>
+      <h1>Pick A Game<br>And Play</h1>
+      <p>A whole library of browser games for the room — reflex races, team battles, memory, trivia, drawing and word games — plus the Arcade Cup tournament. Every game feeds one Season-long leaderboard.</p>
+      <div class="reassure">No Installs · No Logins · Ages 8–13 · Mouse + Keyboard</div>
+    </div>
+    <div class="season-card">
+      <h3>Season Standings</h3>
+      <div class="lb-teams" id="lbTeams"></div>
+      <div id="lbList"></div>
+    </div>
+  </div>
+
+  <a class="cupbanner" href="cup.html">
+    <div class="cuptext">
+      <div class="cupkick">New · Individual Tournament</div>
+      <h2>The Arcade Cup</h2>
+      <p>Play a rotation of games back to back. Earn Cup points by placement each round — highest total after the 2× final is crowned Champion.</p>
+    </div>
+    <span class="cupgo">Start The Cup
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+  </a>
+
+  <div class="sec-head"><h2>The Library</h2><span id="libCount">18 games · host picks the rotation</span></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="footnote">Live multiplayer is on · <a href="host.html">Host a game</a> &nbsp;·&nbsp; <a href="join.html">Join a game</a> &nbsp;·&nbsp; games run solo (simulated) until launched from a hosted room.</div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade;
+const GAMES=[
+  {f:'click-rush.html', t:'Click Rush', mode:'All 30', c:'#F2683C', icon:'M13 2L3 14h7l-1 8 10-12h-7z', d:'Spot the target among decoys. Fastest correct click each round takes the points.'},
+  {f:'color-wars-3d.html', d3:true, t:'Color Wars', mode:'3 Teams', c:'#7B5BE8', icon:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', d:'Claim tiles on a 3D grid — they rise and flip to your team\'s color. Most tiles wins.'},
+  {f:'balloon-pop-race-3d.html', d3:true, t:'Balloon Pop Race', mode:'Heats', c:'#4F9CF9', icon:'M12 3c4 0 7 3 7 8s-3 9-7 9-7-4-7-9 3-8 7-8zM12 20v2', d:'Mash to inflate a real 3D balloon. First to pop wins the heat and races to the Finale.'},
+  {f:'team-tug-of-war.html', t:'Team Tug of War', mode:'3 Teams', c:'#E5484D', icon:'M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4', d:'Every pull drags the rope your way. Haul the knot into your zone to win.'},
+  {f:'word-chain-blitz.html', t:'Word Chain Blitz', mode:'Team Relay', c:'#6B4CD8', icon:'M4 7h16M4 12h10M4 17h13', d:'Type words that chain by last letter. First team to 15 valid words wins.'},
+  {f:'this-or-that.html', t:'This or That', mode:'All 30', c:'#F5C81F', icon:'M8 5l-5 7 5 7M16 5l5 7-5 7', d:'Two options, one tap. Score when you side with the majority.'},
+  {f:'doodle-duel.html', t:'Doodle Duel', mode:'Team → All', c:'#F2683C', icon:'M4 20l4-1 10-10-3-3L5 16zM14 6l3 3', d:'Draw a secret word, vote for your team\'s best, then all 30 crown the champion.'},
+  {f:'build-a-monster.html', t:'Build-a-Monster', mode:'Team', c:'#8E6FEE', icon:'M7 8h10v9a5 5 0 0 1-10 0zM9 5v3M15 5v3M10 12h.1M14 12h.1', d:'Everyone draws one body part blind. We stitch it, the room votes the weirdest.'},
+  {f:'secret-spy.html', t:'Secret Spy', mode:'Squads of 5', c:'#3B3746', icon:'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM8 12h8', d:'One player has no theme. Give clues, then vote to unmask the Spy.'},
+  {f:'mystery-box-roulette-3d.html', d3:true, t:'Mystery Box Roulette', mode:'Reward', c:'#FFD93B', tc:'#1E1B26', icon:'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z', d:'Spin a 3D prize wheel between games for bonus points, power-ups and silly titles.'},
+  {f:'trail-blazer.html', d3:true, t:'Trail Blazer', mode:'Heats', c:'#3FBF7F', icon:'M3 17l5-5 4 4 9-9', d:'Leave a glowing wall of light in a 3D arena. Crash and you\'re out — last rider wins.'},
+  {f:'trivia-sprint.html', t:'Trivia Sprint', mode:'All 30', c:'#4F9CF9', icon:'M9.1 9a3 3 0 1 1 4 2.8c-1 .6-1.1 1.2-1.1 2.2M12 17h.01', d:'Rapid-fire quiz on fun topics. Answer correctly and fast to top the leaderboard.'},
+  {f:'copycat.html', t:'Copycat', mode:'Last Standing', c:'#7B5BE8', icon:'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM13 13h6v6h-6z', d:'Watch the growing pattern, then repeat it. One slip and you\'re eliminated.'},
+  {f:'word-rain.html', t:'Word Rain', mode:'All 30', c:'#F2683C', icon:'M7 4v9M12 4v13M17 4v7M4 21h16', d:'Words fall from the sky — type them to zap them before they hit the ground.'},
+  {f:'maze-dash.html', d3:true, t:'Maze Dash', mode:'Race', c:'#E5484D', icon:'M4 4h16v16H4zM4 10h9M13 4v6M13 14v6M17 10v10', d:'Steer through a fresh 3D maze and reach the glowing exit before everyone else.'},
+  {f:'quick-draw-guess.html', t:'Quick Draw Guess', mode:'Draw & Guess', c:'#F5C81F', tc:'#1E1B26', icon:'M4 20l4-1 10-10-3-3L5 16zM14 6l3 3', d:'Draw the secret word for the room, then race to guess everyone else\'s doodles.'},
+  {f:'odd-one-out.html', t:'Odd One Out', mode:'All 30', c:'#8E6FEE', icon:'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM14.5 14.5h4v4h-4z', d:'Every tile is the same shade — except one. Spot and click the odd one fastest.'},
+  {f:'number-ninjas.html', t:'Number Ninjas', mode:'All 30', c:'#6B4CD8', icon:'M7 4L5 20M15 4l-2 16M4 9h15M3 15h15', d:'Quick maths and pattern puzzles. Fastest correct answer slices the round.'},
+];
+
+function cover(c){ return `linear-gradient(150deg, ${c}, ${shade(c,-18)})`; }
+function shade(hex,p){ const n=parseInt(hex.slice(1),16); let r=n>>16&255,g=n>>8&255,b=n&255; r=Math.max(0,Math.min(255,r+p)); g=Math.max(0,Math.min(255,g+p)); b=Math.max(0,Math.min(255,b+p)); return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
+
+document.getElementById('libCount').textContent=GAMES.length+' games · host picks the rotation';
+document.getElementById('grid').innerHTML=GAMES.map(g=>{
+  const slug=g.f.replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  return `
+  <a class="gcard" href="${g.f}">
+    <div class="cover" style="background:${cover(g.c)}">
+      <span class="mode">${g.mode}</span>
+      ${g.d3?'<span class="badge3d">3D</span>':''}
+      <img class="gicon" src="assets/games/${slug}.png" alt="${g.t}" onerror="this.style.display='none'">
+    </div>
+    <div class="body"><h3>${g.t}</h3><p>${g.d}</p>
+      <span class="go">Play now <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </div>
+  </a>`; }).join('');
+
+/* Season standings pulled from localStorage */
+function renderStandings(){
+  const season=A.loadSeason();
+  const roster=A.makeRoster({dropouts:false});
+  // apply saved names
+  const teamTot=[0,0,0]; const list=[];
+  roster.forEach(p=>{ const rec=season['p'+p.id]||{}; const pts=rec.pts||0; const team=rec.team!=null?rec.team:p.team; teamTot[team]+=pts; list.push({name:p.me?'You':(rec.name||p.name),me:p.me,team,pts}); });
+  const T=A.TEAMS;
+  document.getElementById('lbTeams').innerHTML=T.map((t,i)=>`<div class="t" style="background:${t.color}">${teamTot[i]}<small>${t.name}</small></div>`).join('');
+  const top=list.sort((a,b)=>b.pts-a.pts).slice(0,5);
+  document.getElementById('lbList').innerHTML=top.map((p,i)=>`
+    <div class="lb-row"><span class="rk">${i+1}</span><span class="av" style="background:${T[p.team].color}">${p.me?'★':p.name[0]}</span>
+      <span class="nm">${p.name}</span><span class="pt">${p.pts}</span></div>`).join('')
+    || '<div class="lb-row"><span class="nm" style="color:var(--text-muted)">Play a game to start the Season.</span></div>';
+}
+renderStandings();
+
+document.getElementById('resetBtn').onclick=()=>{ if(confirm('Reset the whole Season leaderboard to zero?')){ localStorage.removeItem('ssa_season_v1'); localStorage.removeItem('ssa_powerup'); localStorage.removeItem('ssa_title'); renderStandings(); } };
+document.getElementById('hostLink').onclick=()=>alert('Coming next: Host a Game (room code to the projector), player join flow (code → name → avatar → auto team), the lobby, host session rotation across games, and the read-only Shared-Display view.');
+</script>
+</body>
+</html>

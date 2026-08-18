@@ -1,0 +1,152 @@
+<!-- Summer School Arcade — Host / Shared Display (real multiplayer). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  html,body{height:auto}
+  body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:block}
+  .page{max-width:1100px;margin:0 auto;padding:24px 24px 48px}
+  .top{display:flex;align-items:center;gap:12px;color:#fff;margin-bottom:18px}
+  .top .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3)}
+  .top .brand .spark{width:34px;height:34px;border-radius:99px;background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900)}
+  .top .grow{flex:1}
+  .cols{display:grid;grid-template-columns:360px 1fr;gap:20px}
+  @media(max-width:820px){ .cols{grid-template-columns:1fr} }
+  .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:26px}
+  .codecard{text-align:center}
+  .codecard .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold)}
+  .code{font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:56px;letter-spacing:.08em;color:var(--text-strong);margin:10px 0 6px}
+  .codecard p{color:var(--text-muted);font-size:var(--fs-body);margin:6px 0 0}
+  .codecard .joinurl{margin-top:14px;display:inline-block;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:8px 16px;font-family:var(--font-mono);font-size:var(--fs-body-s);color:var(--text-body)}
+  .teams{display:flex;gap:10px;margin:22px 0}
+  .tteam{flex:1;border-radius:var(--radius-l);padding:12px;text-align:center;color:#fff}
+  .tteam .n{font-size:var(--fs-body-s);opacity:.9;font-weight:var(--fw-medium)}
+  .tteam .c{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2)}
+  .lobbyhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+  .lobbyhead h2{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong);margin:0}
+  .lobbyhead .cnt{color:var(--text-muted);font-weight:var(--fw-semibold)}
+  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;min-height:120px}
+  .pcard{display:flex;align-items:center;gap:10px;background:var(--surface-sunken);border-radius:var(--radius-l);padding:10px 12px;animation:pop .3s var(--ease-pop)}
+  @keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+  .pcard .av{width:36px;height:36px;border-radius:99px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold)}
+  .pcard .av img{width:100%;height:100%;object-fit:contain}
+  .pcard .nm{font-weight:var(--fw-bold);color:var(--text-strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard.off{opacity:.5}
+  .empty{color:var(--text-muted);grid-column:1/-1;text-align:center;padding:30px 0}
+  .startrow{display:flex;align-items:center;gap:14px;margin-top:20px}
+  .status{color:#fff;text-align:center;padding:10px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <div class="brand"><span class="spark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span> Summer School Arcade · Host</div>
+    <div class="grow"></div>
+    <a class="btn btn-ghost sm" href="index.html">Exit</a>
+  </div>
+
+  <div id="loading" class="status">Creating room…</div>
+
+  <div class="cols" id="main" style="display:none">
+    <div class="card codecard">
+      <div class="kick">Room Code</div>
+      <div class="code" id="code">— — —</div>
+      <p>Students open the join page and type this code</p>
+      <span class="joinurl" id="joinurl">…/join.html</span>
+      <div class="teams" id="teams"></div>
+      <div class="startrow">
+        <button class="btn btn-spark" id="startBtn" disabled style="flex:1">Start Session</button>
+      </div>
+      <a class="btn btn-secondary sm" id="displayBtn" target="_blank" style="margin-top:10px;width:100%;text-decoration:none">Open Shared Display →</a>
+      <p id="minNote" style="margin-top:10px">Waiting for at least 4 players…</p>
+
+      <div id="sessionCtrl" style="display:none;margin-top:18px;border-top:1px solid var(--border-hairline);padding-top:16px">
+        <div style="font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--text-muted);font-weight:var(--fw-bold)">Now Playing · <span id="gmeta">Game 1 of 5</span></div>
+        <div id="curGame" style="font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);margin:4px 0 14px">—</div>
+        <div class="startrow">
+          <button class="btn btn-play" id="nextBtn" style="flex:1">Next Game</button>
+          <button class="btn btn-secondary" id="endBtn">End</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin-top:10px">Advancing moves every player and the display to the next game together.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lobbyhead"><h2>Lobby</h2><span class="cnt"><b id="joinCount">0</b> joined</span></div>
+      <div class="plist" id="plist"><div class="empty">No one has joined yet. Share the code!</div></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as Net from './arcade-net.js';
+const $=s=>document.querySelector(s);
+let room=null, players=[];
+
+async function boot(){
+  try{
+    const r = await Net.createRoom();
+    room = r.room;
+    localStorage.setItem('ssa_host_room', room.id);
+    localStorage.setItem('ssa_host_token', r.hostToken);
+    $('#loading').style.display='none'; $('#main').style.display='grid';
+    $('#code').textContent = room.code;
+    $('#joinurl').textContent = location.origin + '/games/join.html';
+    $('#displayBtn').href = 'display.html?code=' + room.code;
+    renderTeams(); render();
+    // live lobby
+    Net.onPlayers(room.id, async ()=>{ players = await Net.listPlayers(room.id); render(); });
+    players = await Net.listPlayers(room.id); render();
+  }catch(e){ $('#loading').textContent = 'Could not create a room: '+(e.message||e); }
+}
+
+function renderTeams(){
+  $('#teams').innerHTML = Net.TEAM_NAMES.map((n,i)=>`<div class="tteam" style="background:${Net.TEAM_COLORS[i]}"><div class="n">${n}</div><div class="c" id="tc${i}">0</div></div>`).join('');
+}
+function render(){
+  const active = players.filter(p=>p.connected);
+  $('#joinCount').textContent = players.length;
+  const counts=[0,0,0]; players.forEach(p=>counts[p.team]++);
+  counts.forEach((c,i)=>{ const el=$('#tc'+i); if(el) el.textContent=c; });
+  $('#plist').innerHTML = players.length ? players.map(p=>{
+    const img=Net.charImg(p.avatar);
+    const av=img ? `<span class="av" style="background:${Net.TEAM_COLORS[p.team]};overflow:hidden"><img src="${img}" alt=""></span>`
+                 : `<span class="av" style="background:${Net.TEAM_COLORS[p.team]}">${(p.name[0]||'?').toUpperCase()}</span>`;
+    return `<div class="pcard ${p.connected?'':'off'}">${av}<span class="nm">${p.name}</span></div>`;
+  }).join('')
+    : '<div class="empty">No one has joined yet. Share the code!</div>';
+  const enough = players.length >= (room.settings?.minPlayers||4);
+  $('#startBtn').disabled = !enough;
+  $('#minNote').textContent = enough ? 'Ready when you are.' : `Waiting for at least ${room.settings?.minPlayers||4} players… (${players.length} so far)`;
+}
+
+const ROTATION = ['trivia-sprint.html','color-wars-3d.html','this-or-that.html','snake-royale-3d.html','build-a-monster.html','secret-spy.html','balloon-pop-race-3d.html','odd-one-out.html','copycat.html','maze-dash.html','quick-draw-guess.html','team-tug-of-war.html','word-chain-blitz.html','number-ninjas.html','doodle-duel.html','trail-blazer.html','click-rush.html'];
+
+$('#startBtn').addEventListener('click', async ()=>{
+  $('#startBtn').style.display='none'; $('#minNote').style.display='none';
+  await Net.startSession(room.id, ROTATION);        // broadcasts to display + players
+  room.state = { games:ROTATION, index:0 }; room.current_game = ROTATION[0]; room.status='in_game';
+  $('#sessionCtrl').style.display='block';
+  updateCtrl();
+});
+function updateCtrl(){
+  const st=room.state||{games:ROTATION,index:0};
+  $('#gmeta').textContent = `Game ${(st.index||0)+1} of ${st.games.length}`;
+  $('#curGame').textContent = Net.gameLabel(room.current_game);
+}
+$('#nextBtn').addEventListener('click', async ()=>{
+  const ended = await Net.advanceGame(room.id, room);
+  if(ended){ room.status='results'; $('#curGame').textContent='Session Complete'; $('#gmeta').textContent='Summary on the display'; $('#nextBtn').disabled=true; return; }
+  const st=room.state; st.index++; room.current_game=st.games[st.index]; updateCtrl();
+});
+$('#endBtn').addEventListener('click', async ()=>{ await Net.endSession(room.id); $('#curGame').textContent='Session Ended'; $('#nextBtn').disabled=true; $('#endBtn').disabled=true; });
+
+boot();
+</script>
+</body>
+</html>

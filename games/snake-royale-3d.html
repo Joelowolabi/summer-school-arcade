@@ -1,0 +1,269 @@
+<!-- Summer School Arcade — Snake Royale 3D (Three.js). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snake Royale 3D — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .hbadge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-100);color:var(--purple-700);font-weight:var(--fw-bold);font-size:var(--fs-body-s);padding:6px 14px;border-radius:var(--radius-pill)}
+  .d3{margin-left:6px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px}
+  #stage{min-height:auto}
+  .arena{width:100%;aspect-ratio:30 / 16;max-height:60vh;position:relative;border-radius:var(--radius-xl);overflow:hidden;background:radial-gradient(120% 100% at 50% 0%, #F1EDFD 0%, #E7E0FB 60%, #DDD4F6 100%)}
+  .arena canvas{display:block;width:100%;height:100%}
+  .keys{display:inline-flex;gap:6px;align-items:center;color:var(--text-muted);font-size:var(--fs-body-s)}
+  .key{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;border-radius:var(--radius-s);background:var(--surface-card);border:1px solid var(--border-soft);box-shadow:var(--shadow-xs);font-weight:var(--fw-bold);font-size:var(--fs-caption);color:var(--text-body)}
+  .alive-strip{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .alivetag{display:inline-flex;align-items:center;gap:7px;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:5px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .alivetag .sw{width:10px;height:10px;border-radius:3px}
+  .alivetag.dead{opacity:.4;text-decoration:line-through}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow"><span class="hbadge" id="heatBadge">Heat 1 of 3</span><span class="d3">3D</span></span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:12px"><h1 id="promptTitle">Snake <span class="hi">Royale</span></h1>
+        <p id="promptSub">Eat pellets, dodge walls and other snakes. Last one slithering wins.</p></div>
+
+      <div class="arena" id="arena"></div>
+      <div class="alive-strip" id="aliveStrip"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Snake Royale</h1>
+          <p class="goal">Goal: <b>be the last snake slithering</b>.</p>
+          <ol class="steps">
+            <li>Steer your snake around the 3D arena.</li>
+            <li>Eat glowing pellets to grow longer.</li>
+            <li>Hitting a wall, yourself or another snake ends your run.</li>
+            <li>Top survivors of each heat reach the Finale.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> or arrow keys</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Survival + length · Finale winner bonus</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Enter Heat 1
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Continue</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const A=window.Arcade; const $=s=>document.querySelector(s);
+
+const COLS=30, ROWS=16;
+let players=A.makeRoster();
+const SNAKE_COLORS=[0xE5484D,0xF2683C,0xFFD93B,0x3FBF7F,0x4F9CF9,0x7B5BE8,0xF7906E,0x8E6FEE,0x4FBF9F,0xFFA53B];
+
+/* ---------------- Three.js arena ---------------- */
+const host=$('#arena');
+const scene=new THREE.Scene();
+const camera=new THREE.OrthographicCamera(-10,10,10,-10,0.1,200);
+camera.position.set(0,40,0); camera.up.set(0,0,-1); camera.lookAt(0,0,0);   // true top-down aerial
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; host.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.72));
+// key light angled so the round snake bodies still read as 3D from directly above
+const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(7,16,6); scene.add(key);
+const fillLight=new THREE.DirectionalLight(0xbfa8ff,0.45); fillLight.position.set(-6,10,-4); scene.add(fillLight);
+
+const CS=0.62;
+const W=COLS*CS, H=ROWS*CS;
+function gx(x){ return (x - (COLS-1)/2)*CS; }
+function gz(y){ return (y - (ROWS-1)/2)*CS; }
+// floor
+const floor=new THREE.Mesh(new THREE.BoxGeometry(W+CS, 0.4, H+CS), new THREE.MeshStandardMaterial({color:0xF7F5FC, roughness:0.95}));
+floor.position.y=-0.25; scene.add(floor);
+// wall frame (thin, reads as a border from directly above)
+const wallMat=new THREE.MeshStandardMaterial({color:0xB7A3F0, roughness:0.7});
+function wall(w,d,x,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.4,d),wallMat); m.position.set(x,0.1,z); scene.add(m); }
+wall(W+CS*1.4,CS*0.4, 0, -H/2-CS/3); wall(W+CS*1.4,CS*0.4, 0, H/2+CS/3);
+wall(CS*0.4,H+CS*1.4, -W/2-CS/3, 0); wall(CS*0.4,H+CS*1.4, W/2+CS/3, 0);
+
+// snake body-bead pool (spheres so the snake reads as a rounded tube)
+const segGeo=new THREE.SphereGeometry(1,18,14);
+const segPool=[]; function seg(i){ if(!segPool[i]){ const m=new THREE.Mesh(segGeo,new THREE.MeshStandardMaterial({roughness:0.4})); scene.add(m); segPool[i]=m; } return segPool[i]; }
+// eyes pool (a pair per living head)
+const eyeWhiteGeo=new THREE.SphereGeometry(CS*0.17,12,10), eyePupilGeo=new THREE.SphereGeometry(CS*0.09,8,8);
+const eyeWhiteMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.3});
+const eyePupilMat=new THREE.MeshStandardMaterial({color:0x1E1B26,roughness:0.4});
+const eyePool=[]; function eye(i){ if(!eyePool[i]){
+  const g=new THREE.Group(); const wl=new THREE.Mesh(eyeWhiteGeo,eyeWhiteMat), wr=new THREE.Mesh(eyeWhiteGeo,eyeWhiteMat);
+  const pl=new THREE.Mesh(eyePupilGeo,eyePupilMat), pr=new THREE.Mesh(eyePupilGeo,eyePupilMat);
+  pl.position.set(0,CS*0.12,0); pr.position.set(0,CS*0.12,0); wl.add(pl); wr.add(pr); g.add(wl,wr); scene.add(g);
+  eyePool[i]={g,wl,wr,set(lx,ly,lz,rx,ry,rz){ wl.position.set(lx,ly,lz); wr.position.set(rx,ry,rz); }};
+} return eyePool[i]; }
+// food pellets
+const foodGeo=new THREE.SphereGeometry(CS*0.34,20,20);
+const foodPool=[]; function foodM(i){ if(!foodPool[i]){ const m=new THREE.Mesh(foodGeo,new THREE.MeshStandardMaterial({color:0xFFD93B,roughness:0.3,emissive:0x6b5200,emissiveIntensity:0.4})); scene.add(m); foodPool[i]=m; } return foodPool[i]; }
+// "you" ring — lies flat, tracks your head
+const marker=new THREE.Mesh(new THREE.TorusGeometry(CS*0.72,0.055,10,28), new THREE.MeshStandardMaterial({color:0x1E1B26,roughness:0.5}));
+marker.rotation.x=Math.PI/2; marker.visible=false; scene.add(marker);
+
+// orthographic "contain" fit so the whole arena fills the frame
+function resize(){ const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false);
+  const aspect=w/h, pad=CS*1.2; const arenaAspect=(W+2*pad)/(H+2*pad); let halfW,halfH;
+  if(aspect>arenaAspect){ halfH=H/2+pad; halfW=halfH*aspect; } else { halfW=W/2+pad; halfH=halfW/aspect; }
+  camera.left=-halfW; camera.right=halfW; camera.top=halfH; camera.bottom=-halfH; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(host); resize();
+
+// smooth slither: bead i travels from body[i+1] (old cell) to body[i] (new cell)
+function segPos(s,i,alpha){ const cur=s.body[i], from=s.body[i+1]||cur; return [from[0]+(cur[0]-from[0])*alpha, from[1]+(cur[1]-from[1])*alpha]; }
+
+/* ---------------- game state (ported logic) ---------------- */
+let phase='heat', heatIndex=0, finalists=[], snakes=[], food=[], running=false;
+let mySnake=null, queuedDir=null;
+function heatRoster(idx){ return players.filter(p=>!p.disconnected&&Math.floor(p.id/10)===idx).slice(0,10); }
+function spawnSnake(p,i,count){
+  const angle=(i/count)*Math.PI*2;
+  const ox=Math.cos(angle), oy=Math.sin(angle);
+  const cx=Math.max(2,Math.min(COLS-3, Math.floor(COLS/2+ox*(COLS/3.2))));
+  const cy=Math.max(2,Math.min(ROWS-3, Math.floor(ROWS/2+oy*(ROWS/3.2))));
+  // head OUTWARD from centre so snakes spread apart instead of piling into the middle
+  const d = Math.abs(ox)>Math.abs(oy) ? [Math.sign(ox)||1,0] : [0,Math.sign(oy)||1];
+  return { p, colorHex:SNAKE_COLORS[p.id%SNAKE_COLORS.length], body:[[cx,cy],[cx-d[0],cy-d[1]],[cx-2*d[0],cy-2*d[1]]], dir:d, alive:true, len:3, diedAt:0, smart:p.me?1:A.rand(0.55,0.95) };
+}
+function startHeat(){
+  $('#preOverlay').classList.add('hide');
+  const roster = phase==='final'? finalists.map(f=>f.p) : heatRoster(heatIndex);
+  snakes=roster.map((p,i)=>spawnSnake(p,i,roster.length));
+  mySnake=snakes.find(s=>s.p.me)||null;
+  food=[]; for(let i=0;i<6;i++) addFood();
+  $('#heatBadge').textContent=phase==='final'?'FINALE':`Heat ${heatIndex+1} of 3`;
+  $('#promptTitle').innerHTML=phase==='final'?'The <span class="hi">Finale</span>':`Heat <span class="hi">${heatIndex+1}</span>`;
+  $('#promptSub').textContent=mySnake?'You\'re in this one — steer and survive!':'You\'re watching this heat.';
+  renderAlive();
+  A.countdown($('#countOverlay'), ()=>{ running=true; startTimer(); last=0; loop(); });
+}
+const HEAT_TIME=45; let heatTimer=null, timeLeft=HEAT_TIME;
+function startTimer(){ timeLeft=HEAT_TIME; const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+  fill.style.transition=`width ${HEAT_TIME}s linear`; fill.style.width='0%'; $('#timerLabel').textContent='Survive!';
+  clearInterval(heatTimer); heatTimer=setInterval(()=>{ timeLeft-=1; if(timeLeft<=0){ clearInterval(heatTimer); endHeat('time'); } },1000); }
+function addFood(){ let x,y,ok,tries=0; do{ x=Math.floor(Math.random()*COLS); y=Math.floor(Math.random()*ROWS); ok=true;
+    for(const s of snakes) for(const b of s.body){ if(b[0]===x&&b[1]===y){ok=false;} }
+    for(const f of food){ if(f[0]===x&&f[1]===y) ok=false; } tries++; }while(!ok&&tries<50); food.push([x,y]); }
+
+const DIRS={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]};
+window.addEventListener('keydown',e=>{ const nd=DIRS[e.key]; if(!nd||!mySnake||!mySnake.alive) return; e.preventDefault();
+  if(nd[0]===-mySnake.dir[0]&&nd[1]===-mySnake.dir[1]) return; queuedDir=nd; });
+
+function botDir(s){
+  const head=s.body[0];
+  const blocked=(x,y)=>{ if(x<0||y<0||x>=COLS||y>=ROWS) return true;
+    for(const o of snakes){ if(!o.alive) continue; const lim=o===s?o.body.length-1:o.body.length; for(let i=0;i<lim;i++){ if(o.body[i][0]===x&&o.body[i][1]===y) return true; } } return false; };
+  let nearest=null,nd=1e9; for(const f of food){ const dist=Math.abs(f[0]-head[0])+Math.abs(f[1]-head[1]); if(dist<nd){nd=dist;nearest=f;} }
+  const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>!(d[0]===-s.dir[0]&&d[1]===-s.dir[1]));
+  const safe=opts.filter(d=>!blocked(head[0]+d[0],head[1]+d[1])); const pool=safe.length?safe:opts;
+  if(nearest&&Math.random()<s.smart){ pool.sort((p,q)=>{ const dp=Math.abs(head[0]+p[0]-nearest[0])+Math.abs(head[1]+p[1]-nearest[1]); const dq=Math.abs(head[0]+q[0]-nearest[0])+Math.abs(head[1]+q[1]-nearest[1]); return dp-dq; }); return pool[0]; }
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+let acc=0,last=0; const STEP=120;
+function loop(t){ if(!running) return; if(!last) last=t||performance.now(); const now=t||performance.now();
+  acc+=now-last; last=now; while(acc>=STEP){ tick(); acc-=STEP; } render3D(); requestAnimationFrame(loop); }
+function tick(){
+  if(mySnake&&mySnake.alive&&queuedDir){ mySnake.dir=queuedDir; queuedDir=null; }
+  for(const s of snakes){ if(!s.alive||s.p.me) continue; if(Math.random()<0.9) s.dir=botDir(s); }
+  for(const s of snakes){ if(!s.alive) continue; s.nextHead=[s.body[0][0]+s.dir[0], s.body[0][1]+s.dir[1]]; }
+  for(const s of snakes){ if(!s.alive) continue; const h=s.nextHead;
+    if(h[0]<0||h[1]<0||h[0]>=COLS||h[1]>=ROWS){ kill(s); continue; }
+    s.body.unshift(h); let ate=-1; for(let i=0;i<food.length;i++){ if(food[i][0]===h[0]&&food[i][1]===h[1]){ ate=i; break; } }
+    if(ate>=0){ food.splice(ate,1); addFood(); s.len++; } else s.body.pop();
+  }
+  for(const s of snakes){ if(!s.alive) continue; const h=s.body[0];
+    for(const o of snakes){ if(!o.alive) continue; const start=o===s?1:0; for(let i=start;i<o.body.length;i++){ if(o.body[i][0]===h[0]&&o.body[i][1]===h[1]){ kill(s); break; } } if(!s.alive) break; } }
+  renderAlive();
+  if(snakes.filter(s=>s.alive).length<=1) endHeat('last');
+}
+function kill(s){ if(!s.alive) return; s.alive=false; s.diedAt=performance.now(); }
+
+function render3D(){
+  const alpha = running ? Math.min(1, acc/STEP) : 0;
+  let si=0, ei=0;
+  for(const s of snakes){
+    const len=s.body.length, dead=!s.alive;
+    for(let i=0;i<len;i++){
+      const [px,py]=segPos(s,i,alpha); const m=seg(si++);
+      const rad = CS*(i===0 ? 0.62 : (0.52 - 0.16*(i/len)));   // fat head, tapering tail
+      m.visible=true; m.scale.setScalar(rad); m.position.set(gx(px), rad, gz(py));
+      m.material.color.setHex(s.colorHex);
+      m.material.emissive.setHex(s.p.me?0x3a2f66:0x000000); m.material.emissiveIntensity=s.p.me?0.5:0;
+      m.material.opacity=dead?0.32:1; m.material.transparent=dead;
+    }
+    if(!dead){
+      const [hx,hy]=segPos(s,0,alpha); const dir=s.dir; const dl=Math.hypot(dir[0],dir[1])||1;
+      const fx=dir[0]/dl, fy=dir[1]/dl, sx=-fy, sy=fx;                 // forward + side (perp)
+      const headR=CS*0.62, wx=gx(hx), wz=gz(hy), fo=CS*0.26, so=CS*0.24, yTop=headR*0.95;
+      const p=eye(ei++); p.g.visible=true;
+      p.set(wx+fx*fo+sx*so, yTop, wz+fy*fo+sy*so,  wx+fx*fo-sx*so, yTop, wz+fy*fo-sy*so);
+    }
+  }
+  for(let i=si;i<segPool.length;i++) segPool[i].visible=false;
+  for(let i=ei;i<eyePool.length;i++) eyePool[i].g.visible=false;
+  for(let i=0;i<food.length;i++){ const f=food[i]; const m=foodM(i); m.visible=true; m.position.set(gx(f[0]), CS*0.34+Math.sin(performance.now()/300+i)*0.05, gz(f[1])); }
+  for(let i=food.length;i<foodPool.length;i++) foodPool[i].visible=false;
+  if(mySnake&&mySnake.alive){ const [hx,hy]=segPos(mySnake,0,alpha); marker.visible=true; marker.position.set(gx(hx), 0.02, gz(hy)); }
+  else marker.visible=false;
+  renderer.render(scene,camera);
+}
+function renderAlive(){ $('#aliveStrip').innerHTML=snakes.map(s=>`<span class="alivetag ${s.alive?'':'dead'}"><span class="sw" style="background:#${s.colorHex.toString(16).padStart(6,'0')}"></span>${s.p.me?'You':s.p.name} · ${s.len}</span>`).join(''); }
+
+function endHeat(reason){
+  running=false; clearInterval(heatTimer);
+  const ranked=[...snakes].sort((a,b)=>{ if(a.alive!==b.alive) return a.alive?-1:1; if(a.len!==b.len) return b.len-a.len; return (b.diedAt||1e15)-(a.diedAt||1e15); });
+  const advance=ranked.slice(0, phase==='final'?1:3);
+  const me=snakes.find(s=>s.p.me); let myPts=0;
+  if(me){ const myRank=ranked.indexOf(me)+1; myPts=Math.max(0,(snakes.length-myRank)*2)+(me.len-3); me.p.pts+=myPts; }
+  A.renderBoard(players);
+  if(phase!=='final'){ finalists.push(...advance.filter(s=>!finalists.some(f=>f.p.id===s.p.id)).map(s=>({p:s.p}))); showHeatResult(reason,advance,advance.some(s=>s.p.me),myPts); }
+  else endGame(ranked,myPts);
+}
+function showHeatResult(reason,advance,meAdv,myPts){
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  const names=advance.map(s=>s.p.me?'You':s.p.name).join(', ');
+  if(meAdv){ v.textContent='You Advance!'; v.className='verdict win'; A.confetti($('#stage'),60); } else { v.textContent='Heat Over'; v.className='verdict late'; }
+  sub.innerHTML=`Advancing to the Finale: <b>${names}</b>.`; pts.textContent=myPts>0?`+${myPts} points`:'Heat complete';
+  ov.classList.remove('hide'); nb.style.display='inline-flex'; nb.textContent=heatIndex>=2?'To The Finale':'Next Heat';
+  nb.onclick=()=>{ ov.classList.add('hide'); nb.style.display='none'; if(heatIndex>=2){ phase='final'; startHeat(); } else { heatIndex++; startHeat(); } };
+}
+function endGame(ranked,myPts){
+  A.finishGame(players); const champ=ranked[0]; const iWon=champ&&champ.p.me;
+  champ.p.pts+=15; if(iWon) myPts+=15; A.renderBoard(players);
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  $('#promptTitle').innerHTML='Snake Royale <span class="hi">Champion</span>'; $('#timerLabel').textContent='Complete';
+  v.textContent=iWon?'You Win It All!':`${champ.p.name} Wins`; v.className='verdict '+(iWon?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML=iWon?`Last snake slithering. You scored <b>${players[0].pts}</b> points this game.`:`You finished at rank <b>#${myRank}</b> with <b>${players[0].pts}</b> points.`;
+  pts.textContent=`Season total ${players[0].seasonPts+players[0].pts}`; ov.classList.remove('hide'); nb.style.display='none'; if(iWon) A.confetti($('#stage'),110);
+}
+
+let t=0;
+function idle(){ if(!running){ t+=0.016; render3D(); } requestAnimationFrame(idle); }
+idle();
+$('#startBtn').addEventListener('click', startHeat);
+document.getElementById('hudHost').innerHTML=A.hud({title:'Snake Royale', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+setInterval(()=>{ if(!running) A.setPing(players); },1400);
+</script>
+</body>
+</html>

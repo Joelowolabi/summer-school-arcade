@@ -1,0 +1,234 @@
+<!-- Summer School Arcade — Trail Blazer 3D (Three.js). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trail Blazer — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .hbadge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-100);color:var(--purple-700);font-weight:var(--fw-bold);font-size:var(--fs-body-s);padding:6px 14px;border-radius:var(--radius-pill)}
+  .d3{margin-left:6px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px}
+  #stage{min-height:auto}
+  .arena{width:100%;aspect-ratio:32 / 20;max-height:58vh;position:relative;border-radius:var(--radius-xl);overflow:hidden;background:#141026}
+  .arena canvas{display:block;width:100%;height:100%}
+  .youpill{position:absolute;top:10px;left:12px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.9);border-radius:var(--radius-pill);padding:6px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-bold);color:var(--ink-900)}
+  .youpill .dot{width:12px;height:12px;border-radius:4px;box-shadow:0 0 8px currentColor}
+  .ctrls{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;color:rgba(255,255,255,.7);font-size:var(--fs-body-s);align-items:center}
+  .kc{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;border-radius:var(--radius-s);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);font-weight:var(--fw-bold);font-size:var(--fs-caption);color:#fff}
+  .alive-strip{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .alivetag{display:inline-flex;align-items:center;gap:7px;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:5px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .alivetag .sw{width:10px;height:10px;border-radius:3px}
+  .alivetag.dead{opacity:.4;text-decoration:line-through}
+  .alivetag.you{outline:2px solid var(--accent-play);outline-offset:1px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow"><span class="hbadge" id="heatBadge">Heat 1 of 3</span><span class="d3">3D</span></span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:10px"><h1 id="promptTitle">Trail <span class="hi">Blazer</span></h1>
+        <p id="promptSub">Leave a wall of light. Don't crash into any trail — including your own.</p></div>
+
+      <div class="arena" id="arena">
+        <div class="youpill" id="youpill" style="display:none"><span class="dot" id="youdot"></span>You</div>
+        <div class="ctrls"><span class="kc">W</span><span class="kc">A</span><span class="kc">S</span><span class="kc">D</span><span style="margin:0 4px">or</span><span class="kc">↑</span><span class="kc">←</span><span class="kc">↓</span><span class="kc">→</span> to steer</div>
+      </div>
+      <div class="alive-strip" id="aliveStrip"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Trail Blazer</h1>
+          <p class="goal">Goal: <b>be the last rider blazing</b>.</p>
+          <ol class="steps">
+            <li>Your bike leaves a glowing wall behind it.</li>
+            <li>Turn with the keys to steer — you can't reverse.</li>
+            <li>Crash into any wall (yours or theirs) and you're out.</li>
+            <li>Last rider wins; top survivors reach the Finale.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v"><span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span> or arrow keys</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Survival + placement · Finale winner bonus</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Enter Heat 1
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Continue</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const A=window.Arcade; const $=s=>document.querySelector(s);
+const COLS=32, ROWS=20;              // smaller grid = more controllable
+let players=A.makeRoster();
+const COLORS=[0xE5484D,0xF2683C,0xFFD93B,0x3FBF7F,0x4F9CF9,0x7B5BE8,0xF7906E,0xFF8AB3,0x4FBF9F,0x8E6FEE];
+
+/* ---------------- Three.js aerial arena ---------------- */
+const host=$('#arena');
+const scene=new THREE.Scene();
+const camera=new THREE.OrthographicCamera(-10,10,10,-10,0.1,200);
+camera.position.set(0,50,0); camera.up.set(0,0,-1); camera.lookAt(0,0,0);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.55));
+const key=new THREE.DirectionalLight(0xffffff,0.8); key.position.set(6,18,7); scene.add(key);
+const fill=new THREE.DirectionalLight(0x8f7bff,0.5); fill.position.set(-6,12,-5); scene.add(fill);
+
+const CS=0.62, W=COLS*CS, H=ROWS*CS;
+function gx(x){ return (x-(COLS-1)/2)*CS; }
+function gz(y){ return (y-(ROWS-1)/2)*CS; }
+// floor (dark, so glowing trails pop)
+const floor=new THREE.Mesh(new THREE.BoxGeometry(W+CS,0.4,H+CS), new THREE.MeshStandardMaterial({color:0x1B1630,roughness:1}));
+floor.position.y=-0.25; scene.add(floor);
+// grid lines
+const gg=new THREE.Group(); const gmat=new THREE.LineBasicMaterial({color:0x2E2652});
+for(let x=0;x<=COLS;x++){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(gx(x)-CS/2,0.01,gz(0)-CS/2),new THREE.Vector3(gx(x)-CS/2,0.01,gz(ROWS-1)+CS/2)]); gg.add(new THREE.Line(g,gmat)); }
+for(let y=0;y<=ROWS;y++){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(gx(0)-CS/2,0.01,gz(y)-CS/2),new THREE.Vector3(gx(COLS-1)+CS/2,0.01,gz(y)-CS/2)]); gg.add(new THREE.Line(g,gmat)); }
+scene.add(gg);
+// border walls
+const wmat=new THREE.MeshStandardMaterial({color:0x7B5BE8,emissive:0x3a2f66,emissiveIntensity:0.5,roughness:0.6});
+function wall(w,d,x,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.6,d),wmat); m.position.set(x,0.2,z); scene.add(m); }
+wall(W+CS*1.2,CS*0.5,0,-H/2-CS/3); wall(W+CS*1.2,CS*0.5,0,H/2+CS/3);
+wall(CS*0.5,H+CS*1.2,-W/2-CS/3,0); wall(CS*0.5,H+CS*1.2,W/2+CS/3,0);
+
+const trailGeo=new THREE.BoxGeometry(CS*0.9,CS*0.55,CS*0.9);
+const trailPool=[]; function trailM(i){ if(!trailPool[i]){ const m=new THREE.Mesh(trailGeo,new THREE.MeshStandardMaterial({roughness:0.4})); scene.add(m); trailPool[i]=m; } return trailPool[i]; }
+const headGeo=new THREE.BoxGeometry(CS*0.98,CS*0.8,CS*0.98);
+const headPool=[]; function headM(i){ if(!headPool[i]){ const m=new THREE.Mesh(headGeo,new THREE.MeshStandardMaterial({roughness:0.3})); scene.add(m); headPool[i]=m; } return headPool[i]; }
+// glowing ring marking YOU
+const ring=new THREE.Mesh(new THREE.RingGeometry(CS*0.75,CS*1.0,28), new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,opacity:0.9}));
+ring.rotation.x=-Math.PI/2; ring.visible=false; scene.add(ring);
+
+function resize(){ const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false);
+  const aspect=w/h,pad=CS*1.1; const AW=W+2*pad,AH=H+2*pad; const ar=AW/AH; let hw,hh;
+  if(aspect>ar){ hh=AH/2; hw=hh*aspect; } else { hw=AW/2; hh=hw/aspect; }
+  camera.left=-hw; camera.right=hw; camera.top=hh; camera.bottom=-hh; camera.updateProjectionMatrix(); }
+if(window.ResizeObserver) new ResizeObserver(resize).observe(host); else window.addEventListener('resize',resize);
+resize();
+
+/* ---------------- game state ---------------- */
+let phase='heat', heatIndex=0, finalists=[], cycles=[], occ=null, occColor=null, running=false, mine=null, queued=null;
+let acc=0, last=0; const STEP=115;   // ms per cell — controllable pace
+function heatRoster(idx){ return players.filter(p=>!p.disconnected&&Math.floor(p.id/10)===idx).slice(0,10); }
+function ci(x,y){ return y*COLS+x; }
+
+function startHeat(){
+  $('#preOverlay').classList.add('hide');
+  const roster = phase==='final'? finalists.map(f=>f.p) : heatRoster(heatIndex);
+  occ=new Uint8Array(COLS*ROWS); occColor=new Array(COLS*ROWS).fill(null);
+  cycles=roster.map((p,i)=>{
+    const spots=[[3,ROWS/2,1,0],[COLS-4,ROWS/2,-1,0],[COLS/2,3,0,1],[COLS/2,ROWS-4,0,-1],[6,6,1,0],[COLS-7,6,-1,0],[6,ROWS-7,0,-1],[COLS-7,ROWS-7,0,-1],[COLS/2,ROWS/2-4,0,1],[COLS/2,ROWS/2+4,0,-1]];
+    const s=spots[i%spots.length]; const x=Math.floor(s[0]),y=Math.floor(s[1]);
+    occ[ci(x,y)]=1; occColor[ci(x,y)]=COLORS[p.id%COLORS.length];
+    return { p, colorHex:COLORS[p.id%COLORS.length], x, y, dir:[s[2],s[3]], alive:true, len:1, diedAt:0, smart:p.me?1:A.rand(0.55,0.95) };
+  });
+  mine=cycles.find(c=>c.p.me)||null; queued=null;
+  $('#heatBadge').textContent=phase==='final'?'FINALE':`Heat ${heatIndex+1} of 3`;
+  $('#promptTitle').innerHTML=phase==='final'?'The <span class="hi">Finale</span>':`Heat <span class="hi">${heatIndex+1}</span>`;
+  $('#promptSub').textContent=mine?'Steer with WASD / arrows — don\'t crash!':'You\'re watching this heat.';
+  if(mine){ $('#youpill').style.display='inline-flex'; $('#youdot').style.color='#'+mine.colorHex.toString(16).padStart(6,'0'); $('#youdot').style.background='#'+mine.colorHex.toString(16).padStart(6,'0'); }
+  else $('#youpill').style.display='none';
+  renderAlive(); render3D();
+  A.countdown($('#countOverlay'), ()=>{ running=true; startTimer(); last=0; acc=0; requestAnimationFrame(loop); });
+}
+const HEAT_TIME=40; let heatTimer=null, timeLeft=HEAT_TIME;
+function startTimer(){ timeLeft=HEAT_TIME; const f=$('#timerFill'); f.style.transition='none'; f.style.width='100%'; void f.offsetWidth; f.style.transition=`width ${HEAT_TIME}s linear`; f.style.width='0%'; $('#timerLabel').textContent='Blaze!';
+  clearInterval(heatTimer); heatTimer=setInterval(()=>{ if(--timeLeft<=0){ clearInterval(heatTimer); endHeat('time'); } },1000); }
+
+const DIRS={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]};
+window.addEventListener('keydown',e=>{ const nd=DIRS[e.key]; if(!nd) return; if(!mine||!mine.alive) return; e.preventDefault();
+  // block reversing onto yourself (relative to the last committed direction OR the queued one)
+  const ref=queued||mine.dir; if(nd[0]===-ref[0]&&nd[1]===-ref[1]) return; queued=nd; });
+
+function blocked(x,y){ return x<0||y<0||x>=COLS||y>=ROWS||occ[ci(x,y)]; }
+function botDir(c){
+  const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>!(d[0]===-c.dir[0]&&d[1]===-c.dir[1]));
+  const runway=d=>{ let x=c.x,y=c.y,n=0; for(let i=0;i<10;i++){ x+=d[0]; y+=d[1]; if(blocked(x,y)) break; n++; } return n; };
+  const safe=opts.filter(d=>!blocked(c.x+d[0],c.y+d[1])); if(!safe.length) return c.dir;
+  if(Math.random()<c.smart){ safe.sort((a,b)=>runway(b)-runway(a));
+    if(!blocked(c.x+c.dir[0],c.y+c.dir[1]) && runway(c.dir)>=runway(safe[0])-1) return c.dir; return safe[0]; }
+  return safe[Math.floor(Math.random()*safe.length)];
+}
+function loop(t){ if(!running) return; if(!last) last=t; acc+=t-last; last=t; while(acc>=STEP){ tick(); acc-=STEP; } render3D(); requestAnimationFrame(loop); }
+function tick(){
+  if(mine&&mine.alive&&queued){ mine.dir=queued; queued=null; }
+  for(const c of cycles){ if(!c.alive||c.p.me) continue; if(Math.random()<0.9) c.dir=botDir(c); }
+  const targets=new Map();
+  for(const c of cycles){ if(!c.alive) continue; c.nx=c.x+c.dir[0]; c.ny=c.y+c.dir[1];
+    if(blocked(c.nx,c.ny)){ c.crash=true; } else { c.crash=false; const k=c.ny*COLS+c.nx; targets.set(k,(targets.get(k)||0)+1); } }
+  for(const c of cycles){ if(!c.alive||c.crash) continue; if(targets.get(c.ny*COLS+c.nx)>1) c.crash=true; }
+  for(const c of cycles){ if(!c.alive) continue;
+    if(c.crash){ kill(c); continue; }
+    c.x=c.nx; c.y=c.ny; occ[ci(c.x,c.y)]=1; occColor[ci(c.x,c.y)]=c.colorHex; c.len++; }
+  renderAlive();
+  if(cycles.filter(c=>c.alive).length<=1) endHeat('last');
+}
+function kill(c){ if(!c.alive) return; c.alive=false; c.diedAt=performance.now(); if(c.p.me) A.sfx('crash'); }
+
+function render3D(){
+  let ti=0;
+  if(occColor){ for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){ const col=occColor[ci(x,y)]; if(col==null) continue;
+    const m=trailM(ti++); m.visible=true; m.position.set(gx(x),0.05,gz(y)); m.material.color.setHex(col); m.material.emissive.setHex(col); m.material.emissiveIntensity=0.35; } }
+  for(let i=ti;i<trailPool.length;i++) trailPool[i].visible=false;
+  let hi=0;
+  for(const c of cycles){ if(!c.alive) continue; const m=headM(hi++); m.visible=true; m.position.set(gx(c.x),0.32,gz(c.y));
+    m.material.color.setHex(0xffffff); m.material.emissive.setHex(c.colorHex); m.material.emissiveIntensity=0.9; }
+  for(let i=hi;i<headPool.length;i++) headPool[i].visible=false;
+  if(mine&&mine.alive){ ring.visible=true; ring.position.set(gx(mine.x),0.6,gz(mine.y)); } else ring.visible=false;
+  renderer.render(scene,camera);
+}
+function renderAlive(){ $('#aliveStrip').innerHTML=cycles.map(c=>`<span class="alivetag ${c.alive?'':'dead'} ${c.p.me?'you':''}"><span class="sw" style="background:#${c.colorHex.toString(16).padStart(6,'0')}"></span>${c.p.me?'You':c.p.name}</span>`).join(''); }
+
+function endHeat(reason){
+  running=false; clearInterval(heatTimer);
+  const ranked=[...cycles].sort((a,b)=>{ if(a.alive!==b.alive) return a.alive?-1:1; if(a.len!==b.len) return b.len-a.len; return (b.diedAt||1e15)-(a.diedAt||1e15); });
+  const advance=ranked.slice(0, phase==='final'?1:3);
+  const me=cycles.find(c=>c.p.me); let myPts=0;
+  if(me){ const rank=ranked.indexOf(me)+1; myPts=Math.max(0,(cycles.length-rank)*2)+Math.floor(me.len/6); me.p.pts+=myPts; }
+  A.renderBoard(players);
+  if(phase!=='final'){ finalists.push(...advance.filter(c=>!finalists.some(f=>f.p.id===c.p.id)).map(c=>({p:c.p}))); showHeatResult(advance, advance.some(c=>c.p.me), myPts); }
+  else endGame(ranked, myPts);
+}
+function showHeatResult(advance, meAdv, myPts){
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  const names=advance.map(c=>c.p.me?'You':c.p.name).join(', ');
+  if(meAdv){ v.textContent='You Advance!'; v.className='verdict win'; A.confetti($('#stage'),60); A.sfx('win'); } else { v.textContent='Heat Over'; v.className='verdict late'; A.sfx('lose'); }
+  sub.innerHTML=`Advancing to the Finale: <b>${names}</b>.`; pts.textContent=myPts>0?`+${myPts} points`:'Heat complete';
+  ov.classList.remove('hide'); nb.style.display='inline-flex'; nb.textContent=heatIndex>=2?'To The Finale':'Next Heat';
+  nb.onclick=()=>{ A.sfx('click'); ov.classList.add('hide'); nb.style.display='none'; if(heatIndex>=2){ phase='final'; startHeat(); } else { heatIndex++; startHeat(); } };
+}
+function endGame(ranked, myPts){
+  const champ=ranked[0], iWon=champ&&champ.p.me; champ.p.pts+=15; if(iWon) myPts+=15;
+  A.finishGame(players);
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  $('#promptTitle').innerHTML='Trail Blazer <span class="hi">Champion</span>'; $('#timerLabel').textContent='Complete';
+  v.textContent=iWon?'You Win It All!':`${champ.p.name} Wins`; v.className='verdict '+(iWon?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML=iWon?`Last rider blazing! You scored <b>${players[0].pts}</b> this game.`:`You finished at rank <b>#${myRank}</b> with <b>${players[0].pts}</b> points.`;
+  pts.textContent=`Season total ${players[0].seasonPts+players[0].pts}`; ov.classList.remove('hide'); nb.style.display='none';
+  if(iWon){ A.confetti($('#stage'),110); A.sfx('win'); } else A.sfx('lose');
+}
+$('#startBtn').addEventListener('click', ()=>{ A.sfx('click'); startHeat(); });
+document.getElementById('hudHost').innerHTML=A.hud({title:'Trail Blazer', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players); render3D();
+setInterval(()=>{ if(!running) A.setPing(players); },1400);
+</script>
+</body>
+</html>

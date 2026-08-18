@@ -1,0 +1,241 @@
+<!-- Summer School Arcade — Balloon Pop Race 3D (Three.js). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Balloon Pop Race 3D — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .hbadge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-100);color:var(--purple-700);font-weight:var(--fw-bold);font-size:var(--fs-body-s);padding:6px 14px;border-radius:var(--radius-pill)}
+  .d3{margin-left:6px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px;letter-spacing:.04em}
+  #stage{min-height:auto}
+  .race{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:0}
+  .stage3d{width:100%;aspect-ratio:16 / 9;max-height:48vh;position:relative;border-radius:var(--radius-xl);overflow:hidden;background:radial-gradient(120% 100% at 50% 0%, #F4F1FE 0%, #ECE7FB 55%, #E4DDF7 100%)}
+  .stage3d canvas{display:block;width:100%;height:100%}
+  .fillpct{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--accent-play);text-shadow:0 2px 8px rgba(255,255,255,.6);pointer-events:none}
+  .smash{width:100%;max-width:440px}
+  .smash-btn{width:100%;height:80px;border:0;border-radius:var(--radius-2xl);background:var(--accent-spark);color:#fff;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);cursor:pointer;box-shadow:var(--shadow-spark);transition:transform .06s var(--ease-pop),filter var(--dur-fast)}
+  .smash-btn:hover{filter:brightness(1.05)} .smash-btn:active{transform:scale(.96)} .smash-btn[disabled]{opacity:.45;pointer-events:none}
+  .smash-hint{text-align:center;color:var(--text-muted);font-size:var(--fs-body-s);margin-top:10px}
+  .smash-hint .key{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:26px;padding:0 8px;border-radius:var(--radius-s);background:var(--surface-card);border:1px solid var(--border-soft);box-shadow:var(--shadow-xs);font-weight:var(--fw-bold);font-size:var(--fs-caption)}
+  .racers{display:flex;flex-direction:column;gap:7px;width:100%;margin-top:4px}
+  .racer{display:flex;align-items:center;gap:10px}
+  .racer .nm{width:70px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .racer .track{flex:1;height:14px;border-radius:99px;background:var(--ink-100);overflow:hidden}
+  .racer .track i{display:block;height:100%;width:0;border-radius:99px;transition:width .12s linear}
+  .racer.me .nm{color:var(--accent-play)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow"><span class="hbadge" id="heatBadge">Heat 1 of 3</span><span class="d3">3D</span></span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:6px"><h1 id="promptTitle">Balloon Pop <span class="hi">Race</span></h1>
+        <p id="promptSub">Mash to inflate. First balloon to pop wins the heat.</p></div>
+
+      <div class="race">
+        <div class="stage3d" id="stage3d"><div class="fillpct" id="fillpct">0%</div></div>
+        <div class="smash">
+          <button class="smash-btn" id="smash" disabled>PUMP!</button>
+          <div class="smash-hint">Click the button or mash <span class="key">Space</span> as fast as you can</div>
+        </div>
+        <div class="racers" id="racers"></div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Balloon Pop Race</h1>
+          <p class="goal">Goal: <b>pop your balloon first</b>.</p>
+          <ol class="steps">
+            <li>Mash the PUMP button to inflate your 3D balloon.</li>
+            <li>The faster you click, the faster it fills.</li>
+            <li>First balloon to pop wins the heat.</li>
+            <li>The three heat winners race in the Finale.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Click PUMP or mash <span class="keycap">Space</span></span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Heat win +6 · Finale +20 · playing +2</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Enter Heat 1
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Continue</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+let phase='heat', heatIndex=0, finalists=[], racers=[], running=false;
+
+/* ---------------- Three.js scene ---------------- */
+const host=$('#stage3d');
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+camera.position.set(0, 0.3, 5.6);
+const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.appendChild(renderer.domElement);
+
+// high-key soft-clay lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+const key=new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3,6,5); scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfa8ff, 0.5); fill.position.set(-4,1,3); scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffffff, 0.4); rim.position.set(0,-3,-4); scene.add(rim);
+
+// balloon group
+const balloon=new THREE.Group(); scene.add(balloon);
+const balloonMat=new THREE.MeshStandardMaterial({color:0xF2683C, roughness:0.32, metalness:0.0});
+const body=new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), balloonMat);
+body.scale.set(1,1.16,1); balloon.add(body);
+// glossy highlight blob
+const shine=new THREE.Mesh(new THREE.SphereGeometry(0.28,24,24), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:0.5}));
+shine.position.set(-0.42,0.5,0.72); balloon.add(shine);
+// knot
+const knot=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.28,16), balloonMat);
+knot.position.y=-1.24; knot.rotation.x=Math.PI; balloon.add(knot);
+// string
+const strGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,-1.36,0),new THREE.Vector3(0.12,-1.9,0),new THREE.Vector3(-0.05,-2.5,0)]);
+balloon.add(new THREE.Line(strGeo, new THREE.LineBasicMaterial({color:0x8E8A9C})));
+
+// particle burst pool
+let particles=[]; const pGeo=new THREE.IcosahedronGeometry(0.12,0);
+function burst(color){
+  const cols=[0xF2683C,0x7B5BE8,0xFFD93B,0x3FBF7F,0x4F9CF9];
+  for(let i=0;i<40;i++){
+    const m=new THREE.Mesh(pGeo, new THREE.MeshStandardMaterial({color:cols[i%cols.length], roughness:.4}));
+    m.position.copy(balloon.position);
+    m.userData.v=new THREE.Vector3((Math.random()-.5)*.34,(Math.random()-.2)*.4,(Math.random()-.5)*.34);
+    m.userData.life=1; scene.add(m); particles.push(m);
+  }
+}
+
+let inflate=0, targetInflate=0, wobble=0, popped=false, t=0;
+function setBalloonColor(hex){ balloonMat.color.set(hex); }
+function resize(){ const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(host); resize();
+
+function animate(){
+  requestAnimationFrame(animate); t+=0.016;
+  inflate += (targetInflate-inflate)*0.18;
+  wobble *= 0.86;
+  if(!popped){
+    const s=0.55 + inflate*0.95;
+    balloon.scale.set(s*(1+wobble*0.12), s*(1.16-wobble*0.14), s*(1+wobble*0.12));
+    balloon.position.y=Math.sin(t*1.4)*0.12;
+    balloon.rotation.y=Math.sin(t*0.6)*0.25;
+    balloon.rotation.z=Math.sin(t*0.9)*0.05;
+  }
+  for(const p of particles){ p.userData.life-=0.02; p.userData.v.y-=0.012; p.position.add(p.userData.v); p.rotation.x+=0.2; p.rotation.y+=0.15; p.material.opacity=Math.max(0,p.userData.life); p.material.transparent=true; p.scale.setScalar(Math.max(0.01,p.userData.life)); }
+  particles=particles.filter(p=>{ if(p.userData.life<=0){ scene.remove(p); p.material.dispose(); return false; } return true; });
+  renderer.render(scene,camera);
+}
+animate();
+
+/* ---------------- game logic (ported, tested) ---------------- */
+function heatRoster(idx){ return players.filter(p=>!p.disconnected&&Math.floor(p.id/10)===idx).slice(0,10); }
+
+function startHeat(){
+  $('#preOverlay').classList.add('hide');
+  const roster = phase==='final'? finalists.map(f=>f.p) : heatRoster(heatIndex);
+  const cap = phase==='final'? 130 : 100;
+  racers = roster.map(p=>({p, clicks:0, cap, popped:false, poppedAt:0, color:A.TEAMS[p.team].color}));
+  const me=racers.find(r=>r.p.me);
+  $('#heatBadge').textContent = phase==='final'?'FINALE':`Heat ${heatIndex+1} of 3`;
+  $('#promptTitle').innerHTML = phase==='final'?'The <span class="hi">Finale</span>':`Heat <span class="hi">${heatIndex+1}</span>`;
+  $('#promptSub').textContent = me? 'Mash to inflate — first to pop wins!' : 'You\'re watching this heat.';
+  popped=false; inflate=0; targetInflate=0; balloon.visible=true;
+  setBalloonColor(me?me.color:0xB4B0C0);
+  $('#fillpct').textContent='0%';
+  $('#smash').disabled=true;
+  renderRacers();
+  A.countdown($('#countOverlay'), ()=>{ running=true; $('#smash').disabled=!me; $('#timerLabel').textContent='Mash!'; startBots(); tickBars(); });
+}
+
+function renderRacers(){
+  $('#racers').innerHTML = racers.map(r=>`
+    <div class="racer ${r.p.me?'me':''}"><span class="nm">${r.p.me?'You':r.p.name}</span>
+      <span class="track"><i style="width:${Math.min(100,r.clicks/r.cap*100)}%;background:${r.color}"></i></span></div>`).join('');
+}
+
+let botTimer=null;
+function startBots(){
+  clearInterval(botTimer);
+  botTimer=setInterval(()=>{ if(!running) return;
+    for(const r of racers){ if(r.p.me||r.popped) continue; r.clicks+=r.p.rate*0.08*A.rand(0.6,1.25); if(r.clicks>=r.cap&&!r.popped) pop(r); }
+  },80);
+}
+function addMyClick(){
+  const me=racers.find(r=>r.p.me); if(!me||me.popped||!running) return;
+  me.clicks+=1.7; wobble=1; targetInflate=Math.min(1, me.clicks/me.cap);
+  $('#fillpct').textContent=Math.min(100,Math.round(me.clicks/me.cap*100))+'%';
+  if(me.clicks>=me.cap) pop(me);
+}
+function pop(r){
+  if(r.popped) return; r.popped=true; r.poppedAt=performance.now();
+  if(r.p.me){ popped=true; balloon.visible=false; $('#fillpct').textContent='POP!'; burst(r.color); A.confetti($('#stage'),40); }
+  endHeat(r);
+}
+let barRaf=null;
+function tickBars(){ if(!running) return; renderRacers(); barRaf=requestAnimationFrame(tickBars); }
+
+function endHeat(winner){
+  running=false; clearInterval(botTimer); cancelAnimationFrame(barRaf); renderRacers();
+  const me=racers.find(r=>r.p.me); let myPts=0;
+  winner.p.pts += phase==='final'?20:6;
+  if(me){ me.p.pts+=2; myPts+=2; if(winner.p.me) myPts+=(phase==='final'?20:6); }
+  A.renderBoard(players);
+  if(phase!=='final'){
+    if(!finalists.some(f=>f.p.id===winner.p.id)) finalists.push({p:winner.p});
+    showHeatResult(winner, me);
+  } else endGame(winner, myPts);
+}
+function showHeatResult(winner, me){
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  const iWon=winner.p.me;
+  v.textContent=iWon?'You Popped First!':`${winner.p.name} Wins The Heat`; v.className='verdict '+(iWon?'win':'late');
+  sub.innerHTML=`<b>${iWon?'You':winner.p.name}</b> advance${iWon?'':'s'} to the Finale.`;
+  pts.textContent=iWon?'+6 points':(me?'+2 points':'Heat complete');
+  ov.classList.remove('hide'); nb.style.display='inline-flex';
+  nb.textContent=heatIndex>=2?'To The Finale':'Next Heat';
+  nb.onclick=()=>{ ov.classList.add('hide'); nb.style.display='none'; if(heatIndex>=2){ phase='final'; startHeat(); } else { heatIndex++; startHeat(); } };
+}
+function endGame(winner, myPts){
+  A.finishGame(players);
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  const iWon=winner.p.me;
+  $('#promptTitle').innerHTML='Balloon Race <span class="hi">Champion</span>'; $('#timerLabel').textContent='Complete';
+  v.textContent=iWon?'You Win It All!':`${winner.p.name} Wins`; v.className='verdict '+(iWon?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML=iWon?`Fastest fingers in the room! You scored <b>${players[0].pts}</b> this game.`:`You finished at rank <b>#${myRank}</b> with <b>${players[0].pts}</b> points.`;
+  pts.textContent=`Season total ${players[0].seasonPts+players[0].pts}`;
+  ov.classList.remove('hide'); nb.style.display='none'; if(iWon) A.confetti($('#stage'),110);
+}
+
+$('#smash').addEventListener('click', addMyClick);
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); addMyClick(); } });
+$('#startBtn').addEventListener('click', startHeat);
+document.getElementById('hudHost').innerHTML=A.hud({title:'Balloon Pop Race', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+setInterval(()=>{ if(!running) A.setPing(players); },1400);
+</script>
+</body>
+</html>

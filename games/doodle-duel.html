@@ -1,0 +1,308 @@
+<!-- Summer School Arcade — Doodle Duel (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doodle Duel — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .secret{display:inline-flex;align-items:center;gap:10px;background:var(--wash-sun);color:var(--ink-900);border-radius:var(--radius-pill);padding:8px 18px;font-weight:var(--fw-bold);box-shadow:var(--shadow-s)}
+  .secret .w{font-family:var(--font-display);font-size:var(--fs-h3);letter-spacing:var(--ls-heading)}
+  .draw-area{flex:1;display:flex;gap:16px;min-height:0}
+  .canvas-wrap{flex:1;position:relative;background:var(--white);border-radius:var(--radius-xl);border:1px solid var(--border-hairline);box-shadow:var(--shadow-s);overflow:hidden}
+  #pad{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .tools{display:flex;flex-direction:column;gap:10px;width:64px}
+  .swatch{width:44px;height:44px;border-radius:var(--radius-pill);border:2px solid var(--white);box-shadow:var(--shadow-s),0 0 0 1px var(--border-soft);cursor:pointer;transition:transform var(--dur-fast) var(--ease-pop)}
+  .swatch:hover{transform:scale(1.1)} .swatch.sel{box-shadow:var(--shadow-s),0 0 0 3px var(--accent-play)}
+  .tool-btn{width:44px;height:44px;border-radius:var(--radius-m);border:1px solid var(--border-soft);background:var(--surface-card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-body);box-shadow:var(--shadow-xs)}
+  .tool-btn:hover{background:var(--surface-sunken)} .tool-btn:active{transform:scale(.94)}
+  /* voting grid */
+  .votegrid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;overflow-y:auto;align-content:start;padding-right:4px}
+  .dcard{position:relative;background:var(--white);border:1px solid var(--border-hairline);border-radius:var(--radius-l);box-shadow:var(--shadow-s);overflow:hidden;cursor:pointer;transition:transform var(--dur-base) var(--ease-pop),box-shadow var(--dur-base)}
+  .dcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-l)} .dcard.voted{box-shadow:0 0 0 3px var(--accent-play),var(--shadow-l)}
+  .dcard.self{opacity:.85;cursor:default}
+  .dcard canvas,.dcard img{display:block;width:100%;aspect-ratio:4/3;background:#fff}
+  .dcard .cap{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .dcard .votes{display:inline-flex;align-items:center;gap:5px;color:var(--text-muted)}
+  .dcard .selfbadge{position:absolute;top:8px;left:8px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 9px;border-radius:99px}
+  .dcard .crown{position:absolute;top:8px;right:8px;background:var(--accent-sun);color:var(--ink-900);font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 9px;border-radius:99px;display:none}
+  .dcard.winner .crown{display:block}
+  .phase-note{color:var(--text-muted);font-size:var(--fs-body-s);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="phaseLabel">Round 1 · Draw It</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:12px">
+        <h1 id="promptTitle">Doodle <span class="hi">Duel</span></h1>
+        <p id="promptSub" style="display:flex;align-items:center;gap:12px">Your team's secret word: <span class="secret"><span class="w" id="secretWord">—</span></span></p>
+      </div>
+
+      <!-- DRAW phase -->
+      <div class="draw-area" id="drawArea">
+        <div class="tools" id="tools"></div>
+        <div class="canvas-wrap"><canvas id="pad"></canvas></div>
+      </div>
+
+      <!-- VOTE phase -->
+      <div class="votegrid" id="voteGrid" style="display:none"></div>
+      <div class="phase-note" id="phaseNote" style="display:none"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Doodle Duel</h1>
+          <p class="goal">Goal: <b>draw the secret word best</b>.</p>
+          <ol class="steps">
+            <li>Your team gets a secret word — draw it in 60 seconds.</li>
+            <li>Your team votes for its favorite (not your own).</li>
+            <li>Each team's winner enters the Finale Gallery.</li>
+            <li>All 30 players vote for the champion doodle.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse drag to draw · color, undo, clear</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Team win +12 · champion +15 · voting +2</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Drawing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Continue</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const TEAMS=A.TEAMS, myTeam=players[0].team;
+
+/* age-appropriate word bank (categorized) */
+const WORDBANK={
+  animals:['Elephant','Penguin','Octopus','Giraffe','Dinosaur','Butterfly','Narwhal','Hedgehog'],
+  food:['Pizza Slice','Ice Cream','Cupcake','Watermelon','Pretzel','Taco'],
+  things:['Rocket Ship','Treasure Chest','Robot','Castle','Hot Air Balloon','Lighthouse'],
+  nature:['Rainbow','Volcano','Cactus','Waterfall','Mushroom','Snowman'],
+};
+const ALLWORDS=Object.values(WORDBANK).flat();
+
+const COLORS=['#1E1B26','#F2683C','#7B5BE8','#FFD93B','#3FBF7F','#4F9CF9','#E5484D'];
+let color=COLORS[0];
+
+/* ---- drawing pad ---- */
+const pad=$('#pad'), pctx=pad.getContext('2d');
+let strokes=[], curStroke=null, drawing=false;
+function fitPad(){ const r=pad.parentElement.getBoundingClientRect(); pad.width=r.width; pad.height=r.height; redraw(); }
+function redraw(){
+  pctx.clearRect(0,0,pad.width,pad.height); pctx.lineCap='round'; pctx.lineJoin='round';
+  for(const s of strokes){ pctx.strokeStyle=s.c; pctx.lineWidth=s.w; pctx.beginPath();
+    s.pts.forEach((p,i)=> i?pctx.lineTo(p.x,p.y):pctx.moveTo(p.x,p.y)); pctx.stroke(); }
+}
+function pos(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left, y:t.clientY-r.top}; }
+function down(e){ if(phase!=='draw') return; drawing=true; curStroke={c:color,w:6,pts:[pos(e)]}; strokes.push(curStroke); e.preventDefault(); }
+function move(e){ if(!drawing) return; curStroke.pts.push(pos(e)); redraw(); e.preventDefault(); }
+function up(){ drawing=false; }
+pad.addEventListener('mousedown',down); pad.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+pad.addEventListener('touchstart',down,{passive:false}); pad.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+
+function renderTools(){
+  $('#tools').innerHTML = COLORS.map((c,i)=>`<div class="swatch ${c===color?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('')
+    + `<div class="tool-btn" id="undoBtn" title="Undo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1"/></svg></div>`
+    + `<div class="tool-btn" id="clearBtn" title="Clear"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>`;
+  $('#tools').querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{ color=s.dataset.c; renderTools(); });
+  $('#undoBtn').onclick=()=>{ strokes.pop(); redraw(); };
+  $('#clearBtn').onclick=()=>{ strokes=[]; redraw(); };
+}
+
+/* ---- procedural bot doodles: random pleasant scribbles ---- */
+function botDoodle(ctx,w,h,seed){
+  ctx.clearRect(0,0,w,h); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+  const rng=mulberry(seed); const n=3+Math.floor(rng()*4);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  for(let k=0;k<n;k++){
+    ctx.strokeStyle=COLORS[Math.floor(rng()*COLORS.length)]; ctx.lineWidth=3+rng()*5;
+    ctx.beginPath(); let x=w*0.2+rng()*w*0.6, y=h*0.2+rng()*h*0.6; ctx.moveTo(x,y);
+    const segs=4+Math.floor(rng()*6);
+    for(let i=0;i<segs;i++){ x+=(rng()-0.5)*w*0.5; y+=(rng()-0.5)*h*0.5; x=Math.max(8,Math.min(w-8,x)); y=Math.max(8,Math.min(h-8,y)); ctx.lineTo(x,y); }
+    ctx.stroke();
+  }
+}
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* ---- game state ---- */
+let phase='pre', secret='', teamRoster=[], entries=[], myVote=null;
+const DRAW_TIME=60;
+
+function teamOf(t){ return players.filter(p=>p.team===t&&!p.disconnected); }
+
+function start(){
+  $('#preOverlay').classList.add('hide');
+  secret=A.pick(ALLWORDS); $('#secretWord').textContent=secret;
+  teamRoster=teamOf(myTeam);
+  renderTools(); fitPad(); strokes=[];
+  phase='draw'; $('#drawArea').style.display='flex'; $('#voteGrid').style.display='none'; $('#phaseNote').style.display='none';
+  $('#phaseLabel').textContent='Round 1 · Draw It';
+  A.countdown($('#countOverlay'), ()=>{
+    $('#timerLabel').textContent='Draw!';
+    const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+    fill.style.transition=`width ${DRAW_TIME}s linear`; fill.style.width='0%';
+    drawTimer=setTimeout(toTeamVote, DRAW_TIME*1000);
+  });
+}
+let drawTimer=null;
+
+function snapshotMine(){
+  const c=document.createElement('canvas'); c.width=pad.width; c.height=pad.height;
+  c.getContext('2d').drawImage(pad,0,0); return c.toDataURL();
+}
+
+function toTeamVote(){
+  clearTimeout(drawTimer); phase='teamvote';
+  const myImg=snapshotMine();
+  // build entries for your team: you + teammates (procedural)
+  entries = teamRoster.map((p,i)=>({ p, votes:0, self:p.me, img: p.me?myImg:null, seed: p.id*97+7 }));
+  $('#drawArea').style.display='none';
+  $('#voteGrid').style.display='grid'; $('#phaseNote').style.display='block';
+  $('#phaseLabel').textContent='Round 1 · Team Vote';
+  $('#promptTitle').innerHTML='Vote For The <span class="hi">Best</span>';
+  $('#promptSub').innerHTML=`Your team drew <b>"${secret}"</b>. Tap your favorite — you can't vote for your own.`;
+  $('#phaseNote').textContent='Top-voted drawing represents Team '+TEAMS[myTeam].name+' in the Finale.';
+  $('#timerLabel').textContent='Vote';
+  renderVoteGrid(false);
+  $('#timerFill').style.transition='none'; $('#timerFill').style.width='100%'; void $('#timerFill').offsetWidth;
+  $('#timerFill').style.transition='width 15s linear'; $('#timerFill').style.width='0%';
+  voteTimer=setTimeout(resolveTeamVote,15000);
+}
+let voteTimer=null;
+
+function renderVoteGrid(reveal){
+  const g=$('#voteGrid'); g.innerHTML='';
+  entries.forEach((e,idx)=>{
+    const card=document.createElement('div');
+    card.className='dcard'+(e.self?' self':'')+(myVote===idx?' voted':'');
+    card.innerHTML=`${e.self?'<span class="selfbadge">You</span>':''}<span class="crown">Winner</span>
+      <canvas width="240" height="180"></canvas>
+      <div class="cap"><span>${e.p.me?'Your drawing':e.p.name}</span><span class="votes"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l-1.4-1.3C5 14.9 2 12.2 2 8.8 2 6.1 4 4 6.6 4c1.5 0 3 .7 3.9 1.9C11.5 4.7 13 4 14.5 4 17 4 19 6.1 19 8.8c0 3.4-3 6.1-8.6 10.9z"/></svg><b>${reveal?e.votes:'·'}</b></span></div>`;
+    const cvs=card.querySelector('canvas');
+    if(e.img){ const im=new Image(); im.onload=()=>cvs.getContext('2d').drawImage(im,0,0,240,180); im.src=e.img; }
+    else botDoodle(cvs.getContext('2d'),240,180,e.seed);
+    if(!e.self && !reveal) card.onclick=()=>{ myVote=idx; renderVoteGrid(false); };
+    g.appendChild(card);
+  });
+}
+
+function resolveTeamVote(){
+  clearTimeout(voteTimer);
+  // bots vote for random non-self entries; you voted myVote
+  entries.forEach((e,idx)=>{ /* reset */ e.votes=0; });
+  teamRoster.forEach(p=>{
+    if(p.me){ if(myVote!=null) entries[myVote].votes++; return; }
+    let choice; do{ choice=Math.floor(Math.random()*entries.length); }while(entries[choice].p.id===p.id);
+    entries[choice].votes++;
+  });
+  const winIdx=entries.reduce((best,e,i,arr)=> e.votes>arr[best].votes?i:best,0);
+  entries.forEach((e,i)=>{ if(i===winIdx) {} });
+  // score: winning drawer gets base +12, +5 team bonus goes to team members; you +2 for voting
+  entries[winIdx].p.pts += 12;
+  if(myVote!=null) players[0].pts += 2;
+  teamRoster.forEach(p=>{ if(p.id!==entries[winIdx].p.id) {} });
+  A.renderBoard(players);
+  renderVoteGrid(true);
+  // mark winner card
+  setTimeout(()=>{ const cards=$('#voteGrid').children; if(cards[winIdx]) cards[winIdx].classList.add('winner');
+    setTimeout(()=>toFinale(entries[winIdx]), 1600); }, 300);
+}
+
+function toFinale(teamWinner){
+  phase='finale';
+  $('#phaseLabel').textContent='Finale · Everyone Votes';
+  $('#promptTitle').innerHTML='The <span class="hi">Finale</span> Gallery';
+  $('#promptSub').innerHTML='One finalist per team. All 30 players vote for the champion doodle.';
+  $('#phaseNote').textContent='Pick the best across all three teams.';
+  // finalists: your team's winner (real if you won, else doodle) + 2 other teams' procedural winners
+  const finals=[];
+  finals.push({ team:myTeam, p:teamWinner.p, img:teamWinner.img, seed:teamWinner.seed, self:teamWinner.self, votes:0 });
+  [0,1,2].filter(t=>t!==myTeam).forEach(t=>{
+    const w=A.pick(teamOf(t)); finals.push({ team:t, p:w, img:null, seed:w.id*131+3, self:false, votes:0 });
+  });
+  finals.sort((a,b)=>a.team-b.team);
+  entries=finals; myVote=null;
+  renderFinaleGrid(false);
+  $('#timerLabel').textContent='Final Vote';
+  $('#timerFill').style.transition='none'; $('#timerFill').style.width='100%'; void $('#timerFill').offsetWidth;
+  $('#timerFill').style.transition='width 15s linear'; $('#timerFill').style.width='0%';
+  finaleTimer=setTimeout(resolveFinale,15000);
+}
+let finaleTimer=null;
+
+function renderFinaleGrid(reveal){
+  const g=$('#voteGrid'); g.style.gridTemplateColumns='repeat(3,1fr)'; g.innerHTML='';
+  entries.forEach((e,idx)=>{
+    const card=document.createElement('div');
+    card.className='dcard'+(myVote===idx?' voted':'');
+    card.innerHTML=`<span class="crown">Champion</span>
+      <canvas width="240" height="180"></canvas>
+      <div class="cap"><span><span style="color:${TEAMS[e.team].color}">●</span> Team ${TEAMS[e.team].name}${e.self?' (You)':''}</span><span class="votes"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21l-1.4-1.3C5 14.9 2 12.2 2 8.8 2 6.1 4 4 6.6 4c1.5 0 3 .7 3.9 1.9C11.5 4.7 13 4 14.5 4 17 4 19 6.1 19 8.8c0 3.4-3 6.1-8.6 10.9z"/></svg><b>${reveal?e.votes:'·'}</b></span></div>`;
+    const cvs=card.querySelector('canvas');
+    if(e.img){ const im=new Image(); im.onload=()=>cvs.getContext('2d').drawImage(im,0,0,240,180); im.src=e.img; }
+    else botDoodle(cvs.getContext('2d'),240,180,e.seed);
+    if(!reveal) card.onclick=()=>{ myVote=idx; renderFinaleGrid(false); };
+    g.appendChild(card);
+  });
+}
+
+function resolveFinale(){
+  clearTimeout(finaleTimer);
+  entries.forEach(e=>e.votes=0);
+  players.forEach(p=>{ if(p.disconnected) return;
+    if(p.me){ if(myVote!=null) entries[myVote].votes++; return; }
+    // bots slightly favor their own team's finalist
+    let idx; if(Math.random()<0.5){ idx=entries.findIndex(e=>e.team===p.team); } else { idx=Math.floor(Math.random()*3); }
+    if(idx<0) idx=Math.floor(Math.random()*3); entries[idx].votes++;
+  });
+  const winIdx=entries.reduce((b,e,i,arr)=>e.votes>arr[b].votes?i:b,0);
+  const champ=entries[winIdx];
+  // champion drawer + team bonus
+  champ.p.pts += 15; players.forEach(p=>{ if(p.team===champ.team&&!p.disconnected) p.pts+=3; });
+  if(myVote===winIdx) players[0].pts += 3; // voted the winner
+  A.renderBoard(players);
+  renderFinaleGrid(true);
+  const cards=$('#voteGrid').children; if(cards[winIdx]) cards[winIdx].classList.add('winner');
+  setTimeout(()=>endGame(champ), 1600);
+}
+
+function endGame(champ){
+  A.finishGame(players);
+  const iChampTeam=champ.team===myTeam, iChampDrawer=champ.p.me;
+  const ov=$('#resultOverlay'), v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  $('#timerLabel').textContent='Complete';
+  v.textContent = iChampDrawer?'Your Doodle Wins!':(iChampTeam?'Your Team Wins!':`Team ${TEAMS[champ.team].name} Wins`);
+  v.className='verdict '+(iChampTeam?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML=`The champion doodle of <b>"${secret}"</b> came from Team ${TEAMS[champ.team].name}. You scored <b>${players[0].pts}</b> this game.`;
+  pts.textContent=`Rank ${myRank} of 30 · Season ${players[0].seasonPts+players[0].pts}`;
+  ov.classList.remove('hide'); if(iChampTeam) A.confetti($('#stage'),100);
+}
+
+$('#startBtn').addEventListener('click', start);
+window.addEventListener('resize',()=>{ if(phase==='draw') fitPad(); });
+document.getElementById('hudHost').innerHTML=A.hud({title:'Doodle Duel', round:false, extra:`<span class="chip hide-s"><span class="k">Team</span> <b style="color:${TEAMS[myTeam].color}">${TEAMS[myTeam].name}</b></span>`});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+setInterval(()=>{ if(phase==='pre') A.setPing(players); },1400);
+</script>
+</body>
+</html>

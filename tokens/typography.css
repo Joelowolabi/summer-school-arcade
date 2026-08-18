@@ -1,0 +1,37 @@
+:root{
+--font-display:"Fredoka","DM Sans",system-ui,sans-serif; /* rounded display voice, hero moments */
+--font-heading:"Fredoka","DM Sans",system-ui,sans-serif; /* all headings and card titles */
+--font-core:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif; /* UI labels, buttons, body */
+--font-body:"DM Sans",system-ui,sans-serif; /* reading sizes: body, caption, micro */
+--font-mono:ui-monospace,"SFMono-Regular",Menlo,monospace;
+
+--fw-regular:400; /* @kind font */
+--fw-medium:500; /* @kind font */
+--fw-semibold:600; /* @kind font */
+--fw-bold:700; /* @kind font */
+--fw-black:800; /* @kind font */
+
+/* Sizes — 1.25 ratio above 20px, tighter steps below */
+--fs-display-xl:64px;--fs-display-l:48px;--fs-display-m:38px;
+--fs-h1:32px;--fs-h2:26px;--fs-h3:21px;--fs-h4:18px;
+--fs-body-l:16px;--fs-body:14px;--fs-body-s:13px;--fs-caption:12px;--fs-micro:11px;
+
+--lh-tight:1.08; /* @kind font */
+--lh-snug:1.22; /* @kind font */
+--lh-normal:1.45; /* @kind font */
+--lh-relaxed:1.6; /* @kind font */
+
+--ls-display:-0.02em; /* @kind font */
+--ls-heading:-0.01em; /* @kind font */
+--ls-body:0; /* @kind font */
+--ls-eyebrow:0.08em; /* @kind font */
+
+/* Role aliases */
+--type-hero:var(--fw-bold) var(--fs-display-l)/var(--lh-tight) var(--font-display); /* @kind font */
+--type-section:var(--fw-bold) var(--fs-h1)/var(--lh-snug) var(--font-heading); /* @kind font */
+--type-card-title:var(--fw-semibold) var(--fs-h4)/var(--lh-snug) var(--font-heading); /* @kind font */
+--type-body:var(--fw-regular) var(--fs-body)/var(--lh-normal) var(--font-body); /* @kind font */
+--type-caption:var(--fw-regular) var(--fs-caption)/var(--lh-normal) var(--font-body); /* @kind font */
+--type-button:var(--fw-semibold) var(--fs-body)/1 var(--font-core); /* @kind font */
+--type-eyebrow:var(--fw-medium) var(--fs-caption)/1.2 var(--font-core); /* @kind font */
+}

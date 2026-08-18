@@ -1,0 +1,349 @@
+<!-- Summer School Arcade — Snake Royale (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snake Royale — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .arena{flex:1; display:flex; align-items:center; justify-content:center; background:var(--surface-sunken); border-radius:var(--radius-xl); border:1px solid var(--border-hairline); position:relative; overflow:hidden; min-height:420px}
+  canvas{display:block; border-radius:var(--radius-l); background:
+    linear-gradient(0deg, rgba(123,91,232,.04) 1px, transparent 1px) 0 0/100% 24px,
+    linear-gradient(90deg, rgba(123,91,232,.04) 1px, transparent 1px) 0 0/24px 100%,
+    var(--white)}
+  .hbadge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-100);color:var(--purple-700);font-weight:var(--fw-bold);font-size:var(--fs-body-s);padding:6px 14px;border-radius:var(--radius-pill)}
+  .keys{display:inline-flex;gap:6px;align-items:center;color:var(--text-muted);font-size:var(--fs-body-s)}
+  .key{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 6px;border-radius:var(--radius-s);background:var(--surface-card);border:1px solid var(--border-soft);box-shadow:var(--shadow-xs);font-weight:var(--fw-bold);font-size:var(--fs-caption);color:var(--text-body)}
+  .alive-strip{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .alivetag{display:inline-flex;align-items:center;gap:7px;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:5px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .alivetag .sw{width:10px;height:10px;border-radius:3px}
+  .alivetag.dead{opacity:.4;text-decoration:line-through}
+  .youflag{position:absolute;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:2px 8px;border-radius:var(--radius-pill);transform:translate(-50%,-140%);white-space:nowrap;pointer-events:none;box-shadow:var(--shadow-s)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel"><span class="hbadge" id="heatBadge">Heat 1 of 3</span></span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:12px"><h1 id="promptTitle">Snake <span class="hi">Royale</span></h1>
+        <p id="promptSub">Eat pellets, dodge walls and other snakes. Last one slithering wins.</p></div>
+
+      <div class="arena" id="arena"><canvas id="cv" width="720" height="420"></canvas><div class="youflag hide" id="youflag" style="display:none"></div></div>
+
+      <div class="alive-strip" id="aliveStrip"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Snake Royale</h1>
+          <p class="goal">Goal: <b>be the last snake slithering</b>.</p>
+          <ol class="steps">
+            <li>Steer your snake around the grid.</li>
+            <li>Eat yellow pellets to grow longer.</li>
+            <li>Hitting a wall, yourself or another snake ends your run.</li>
+            <li>Top survivors of each heat reach the Finale.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v"><span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span> or arrow keys</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Survival + length · Finale winner bonus</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Enter Heat 1
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Continue</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A = window.Arcade;
+const $ = s=>document.querySelector(s);
+const cv=$('#cv'), ctx=cv.getContext('2d');
+
+/* grid */
+const CELL=24, COLS=cv.width/CELL, ROWS=cv.height/CELL;
+let players=A.makeRoster();
+// assign snake colors per player from team color, varied lightness
+const SNAKE_COLORS=['#E5484D','#F2683C','#FFD93B','#3FBF7F','#4F9CF9','#7B5BE8','#F7906E','#8E6FEE','#4FBF9F','#FFA53B'];
+
+let phase='heat', heatIndex=0, finalists=[], snakes=[], food=[], tickTimer=null, running=false, startT=0;
+let mySnake=null, queuedDir=null;
+
+/* Build a heat: ~10 players. Heats 1-3 then finale. */
+function heatRoster(idx){
+  // deterministic-ish split of the 30 into 3 heats of 10
+  return players.filter(p=>!p.disconnected).filter(p=>Math.floor(p.id/10)===idx).slice(0,10);
+}
+
+function spawnSnake(p, i, count){
+  const angle=(i/count)*Math.PI*2;
+  const cx=Math.floor(COLS/2 + Math.cos(angle)*(COLS/3));
+  const cy=Math.floor(ROWS/2 + Math.sin(angle)*(ROWS/3));
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  const d=dirs[i%4];
+  return {
+    p, color:SNAKE_COLORS[p.id%SNAKE_COLORS.length],
+    body:[[cx,cy],[cx-d[0],cy-d[1]],[cx-2*d[0],cy-2*d[1]]],
+    dir:d, alive:true, len:3, bornAt:0, diedAt:0,
+    // bot AI aggressiveness / smarts
+    smart: p.me?1:A.rand(0.45,0.9),
+    turnBias:A.rand(0,1),
+  };
+}
+
+function startHeat(){
+  $('#preOverlay').classList.add('hide');
+  const roster = phase==='final' ? finalists.map(f=>f.p) : heatRoster(heatIndex);
+  snakes = roster.map((p,i)=>spawnSnake(p,i,roster.length));
+  mySnake = snakes.find(s=>s.p.me) || null;
+  food=[]; for(let i=0;i<6;i++) addFood();
+  $('#heatBadge').textContent = phase==='final' ? 'FINALE' : `Heat ${heatIndex+1} of 3`;
+  $('#promptTitle').innerHTML = phase==='final' ? 'The <span class="hi">Finale</span>' : `Heat <span class="hi">${heatIndex+1}</span>`;
+  $('#promptSub').textContent = mySnake ? 'You\'re in this one — steer and survive!' : 'You\'re watching this heat. Your run is done.';
+  renderAlive(); draw();
+  A.countdown($('#countOverlay'), ()=>{ running=true; startT=performance.now(); loop(); startTimer(); });
+}
+
+const HEAT_TIME=45; // seconds
+let heatTimer=null, timeLeft=HEAT_TIME;
+function startTimer(){
+  timeLeft=HEAT_TIME; const fill=$('#timerFill');
+  fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+  fill.style.transition=`width ${HEAT_TIME}s linear`; fill.style.width='0%';
+  $('#timerLabel').textContent='Survive!';
+  clearInterval(heatTimer);
+  heatTimer=setInterval(()=>{ timeLeft-=1; if(timeLeft<=0){ clearInterval(heatTimer); endHeat('time'); } },1000);
+}
+
+function addFood(){
+  let x,y,ok,tries=0;
+  do{ x=Math.floor(Math.random()*COLS); y=Math.floor(Math.random()*ROWS); ok=true;
+    for(const s of snakes){ for(const b of s.body){ if(b[0]===x&&b[1]===y){ok=false;break;} } }
+    for(const f of food){ if(f[0]===x&&f[1]===y) ok=false; }
+    tries++;
+  }while(!ok&&tries<50);
+  food.push([x,y]);
+}
+
+/* ---- input ---- */
+const DIRS={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0],W:[0,-1],S:[0,1],A:[-1,0],D:[1,0]};
+window.addEventListener('keydown',e=>{
+  const nd=DIRS[e.key]; if(!nd||!mySnake||!mySnake.alive) return;
+  e.preventDefault();
+  if(nd[0]===-mySnake.dir[0]&&nd[1]===-mySnake.dir[1]) return; // no 180
+  queuedDir=nd;
+});
+
+/* ---- bot steering: greedy toward nearest food w/ danger avoidance ---- */
+function botDir(s){
+  const head=s.body[0];
+  // occupancy for collision look-ahead
+  const blocked=(x,y)=>{
+    if(x<0||y<0||x>=COLS||y>=ROWS) return true;
+    for(const o of snakes){ if(!o.alive) continue; const seg=o.body; const lim = o===s?seg.length-1:seg.length;
+      for(let i=0;i<lim;i++){ if(seg[i][0]===x&&seg[i][1]===y) return true; } }
+    return false;
+  };
+  let nearest=null,nd=1e9;
+  for(const f of food){ const dist=Math.abs(f[0]-head[0])+Math.abs(f[1]-head[1]); if(dist<nd){nd=dist;nearest=f;} }
+  const opts=[[1,0],[-1,0],[0,1],[0,-1]].filter(d=>!(d[0]===-s.dir[0]&&d[1]===-s.dir[1]));
+  const safe=opts.filter(d=>!blocked(head[0]+d[0],head[1]+d[1]));
+  const pool=safe.length?safe:opts;
+  if(nearest && Math.random()<s.smart){
+    pool.sort((p,q)=>{
+      const dp=Math.abs(head[0]+p[0]-nearest[0])+Math.abs(head[1]+p[1]-nearest[1]);
+      const dq=Math.abs(head[0]+q[0]-nearest[0])+Math.abs(head[1]+q[1]-nearest[1]);
+      return dp-dq;
+    });
+    return pool[0];
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* ---- tick ---- */
+let acc=0, last=0;
+const STEP=110; // ms per grid move
+function loop(t){
+  if(!running) return;
+  if(!last) last=t||performance.now();
+  const now=t||performance.now();
+  acc += now-last; last=now;
+  while(acc>=STEP){ tick(); acc-=STEP; }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function tick(){
+  // set directions
+  if(mySnake&&mySnake.alive&&queuedDir){ mySnake.dir=queuedDir; queuedDir=null; }
+  for(const s of snakes){ if(!s.alive) continue; if(s.p.me) continue; if(Math.random()<0.9) s.dir=botDir(s); }
+  // move
+  const grew=new Set();
+  for(const s of snakes){
+    if(!s.alive) continue;
+    const head=[s.body[0][0]+s.dir[0], s.body[0][1]+s.dir[1]];
+    s.nextHead=head;
+  }
+  // resolve wall + eat
+  for(const s of snakes){
+    if(!s.alive) continue;
+    const h=s.nextHead;
+    if(h[0]<0||h[1]<0||h[0]>=COLS||h[1]>=ROWS){ kill(s); continue; }
+    s.body.unshift(h);
+    let ate=-1;
+    for(let i=0;i<food.length;i++){ if(food[i][0]===h[0]&&food[i][1]===h[1]){ ate=i; break; } }
+    if(ate>=0){ food.splice(ate,1); addFood(); s.len++; grew.add(s); }
+    else s.body.pop();
+  }
+  // collisions (after moves) — head into any body
+  for(const s of snakes){
+    if(!s.alive) continue;
+    const h=s.body[0];
+    for(const o of snakes){
+      if(!o.alive) continue;
+      const start = o===s?1:0;
+      for(let i=start;i<o.body.length;i++){
+        if(o.body[i][0]===h[0]&&o.body[i][1]===h[1]){ kill(s); break; }
+      }
+      if(!s.alive) break;
+    }
+  }
+  renderAlive();
+  const aliveCount=snakes.filter(s=>s.alive).length;
+  if(aliveCount<=1){ endHeat('last'); }
+  else if(mySnake && !mySnake.alive && aliveCount>1){ /* keep spectating */ }
+}
+
+function kill(s){ if(!s.alive) return; s.alive=false; s.diedAt=performance.now(); }
+
+/* ---- draw ---- */
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // grid bg drawn via CSS; draw food
+  for(const f of food){
+    const x=f[0]*CELL, y=f[1]*CELL;
+    ctx.fillStyle='#FFD93B';
+    roundRect(x+5,y+5,CELL-10,CELL-10,5); ctx.fill();
+    ctx.strokeStyle='rgba(217,169,7,.7)'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+  // snakes
+  for(const s of snakes){
+    for(let i=s.body.length-1;i>=0;i--){
+      const b=s.body[i]; const x=b[0]*CELL, y=b[1]*CELL;
+      const isHead=i===0;
+      ctx.fillStyle = s.alive ? s.color : withAlpha(s.color,.28);
+      const pad=isHead?2:3;
+      roundRect(x+pad,y+pad,CELL-pad*2,CELL-pad*2, isHead?8:6); ctx.fill();
+      if(isHead && s.alive){
+        // eyes
+        ctx.fillStyle='#fff';
+        const ex=x+CELL/2, ey=y+CELL/2;
+        ctx.beginPath(); ctx.arc(ex-3+s.dir[0]*3, ey-3+s.dir[1]*3,2.4,0,7); ctx.arc(ex+3+s.dir[0]*3, ey-3+s.dir[1]*3,2.4,0,7); ctx.fill();
+      }
+    }
+  }
+  // "YOU" flag over your head
+  const yf=$('#youflag');
+  if(mySnake&&mySnake.alive){
+    const h=mySnake.body[0]; const rect=cv.getBoundingClientRect(); const ar=$('#arena').getBoundingClientRect();
+    yf.style.display='block'; yf.textContent='YOU';
+    yf.style.left=(cv.offsetLeft + h[0]*CELL + CELL/2)+'px';
+    yf.style.top=(cv.offsetTop + h[1]*CELL)+'px';
+  } else { yf.style.display='none'; }
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function withAlpha(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+
+function renderAlive(){
+  $('#aliveStrip').innerHTML = snakes.map(s=>`
+    <span class="alivetag ${s.alive?'':'dead'}"><span class="sw" style="background:${s.color}"></span>${s.p.me?'You':s.p.name} · ${s.len}</span>`).join('');
+}
+
+/* ---- heat end / advancement ---- */
+function endHeat(reason){
+  running=false; clearInterval(heatTimer);
+  // rank by: alive first, then length, then survival time
+  const ranked=[...snakes].sort((a,b)=>{
+    if(a.alive!==b.alive) return a.alive?-1:1;
+    if(a.len!==b.len) return b.len-a.len;
+    return (b.diedAt||1e15)-(a.diedAt||1e15);
+  });
+  const advance = ranked.slice(0, phase==='final'?1:3);
+  // award: survival points to your run
+  const me = snakes.find(s=>s.p.me);
+  let myPts=0;
+  if(me){
+    const myRank=ranked.indexOf(me)+1;
+    myPts = Math.max(0, (snakes.length-myRank)*2) + (me.len-3);
+    me.p.pts += myPts;
+  }
+  A.renderBoard(players);
+
+  if(phase!=='final'){
+    finalists.push(...advance.filter(s=>!finalists.some(f=>f.p.id===s.p.id)).map(s=>({p:s.p})));
+    const meAdvanced = advance.some(s=>s.p.me);
+    showHeatResult(reason, advance, meAdvanced, myPts);
+  } else {
+    endGame(ranked, myPts);
+  }
+}
+
+function showHeatResult(reason, advance, meAdv, myPts){
+  const ov=$('#resultOverlay'); const v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts'), nb=$('#nextBtn');
+  const names=advance.map(s=>s.p.me?'You':s.p.name).join(', ');
+  if(meAdv){ v.textContent='You Advance!'; v.className='verdict win'; A.confetti($('#stage'),60); }
+  else if(snakes.find(s=>s.p.me)){ v.textContent='Heat Over'; v.className='verdict late'; }
+  else { v.textContent='Heat Over'; v.className='verdict late'; }
+  sub.innerHTML=`Advancing to the Finale: <b>${names}</b>.`;
+  pts.textContent = myPts>0?`+${myPts} points`:'Heat complete';
+  ov.classList.remove('hide'); nb.style.display='inline-flex';
+  nb.textContent = (heatIndex>=2)?'To The Finale':'Next Heat';
+  nb.onclick=()=>{
+    ov.classList.add('hide'); nb.style.display='none';
+    if(heatIndex>=2){ phase='final'; startHeat(); }
+    else { heatIndex++; startHeat(); }
+  };
+}
+
+function endGame(ranked, myPts){
+  A.finishGame(players);
+  const champ=ranked[0];
+  const ov=$('#resultOverlay'); const v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts'), nb=$('#nextBtn');
+  const iWon=champ&&champ.p.me;
+  // bonus: champ gets top points
+  champ.p.pts += 15; if(iWon) myPts+=15;
+  A.renderBoard(players);
+  $('#promptTitle').innerHTML='Snake Royale <span class="hi">Champion</span>';
+  $('#timerLabel').textContent='Complete';
+  v.textContent = iWon?'You Win It All!':`${champ.p.name} Wins`; v.className='verdict '+(iWon?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML = iWon ? `Last snake slithering. You scored <b>${players[0].pts}</b> points this game.`
+    : `You finished the game at rank <b>#${myRank}</b> with <b>${players[0].pts}</b> points.`;
+  pts.textContent=`Season total ${players[0].seasonPts+players[0].pts}`;
+  ov.classList.remove('hide'); nb.style.display='none';
+  if(iWon) A.confetti($('#stage'),110);
+}
+
+/* ---- boot ---- */
+document.getElementById('hudHost').innerHTML = A.hud({title:'Snake Royale', round:false});
+document.getElementById('boardHost').innerHTML = A.board('Live Standings');
+A.renderBoard(players);
+draw();
+$('#startBtn').addEventListener('click', startHeat);
+setInterval(()=>{ if(!running) A.setPing(players); }, 1400);
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!-- Summer School Arcade — Copycat (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copycat — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .pads-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:0}
+  .pads{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:min(52vh,460px);aspect-ratio:1/1}
+  .pad{border:0;border-radius:var(--radius-2xl);cursor:pointer;box-shadow:var(--shadow-m);opacity:.62;transition:opacity .12s,transform .1s var(--ease-pop);position:relative}
+  .pad:active{transform:scale(.97)}
+  .pad.lit{opacity:1;box-shadow:var(--shadow-l),0 0 0 4px rgba(255,255,255,.6) inset}
+  .pad[disabled]{cursor:default}
+  .statusline{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-body);text-align:center;min-height:26px}
+  .statusline b{color:var(--accent-play)}
+  .remain{display:inline-flex;align-items:center;gap:8px;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:6px 14px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);color:var(--text-body)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow">Memory · Last One Standing</span>
+        <div class="timerpill"><span class="remain" id="remain">30 still in</span></div>
+      </div>
+      <div class="prompt" style="margin-bottom:4px"><h1 id="promptTitle">Copy<span class="hi">cat</span></h1>
+        <p id="promptSub">Watch the pattern, then repeat it. One mistake and you're out.</p></div>
+
+      <div class="pads-wrap">
+        <div class="pads" id="pads"></div>
+        <div class="statusline" id="status">Get ready…</div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Copycat</h1>
+          <p class="goal">Goal: <b>remember the growing pattern longest</b>.</p>
+          <ol class="steps">
+            <li>The pads light up in a sequence — watch closely.</li>
+            <li>Repeat it by clicking the pads in order.</li>
+            <li>Each round adds one more step.</li>
+            <li>One wrong pad and you're eliminated.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse click the pads</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Points per round survived · big bonus for last standing</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const PADS=[{c:'#F2683C',f:330},{c:'#7B5BE8',f:392},{c:'#FFD93B',f:494},{c:'#3FBF7F',f:587}];
+let seq=[], inputPos=0, round=0, alive=true, roundsSurvived=0, aliveBots=[], accepting=false;
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Copycat', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+$('#pads').innerHTML=PADS.map((p,i)=>`<button class="pad" data-i="${i}" style="background:${p.c}"></button>`).join('');
+
+let ac=null;
+function tone(f,dur){ try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(),g=ac.createGain(); o.connect(g); g.connect(ac.destination); o.type='sine'; o.frequency.value=f; g.gain.setValueAtTime(.0001,ac.currentTime); g.gain.exponentialRampToValueAtTime(.16,ac.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dur); o.start(); o.stop(ac.currentTime+dur+.02);}catch(e){} }
+function flash(i,dur){ const el=$('#pads').children[i]; el.classList.add('lit'); tone(PADS[i].f,dur/1000); setTimeout(()=>el.classList.remove('lit'),dur*0.8); }
+
+function start(){
+  $('#preOverlay').classList.add('hide');
+  seq=[]; round=0; alive=true; roundsSurvived=0;
+  aliveBots=players.filter(p=>!p.me&&!p.disconnected).map(p=>({p,alive:true}));
+  updateRemain();
+  A.countdown($('#countOverlay'), nextRound);
+}
+function updateRemain(){ const n=(alive?1:0)+aliveBots.filter(b=>b.alive).length; $('#remain').textContent=n+' still in'; }
+
+function nextRound(){
+  round++; seq.push(Math.floor(Math.random()*4)); inputPos=0; accepting=false;
+  $('#status').innerHTML=`Round ${round} · watch <b>${seq.length}</b> step${seq.length>1?'s':''}`;
+  setPads(false);
+  // play sequence
+  let t=500; seq.forEach((s,idx)=>{ setTimeout(()=>flash(s,520), t); t+=680; });
+  setTimeout(()=>{ if(!alive) return; accepting=true; setPads(true); $('#status').innerHTML='Your turn — repeat it!'; }, t+200);
+  // resolve bots for this round length
+  resolveBots();
+}
+function setPads(enabled){ document.querySelectorAll('.pad').forEach(p=>p.disabled=!enabled); }
+
+function resolveBots(){
+  // each alive bot survives this length with a probability tied to skill
+  aliveBots.forEach(b=>{ if(!b.alive) return; const surv=A.clamp(b.p.skill - seq.length*0.045 + 0.15, 0.05, 0.97); if(Math.random()>surv){ b.alive=false; } });
+}
+
+$('#pads').addEventListener('click', e=>{
+  const b=e.target.closest('.pad'); if(!b||!accepting||!alive) return;
+  const i=+b.dataset.i; flash(i,260);
+  if(i===seq[inputPos]){ inputPos++;
+    if(inputPos===seq.length){ accepting=false; setPads(false); roundsSurvived=round; players[0].pts+=8; A.renderBoard(players); $('#status').innerHTML='Correct! Next round…'; updateRemain();
+      const botsLeft=aliveBots.filter(x=>x.alive).length;
+      if(botsLeft===0){ return win(); }
+      if(round>=14){ return win(); }
+      setTimeout(nextRound, 1100);
+    }
+  } else { // wrong
+    alive=false; accepting=false; setPads(false); b.classList.add('lit'); setTimeout(()=>b.classList.remove('lit'),400);
+    eliminated();
+  }
+});
+
+function eliminated(){
+  // your placement = 1 + number of bots still alive (they outlasted you)
+  const outlasted=aliveBots.filter(b=>b.alive).length; const place=outlasted+1;
+  players[0].pts += 0; // survival points already added per round
+  end(place, false);
+}
+function win(){ end(1, true); }
+
+function end(place, won){
+  $('#status').textContent='';
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  if(won){ players[0].pts+=20; }
+  A.finishGame(players);   // commit Season + report to Cup once
+  A.renderBoard(players);
+  $('#promptTitle').innerHTML = won?'Last One <span class="hi">Standing!</span>':'Copycat <span class="hi">Over</span>';
+  $('#timerLabel')&&($('#timerLabel').textContent='');
+  v.textContent = won?'You Win!':`Out At Round ${roundsSurvived}`;
+  v.className='verdict '+(won?'win':'late');
+  sub.innerHTML = won?`You remembered all ${seq.length} steps — nobody else could. You scored <b>${players[0].pts}</b>.`
+    : `You matched <b>${roundsSurvived}</b> round${roundsSurvived===1?'':'s'} before slipping. You scored <b>${players[0].pts}</b>.`;
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  pts.textContent=`Rank ${myRank} of 30`;
+  ov.classList.remove('hide'); if(won||myRank<=3) A.confetti($('#stage'),90);
+}
+$('#startBtn').addEventListener('click', start);
+</script>
+</body>
+</html>

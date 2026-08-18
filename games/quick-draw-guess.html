@@ -1,0 +1,216 @@
+<!-- Summer School Arcade — Quick Draw Guess (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick Draw Guess — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .secret{display:inline-flex;align-items:center;gap:10px;background:var(--wash-sun);color:var(--ink-900);border-radius:var(--radius-pill);padding:8px 18px;font-weight:var(--fw-bold)}
+  .secret .w{font-family:var(--font-display);font-size:var(--fs-h3)}
+  .play{flex:1;display:flex;gap:16px;min-height:0}
+  .tools{display:flex;flex-direction:column;gap:10px;width:56px}
+  .swatch{width:40px;height:40px;border-radius:var(--radius-pill);border:2px solid #fff;box-shadow:var(--shadow-s),0 0 0 1px var(--border-soft);cursor:pointer}
+  .swatch.sel{box-shadow:var(--shadow-s),0 0 0 3px var(--accent-play)}
+  .tool-btn{width:40px;height:40px;border-radius:var(--radius-m);border:1px solid var(--border-soft);background:var(--surface-card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-body)}
+  .canvas-wrap{flex:1;position:relative;background:#fff;border-radius:var(--radius-xl);border:1px solid var(--border-hairline);box-shadow:var(--shadow-s);overflow:hidden;min-height:0}
+  #pad{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .feed{width:210px;flex:0 0 auto;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+  @media(max-width:760px){ .feed{display:none} }
+  .feeditem{background:var(--surface-sunken);border-radius:var(--radius-m);padding:8px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);color:var(--text-body);animation:fi .3s var(--ease-pop)}
+  .feeditem b{color:var(--status-success)}
+  @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .choice-b{padding:16px;border:1px solid var(--border-hairline);border-radius:var(--radius-xl);background:var(--surface-card);box-shadow:var(--shadow-s);cursor:pointer;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong);transition:transform var(--dur-fast) var(--ease-pop),box-shadow var(--dur-base)}
+  .choice-b:hover{transform:translateY(-3px);box-shadow:var(--shadow-l)} .choice-b:active{transform:scale(.97)}
+  .choice-b.correct{border-color:var(--green-400);box-shadow:0 0 0 3px var(--green-100)}
+  .choice-b.wrong{border-color:var(--red-400);box-shadow:0 0 0 3px var(--red-100)}
+  .choice-b[disabled]{cursor:default}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel">Round 1 · You Draw</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:10px"><h1 id="promptTitle">Quick Draw <span class="hi">Guess</span></h1>
+        <p id="promptSub" style="display:flex;align-items:center;gap:12px">—</p></div>
+
+      <div class="play" id="play">
+        <div class="tools" id="tools"></div>
+        <div class="canvas-wrap"><canvas id="pad"></canvas></div>
+        <div class="feed" id="feed"></div>
+      </div>
+      <div class="choices" id="choices" style="display:none"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Quick Draw Guess</h1>
+          <p class="goal">Goal: <b>draw clearly, and guess fast</b>.</p>
+          <ol class="steps">
+            <li>On your turn, draw the secret word — the room guesses it.</li>
+            <li>You score for every player who guesses your drawing.</li>
+            <li>On other turns, a drawing appears — pick the right word.</li>
+            <li>Faster correct guesses score more.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse drag to draw · click to guess</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Points per guesser + fast-guess bonus · 6 rounds</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const ROUNDS=6, DRAW_TIME=28, GUESS_TIME=9;
+const COLORS=['#1E1B26','#F2683C','#7B5BE8','#3FBF7F','#4F9CF9','#E5484D'];
+let color=COLORS[0];
+
+/* words with simple canvas doodles (for the rounds where YOU guess) */
+const DOODLES={
+  Sun:(c,w,h)=>{c.strokeStyle='#F2A93C';c.fillStyle='#FFD93B';c.lineWidth=4;const cx=w/2,cy=h/2,r=Math.min(w,h)*0.18;c.beginPath();c.arc(cx,cy,r,0,7);c.fill();for(let i=0;i<8;i++){const a=i/8*Math.PI*2;c.beginPath();c.moveTo(cx+Math.cos(a)*r*1.4,cy+Math.sin(a)*r*1.4);c.lineTo(cx+Math.cos(a)*r*2,cy+Math.sin(a)*r*2);c.stroke();}},
+  House:(c,w,h)=>{c.strokeStyle='#7B5BE8';c.lineWidth=4;const s=Math.min(w,h)*0.4,x=w/2-s/2,y=h/2-s*0.2;c.strokeRect(x,y,s,s);c.beginPath();c.moveTo(x-6,y);c.lineTo(x+s/2,y-s*0.5);c.lineTo(x+s+6,y);c.stroke();c.strokeRect(x+s*0.35,y+s*0.5,s*0.3,s*0.5);},
+  Cat:(c,w,h)=>{c.strokeStyle='#565165';c.lineWidth=4;const cx=w/2,cy=h/2,r=Math.min(w,h)*0.22;c.beginPath();c.arc(cx,cy,r,0,7);c.stroke();c.beginPath();c.moveTo(cx-r*0.7,cy-r*0.7);c.lineTo(cx-r*0.9,cy-r*1.5);c.lineTo(cx-r*0.2,cy-r*0.95);c.moveTo(cx+r*0.7,cy-r*0.7);c.lineTo(cx+r*0.9,cy-r*1.5);c.lineTo(cx+r*0.2,cy-r*0.95);c.stroke();c.beginPath();c.arc(cx-r*0.35,cy-r*0.1,3,0,7);c.arc(cx+r*0.35,cy-r*0.1,3,0,7);c.stroke();c.beginPath();c.moveTo(cx-r,cy+r*0.2);c.lineTo(cx-r*1.6,cy+r*0.1);c.moveTo(cx+r,cy+r*0.2);c.lineTo(cx+r*1.6,cy+r*0.1);c.stroke();},
+  Fish:(c,w,h)=>{c.strokeStyle='#4F9CF9';c.lineWidth=4;const cx=w/2,cy=h/2,r=Math.min(w,h)*0.22;c.beginPath();c.ellipse(cx,cy,r*1.4,r,0,0,7);c.stroke();c.beginPath();c.moveTo(cx+r*1.4,cy);c.lineTo(cx+r*2.1,cy-r*0.6);c.lineTo(cx+r*2.1,cy+r*0.6);c.closePath();c.stroke();c.beginPath();c.arc(cx-r*0.7,cy-r*0.15,3,0,7);c.stroke();},
+  Star:(c,w,h)=>{c.strokeStyle='#F5C81F';c.fillStyle='#FFD93B';c.lineWidth=3;const cx=w/2,cy=h/2,R=Math.min(w,h)*0.32;c.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?R*0.45:R;c[i?'lineTo':'moveTo'](cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);}c.closePath();c.fill();c.stroke();},
+  Tree:(c,w,h)=>{c.strokeStyle='#3FBF7F';c.fillStyle='#3FBF7F';c.lineWidth=4;const cx=w/2,cy=h/2;c.fillStyle='#B24320';c.fillRect(cx-8,cy+10,16,Math.min(w,h)*0.22);c.fillStyle='#3FBF7F';c.beginPath();c.arc(cx,cy-6,Math.min(w,h)*0.2,0,7);c.fill();},
+  Boat:(c,w,h)=>{c.strokeStyle='#4F9CF9';c.lineWidth=4;const cx=w/2,cy=h/2,s=Math.min(w,h)*0.3;c.beginPath();c.moveTo(cx-s,cy+s*0.3);c.lineTo(cx+s,cy+s*0.3);c.lineTo(cx+s*0.6,cy+s*0.9);c.lineTo(cx-s*0.6,cy+s*0.9);c.closePath();c.stroke();c.beginPath();c.moveTo(cx,cy+s*0.3);c.lineTo(cx,cy-s);c.lineTo(cx+s*0.8,cy-s*0.1);c.lineTo(cx,cy-s*0.1);c.stroke();},
+  Flower:(c,w,h)=>{c.strokeStyle='#E5484D';c.fillStyle='#F2683C';c.lineWidth=3;const cx=w/2,cy=h/2-10,r=Math.min(w,h)*0.1;for(let i=0;i<6;i++){const a=i/6*Math.PI*2;c.beginPath();c.arc(cx+Math.cos(a)*r*1.6,cy+Math.sin(a)*r*1.6,r,0,7);c.fill();}c.fillStyle='#FFD93B';c.beginPath();c.arc(cx,cy,r,0,7);c.fill();c.strokeStyle='#3FBF7F';c.beginPath();c.moveTo(cx,cy+r);c.lineTo(cx,cy+r*5);c.stroke();},
+};
+const WORDS=Object.keys(DOODLES);
+
+const pad=$('#pad'), pctx=pad.getContext('2d'); let strokes=[], cur=null, drawing=false;
+function fitPad(){ const r=pad.parentElement.getBoundingClientRect(); pad.width=r.width; pad.height=r.height; redraw(); }
+function redraw(){ pctx.clearRect(0,0,pad.width,pad.height); pctx.lineCap='round'; pctx.lineJoin='round'; for(const s of strokes){ pctx.strokeStyle=s.c; pctx.lineWidth=s.w; pctx.beginPath(); s.pts.forEach((p,i)=>i?pctx.lineTo(p.x,p.y):pctx.moveTo(p.x,p.y)); pctx.stroke(); } }
+function pos(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+function down(e){ if(mode!=='draw') return; drawing=true; cur={c:color,w:6,pts:[pos(e)]}; strokes.push(cur); e.preventDefault(); }
+function move(e){ if(!drawing) return; cur.pts.push(pos(e)); redraw(); e.preventDefault(); }
+function up(){ drawing=false; }
+pad.addEventListener('mousedown',down); pad.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+pad.addEventListener('touchstart',down,{passive:false}); pad.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+function renderTools(){ $('#tools').innerHTML=COLORS.map(c=>`<div class="swatch ${c===color?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('')+`<div class="tool-btn" id="undoBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1"/></svg></div><div class="tool-btn" id="clearBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>`;
+  $('#tools').querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{color=s.dataset.c;renderTools();}); $('#undoBtn').onclick=()=>{strokes.pop();redraw();}; $('#clearBtn').onclick=()=>{strokes=[];redraw();}; }
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Quick Draw Guess', rounds:ROUNDS});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+
+let round=0, mode='draw', secret='', guessers=0, myGuessed=false, roundStart=0;
+function start(){ $('#preOverlay').classList.add('hide'); round=0; next(); }
+function next(){
+  if(round>=ROUNDS) return end();
+  round++; A.setRound(round,ROUNDS); secret=A.pick(WORDS);
+  mode = (round%2===1) ? 'draw' : 'guess';
+  if(mode==='draw'){ setupDraw(); } else { setupGuess(); }
+}
+
+function setupDraw(){
+  $('#modeLabel').textContent=`Round ${round} · You Draw`;
+  $('#promptTitle').innerHTML='Draw It: <span class="hi">'+secret+'</span>';
+  $('#promptSub').innerHTML='The room is guessing — draw <b>'+secret+'</b> clearly!';
+  $('#play').style.display='flex'; $('#choices').style.display='none'; $('#feed').innerHTML='';
+  renderTools(); fitPad(); strokes=[]; guessers=0;
+  A.countdown($('#countOverlay'), ()=>{
+    mode='draw'; $('#timerLabel').textContent='Draw!';
+    const f=$('#timerFill'); f.style.transition='none'; f.style.width='100%'; void f.offsetWidth; f.style.transition=`width ${DRAW_TIME}s linear`; f.style.width='0%';
+    scheduleGuessers(); drawTimer=setTimeout(()=>revealDraw(), DRAW_TIME*1000);
+  });
+}
+let drawTimer=null, guessTimers=[];
+function scheduleGuessers(){
+  guessTimers.forEach(clearTimeout); guessTimers=[];
+  const roster=players.filter(p=>!p.me&&!p.disconnected);
+  roster.forEach(p=>{
+    // a bot guesses correctly if it "recognises" the drawing — chance rises with your effort (strokes)
+    const t=A.rand(3,DRAW_TIME-2);
+    guessTimers.push(setTimeout(()=>{
+      const effort=Math.min(1, strokes.length/6); const chance=0.25+effort*0.55*p.skill;
+      if(mode==='draw' && Math.random()<chance){ guessers++; p.pts+=5; players[0].pts+=3;
+        addFeed(`<b>${p.name}</b> guessed it!`); A.renderBoard(players);
+      }
+    }, t*1000));
+  });
+}
+function addFeed(html){ const d=document.createElement('div'); d.className='feeditem'; d.innerHTML=html; $('#feed').prepend(d); }
+function revealDraw(){
+  clearTimeout(drawTimer); guessTimers.forEach(clearTimeout); mode='wait';
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  v.textContent = guessers>0?'Nice Drawing!':'Tough One!'; v.className='verdict '+(guessers>0?'win':'late');
+  sub.innerHTML=`<b>${guessers}</b> player${guessers===1?'':'s'} guessed your <b>${secret}</b>.`;
+  pts.textContent=`+${guessers*3} points`; if(guessers>0) A.confetti($('#stage'),Math.min(60,guessers*8));
+  ov.classList.remove('hide'); setTimeout(()=>{ ov.classList.add('hide'); next(); }, 2200);
+}
+
+function setupGuess(){
+  $('#modeLabel').textContent=`Round ${round} · You Guess`;
+  $('#promptTitle').innerHTML='What Is <span class="hi">This?</span>';
+  $('#promptSub').textContent='A drawing appears — pick the right word, fast!';
+  $('#play').style.display='flex'; $('#feed').style.display='none';
+  // hide tools, show doodle on the pad
+  $('#tools').style.visibility='hidden'; fitPad(); strokes=[];
+  const w=pad.width,h=pad.height; pctx.clearRect(0,0,w,h); DOODLES[secret](pctx,w,h);
+  // choices
+  const opts=new Set([secret]); while(opts.size<4) opts.add(A.pick(WORDS)); const arr=[...opts].sort(()=>Math.random()-.5);
+  $('#choices').style.display='grid'; myGuessed=false;
+  $('#choices').innerHTML=arr.map(wd=>`<button class="choice-b" data-w="${wd}">${wd}</button>`).join('');
+  A.countdown($('#countOverlay'), ()=>{
+    mode='guess'; roundStart=performance.now(); $('#timerLabel').textContent='Guess!';
+    const f=$('#timerFill'); f.style.transition='none'; f.style.width='100%'; void f.offsetWidth; f.style.transition=`width ${GUESS_TIME}s linear`; f.style.width='0%';
+    // bots score in background
+    players.forEach(p=>{ if(p.me||p.disconnected) return; const t=A.rand(1.5,GUESS_TIME-1); if(Math.random()<p.accuracy) setTimeout(()=>{ p.pts+=6; A.renderBoard(players); }, t*1000); });
+    guessTimer=setTimeout(()=>revealGuess(false), GUESS_TIME*1000);
+  });
+}
+let guessTimer=null;
+$('#choices').addEventListener('click', e=>{ const b=e.target.closest('.choice-b'); if(!b||mode!=='guess'||myGuessed) return;
+  myGuessed=true; const correct=b.dataset.w===secret; const t=(performance.now()-roundStart)/1000;
+  document.querySelectorAll('.choice-b').forEach(x=>x.disabled=true);
+  b.classList.add(correct?'correct':'wrong');
+  if(correct){ const g=8+Math.round(Math.max(0,(GUESS_TIME-t)/GUESS_TIME)*7); players[0].pts+=g; players[0]._g=g; A.renderBoard(players); }
+  setTimeout(()=>revealGuess(correct), 700);
+});
+function revealGuess(correct){
+  clearTimeout(guessTimer); mode='wait';
+  document.querySelectorAll('.choice-b').forEach(x=>{ x.disabled=true; if(x.dataset.w===secret) x.classList.add('correct'); });
+  $('#tools').style.visibility='visible';
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  if(myGuessed&&correct){ v.textContent='Correct!'; v.className='verdict win'; sub.innerHTML=`It was a <b>${secret}</b>.`; pts.textContent=`+${players[0]._g||8} points`; A.confetti($('#stage'),36); }
+  else if(myGuessed){ v.textContent='Not Quite'; v.className='verdict miss'; sub.innerHTML=`It was a <b>${secret}</b>.`; pts.textContent='+0 points'; }
+  else { v.textContent='Time!'; v.className='verdict late'; sub.innerHTML=`It was a <b>${secret}</b>.`; pts.textContent='+0 points'; }
+  ov.classList.remove('hide'); setTimeout(()=>{ ov.classList.add('hide'); next(); }, 2000);
+}
+
+function end(){
+  A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  $('#play').style.display='none'; $('#choices').style.display='none';
+  $('#promptTitle').innerHTML='Great <span class="hi">Sketching!</span>'; $('#timerLabel').textContent='Done';
+  const ov=$('#resultOverlay');
+  $('#verdict').textContent=myRank<=3?'Top 3!':`You Placed #${myRank}`; $('#verdict').className='verdict '+(myRank<=3?'win':'late');
+  $('#verdictSub').innerHTML=`You scored <b>${players[0].pts}</b> this game. Season total <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  $('#verdictPts').textContent=`Rank ${myRank} of 30`; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+$('#startBtn').addEventListener('click', start);
+window.addEventListener('resize',()=>{ if(mode==='draw'||mode==='guess') fitPad(); });
+setInterval(()=>{ if(mode==='wait'||round===0) A.setPing(players); },1400);
+</script>
+</body>
+</html>

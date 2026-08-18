@@ -1,0 +1,516 @@
+<!-- Summer School Arcade — Click Rush (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Click Rush — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--font-core);
+    color:var(--text-body);
+    background:
+      radial-gradient(120% 90% at 50% -10%, #8B70F2 0%, var(--purple-500) 42%, var(--purple-600) 100%);
+    height:100dvh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .wrap{
+    width:100%; max-width:min(1500px, 95vw); height:100%; margin:0 auto; padding:14px 20px 16px;
+    display:flex; flex-direction:column; gap:14px; flex:1; min-height:0;
+  }
+
+  /* ── Top HUD bar ─────────────────────────────────────── */
+  .hud{
+    display:flex; align-items:center; gap:16px;
+    background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.18);
+    backdrop-filter:var(--blur-glass);
+    -webkit-backdrop-filter:var(--blur-glass);
+    border-radius:var(--radius-pill);
+    padding:10px 14px 10px 18px;
+    color:#fff;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--font-heading); font-weight:var(--fw-bold); letter-spacing:var(--ls-heading); font-size:var(--fs-h4)}
+  .brand .spark{width:26px;height:26px;border-radius:var(--radius-pill);background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900);box-shadow:var(--shadow-s)}
+  .brand small{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.8;font-weight:var(--fw-medium);display:block;margin-top:-2px}
+  .hud .grow{flex:1}
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.16);
+    border-radius:var(--radius-pill); padding:7px 14px; font-size:var(--fs-body-s); font-weight:var(--fw-semibold);
+  }
+  .chip .k{opacity:.72; font-weight:var(--fw-medium)}
+  .chip.code{font-family:var(--font-mono); letter-spacing:.14em; font-weight:var(--fw-bold)}
+  .conn{width:9px;height:9px;border-radius:var(--radius-pill);background:var(--green-400);box-shadow:0 0 0 3px rgba(63,191,127,.28)}
+
+  /* ── Main layout: stage + scoreboard ────────────────── */
+  .layout{display:grid; grid-template-columns:1fr 320px; grid-template-rows:minmax(0,1fr); gap:20px; flex:1; min-height:0}
+  .layout>*{min-height:0; min-width:0}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr; grid-template-rows:none} .board{order:-1} }
+
+  .stage{
+    background:var(--surface-page);
+    border-radius:var(--radius-2xl);
+    box-shadow:var(--shadow-xl);
+    padding:24px;
+    display:flex; flex-direction:column;
+    position:relative; overflow:hidden; min-height:0;
+  }
+
+  /* round meta row */
+  .roundrow{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:6px}
+  .roundrow .eyebrow{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--text-muted); font-weight:var(--fw-semibold)}
+  .timerpill{display:flex; align-items:center; gap:10px}
+  .timer-track{width:150px; height:8px; border-radius:var(--radius-pill); background:var(--ink-100); overflow:hidden}
+  .timer-fill{height:100%; width:100%; background:var(--accent-play); border-radius:var(--radius-pill); transition:width .1s linear}
+
+  .prompt{margin:4px 0 22px}
+  .prompt h1{font-family:var(--font-display); font-weight:var(--fw-bold); letter-spacing:var(--ls-display); color:var(--text-strong); font-size:var(--fs-display-m); line-height:var(--lh-tight); margin:0}
+  .prompt h1 .hi{color:var(--accent-play)}
+  .prompt p{margin:6px 0 0; color:var(--text-muted); font-size:var(--fs-body-l)}
+
+  /* target grid */
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; flex:1; align-content:center}
+  .tile{
+    position:relative; border:0; cursor:pointer;
+    background:var(--surface-card);
+    border:1px solid var(--border-hairline);
+    border-radius:var(--radius-xl);
+    box-shadow:var(--shadow-s);
+    aspect-ratio:16/10; min-height:120px;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-base) var(--ease-out-soft), border-color var(--dur-fast) var(--ease-standard);
+  }
+  .tile:hover{transform:translateY(-4px); box-shadow:var(--shadow-l); border-color:var(--border-soft)}
+  .tile:active{transform:scale(var(--press-scale)); box-shadow:var(--shadow-press)}
+  .tile:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+  .tile.correct{border-color:var(--green-400); box-shadow:0 0 0 3px var(--green-100), var(--shadow-l)}
+  .tile.wrong{border-color:var(--red-400); box-shadow:0 0 0 3px var(--red-100), var(--shadow-s); animation:shake .4s var(--ease-standard)}
+  .tile.dim{opacity:.4; filter:saturate(.7)}
+  .tile[disabled]{cursor:default}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(4px)}50%{transform:translateX(-5px)}}
+
+  .glyph{width:74px;height:74px;display:block}
+
+  /* overlays: countdown, result */
+  .overlay{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(255,255,255,.72); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:5}
+  .overlay.hide{display:none}
+  .count{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:120px; color:var(--accent-play); line-height:1; animation:pop .5s var(--ease-pop)}
+  @keyframes pop{from{transform:scale(.4); opacity:0}to{transform:scale(1); opacity:1}}
+  .verdict{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-display-l); letter-spacing:var(--ls-display); line-height:1; margin:0}
+  .verdict.win{color:var(--green-400)} .verdict.miss{color:var(--accent-spark)} .verdict.late{color:var(--ink-500)}
+  .verdict-sub{margin:10px 0 0; color:var(--text-body); font-size:var(--fs-body-l); max-width:360px}
+  .verdict-pts{margin-top:14px; display:inline-flex; align-items:center; gap:8px; background:var(--surface-sunken); border-radius:var(--radius-pill); padding:8px 18px; font-weight:var(--fw-bold); color:var(--text-strong); font-size:var(--fs-h4)}
+
+  /* pre-game panel */
+  .pre{align-items:center; justify-content:center; gap:0}
+  .pre .kicker{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--accent-play); font-weight:var(--fw-bold); margin-bottom:12px}
+  .pre h1{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-display-l); letter-spacing:var(--ls-display); color:var(--text-strong); margin:0}
+  .pre p{color:var(--text-muted); font-size:var(--fs-body-l); max-width:420px; text-align:center; margin:12px 0 24px}
+  .guide{width:100%; max-width:600px; text-align:left; display:flex; flex-direction:column; align-items:center}
+  .guide .kicker{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--accent-play); font-weight:var(--fw-bold); margin-bottom:8px}
+  .guide h1{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-h1); letter-spacing:var(--ls-heading); color:var(--text-strong); margin:0 0 4px; text-align:center}
+  .guide .goal{color:var(--text-body); font-size:var(--fs-body-l); text-align:center; margin:0 0 18px}
+  .guide .goal b{color:var(--accent-play)}
+  .guide .steps{list-style:none; counter-reset:g; margin:0 0 16px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; width:100%}
+  .guide .steps li{counter-increment:g; position:relative; padding-left:34px; color:var(--text-body); font-size:var(--fs-body-s); line-height:var(--lh-snug); min-height:26px; display:flex; align-items:center}
+  .guide .steps li::before{content:counter(g); position:absolute; left:0; top:0; width:24px; height:24px; border-radius:var(--radius-pill); background:var(--purple-100); color:var(--purple-700); font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-caption); display:flex; align-items:center; justify-content:center}
+  .guide .gmeta{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:22px; width:100%}
+  .guide .gm{display:flex; align-items:center; gap:8px; background:var(--surface-sunken); border:1px solid var(--border-hairline); border-radius:var(--radius-pill); padding:8px 14px; font-size:var(--fs-body-s)}
+  .guide .gm .gm-h{font-weight:var(--fw-bold); color:var(--text-strong)}
+  .guide .gm .gm-v{color:var(--text-muted)}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    font-family:var(--font-core); font-weight:var(--fw-semibold); font-size:var(--fs-body-l);
+    border:0; cursor:pointer; border-radius:var(--radius-pill);
+    height:var(--control-h-l); padding:0 var(--space-8);
+    transition:var(--transition-control);
+  }
+  .btn-spark{background:var(--accent-spark); color:#fff; box-shadow:var(--shadow-spark)}
+  .btn-spark:hover{filter:brightness(1.06); transform:translateY(var(--hover-lift))}
+  .btn-spark:active{transform:scale(var(--press-scale)); box-shadow:var(--shadow-press)}
+
+  /* ── Scoreboard ──────────────────────────────────────── */
+  .board{
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.18);
+    backdrop-filter:var(--blur-glass); -webkit-backdrop-filter:var(--blur-glass);
+    border-radius:var(--radius-2xl);
+    padding:18px; display:flex; flex-direction:column; gap:14px; color:#fff; min-height:0;
+  }
+  .board h2{margin:0; font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-h4); display:flex; align-items:center; gap:8px}
+  .teams{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .teamcard{background:rgba(255,255,255,.10); border-radius:var(--radius-m); padding:10px; text-align:center}
+  .teamcard .dot{width:10px;height:10px;border-radius:var(--radius-pill);display:inline-block;margin-right:6px;vertical-align:middle}
+  .teamcard .tn{font-size:var(--fs-caption); opacity:.85; font-weight:var(--fw-medium)}
+  .teamcard .ts{font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-h4); margin-top:2px}
+
+  .list{display:flex; flex-direction:column; gap:4px; overflow-y:auto; margin:0 -6px; padding:0 6px; flex:1; min-height:120px}
+  .list::-webkit-scrollbar{width:6px} .list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25); border-radius:99px}
+  .prow{display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:var(--radius-pill); transition:background var(--dur-base) var(--ease-standard)}
+  .prow.me{background:rgba(255,255,255,.16)}
+  .prow.flash{background:rgba(255,217,59,.28)}
+  .rank{width:20px; text-align:center; font-weight:var(--fw-bold); font-size:var(--fs-body-s); opacity:.7}
+  .av{width:26px;height:26px;border-radius:var(--radius-pill);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:var(--fw-bold);font-size:var(--fs-caption);color:#fff}
+  .pname{flex:1; font-size:var(--fs-body-s); font-weight:var(--fw-medium); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .pname .youtag{font-size:var(--fs-micro); background:rgba(255,255,255,.22); border-radius:99px; padding:1px 6px; margin-left:6px}
+  .ppts{font-weight:var(--fw-bold); font-size:var(--fs-body-s); font-variant-numeric:tabular-nums}
+  .pdisc{width:7px;height:7px;border-radius:99px;background:var(--red-400);box-shadow:0 0 0 2px rgba(229,72,77,.3)}
+
+  .foot{color:rgba(255,255,255,.85); font-size:var(--fs-caption); text-align:center; padding-top:2px}
+  .foot b{color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HUD -->
+  <div class="hud">
+    <div class="brand">
+      <span class="spark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
+      <span>Click Rush<small>Summer School Arcade</small></span>
+    </div>
+    <div class="grow"></div>
+    <span class="chip code"><span class="k">Room</span> <span id="roomCode">ZAP-7Q</span></span>
+    <span class="chip"><span class="k">Round</span> <b id="roundNum">0</b><span class="k">/</span><span id="roundTot">10</span></span>
+    <span class="chip"><span class="conn"></span> <span id="ping">42ms</span></span>
+  </div>
+
+  <div class="layout">
+    <!-- STAGE -->
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel">All Players · First Correct Click Wins</span>
+        <div class="timerpill">
+          <span class="eyebrow" id="timerLabel">Get Ready</span>
+          <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+        </div>
+      </div>
+
+      <div class="prompt">
+        <h1 id="promptTitle">Find The <span class="hi">Target</span></h1>
+        <p id="promptSub">Click the matching shape as fast as you can.</p>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <!-- Pre-game -->
+      <div class="overlay pre" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Click Rush</h1>
+          <p class="goal">Goal: <b>click the correct target as fast as you can</b>.</p>
+          <ol class="steps">
+            <li>The target is named at the top (e.g. "Orange Star").</li>
+            <li>Find it among the six tiles.</li>
+            <li>Click it fast — faster correct clicks score more.</li>
+            <li>A wrong click locks you out until the next round.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse click</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Correct = up to +12 with speed bonus · 10 rounds</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">
+          Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <!-- Countdown -->
+      <div class="overlay hide" id="countOverlay"><div class="count" id="countNum">3</div></div>
+
+      <!-- Result -->
+      <div class="overlay hide" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p>
+        <p class="verdict-sub" id="verdictSub"></p>
+        <span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <aside class="board">
+      <h2>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 4H4v2a3 3 0 0 0 3 3M17 4h3v2a3 3 0 0 1-3 3"/></svg>
+        Live Standings
+      </h2>
+      <div class="teams" id="teams"></div>
+      <div class="list" id="list"></div>
+      <div class="foot"><b id="joinCount">30</b> players joined · <b>Season Week 2</b></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Click Rush — mock-multiplayer engine
+   Simulates 29 bot players + you, with per-player latency and
+   server-timestamp resolution (250ms buffer) per the PRD.
+============================================================ */
+const TEAMS = [
+  { name:'Red',   color:'#E5484D' },
+  { name:'Blue',  color:'#4F9CF9' },
+  { name:'Green', color:'#3FBF7F' },
+];
+const PLAY = ['#F2683C','#7B5BE8','#FFD93B']; // spark, play, sun for avatars
+
+// Shape library — on-brand (no emoji): colored geometric glyphs
+const COLORS = [
+  {id:'orange', name:'Orange', hex:'#F2683C'},
+  {id:'purple', name:'Purple', hex:'#7B5BE8'},
+  {id:'sun',    name:'Yellow', hex:'#FFD93B'},
+  {id:'green',  name:'Green',  hex:'#3FBF7F'},
+  {id:'blue',   name:'Blue',   hex:'#4F9CF9'},
+];
+const SHAPES = ['star','circle','heart','square','triangle','flash'];
+function shapeSVG(shape, hex){
+  const s = {
+    star:'<path d="M40 6l9.5 22.5L74 31 55 47l6 25-21-13-21 13 6-25L6 31l24.5-2.5z"/>',
+    circle:'<circle cx="40" cy="40" r="30"/>',
+    heart:'<path d="M40 70S10 50 10 29a16 16 0 0 1 30-7 16 16 0 0 1 30 7c0 21-30 41-30 41z"/>',
+    square:'<rect x="12" y="12" width="56" height="56" rx="12"/>',
+    triangle:'<path d="M40 10l32 56H8z"/>',
+    flash:'<path d="M44 6L16 44h18l-6 30 30-40H40z"/>',
+  }[shape];
+  return `<svg class="glyph" viewBox="0 0 80 80" fill="${hex}" stroke="rgba(30,27,38,.12)" stroke-width="1.5" stroke-linejoin="round">${s}</svg>`;
+}
+
+const FIRST = ['Ava','Leo','Mia','Kai','Zoe','Eli','Nia','Sam','Ivy','Max','Aria','Finn','Luna','Cole','Remy','Jade','Theo','Nova','Beau','Sky','Wren','Rex','Iris','Milo','Ruby','Otis','Cлеo','Poppy','Dax','Juno'];
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+// Build the 30-player roster (you = index 0)
+const players = [];
+for(let i=0;i<30;i++){
+  players.push({
+    id:i,
+    name: i===0 ? 'You' : FIRST[i%FIRST.length] + (i>=FIRST.length?'.':''),
+    me: i===0,
+    team: i%3,                     // auto-balanced: even across 3 teams
+    pts: 0,
+    // simulated network + skill
+    latency: i===0 ? 0.045 : rand(0.03,0.34),   // seconds each way
+    skill:   i===0 ? null : rand(0.28,0.95),     // reaction quality (bots)
+    accuracy:i===0 ? null : rand(0.72,0.98),     // chance a bot clicks correctly
+    disconnected: false,
+  });
+}
+// a couple of realistic dropouts
+players[17].disconnected = true;
+players[24].disconnected = Math.random()<0.5;
+
+const TOTAL_ROUNDS = 10;
+const ROUND_TIME = 4.5;      // seconds
+const BUFFER = 0.25;         // 250ms server resolution buffer (PRD §6)
+let round = 0, roundActive=false, target=null, myClicked=false, myTimeMs=0, roundStart=0;
+function score(t){ return 4 + Math.round(Math.max(0,(ROUND_TIME - t)/ROUND_TIME)*8); }   // 12 (instant) .. 4 (last second)
+
+const $ = s=>document.querySelector(s);
+const grid=$('#grid');
+
+/* ---------- rendering ---------- */
+function renderTeams(){
+  const totals=[0,0,0];
+  players.forEach(p=>totals[p.team]+=p.pts);
+  $('#teams').innerHTML = TEAMS.map((t,i)=>`
+    <div class="teamcard">
+      <div class="tn"><span class="dot" style="background:${t.color}"></span>${t.name}</div>
+      <div class="ts">${totals[i]}</div>
+    </div>`).join('');
+}
+function renderList(flashId){
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts);
+  $('#list').innerHTML = sorted.map((p,idx)=>{
+    const av = p.me ? PLAY[0] : PLAY[p.id%3];
+    const initial = p.me ? '★' : p.name[0];
+    return `<div class="prow ${p.me?'me':''} ${p.id===flashId?'flash':''}">
+      <span class="rank">${idx+1}</span>
+      <span class="av" style="background:${TEAMS[p.team].color}">${initial}</span>
+      <span class="pname">${p.name}${p.me?'<span class="youtag">YOU</span>':''}</span>
+      ${p.disconnected?'<span class="pdisc" title="disconnected"></span>':''}
+      <span class="ppts">${p.pts}</span>
+    </div>`;
+  }).join('');
+}
+renderTeams(); renderList();
+
+/* ---------- round flow ---------- */
+function startGame(){
+  $('#preOverlay').classList.add('hide');
+  nextRound();
+}
+function nextRound(){
+  if(round>=TOTAL_ROUNDS){ return endGame(); }
+  round++;
+  $('#roundNum').textContent=round;
+  myClicked=false; roundActive=false; target=null;
+  // pick target + build a 6-tile board with the target in a random slot
+  const color=pick(COLORS), shape=pick(SHAPES);
+  target={color,shape};
+  const slots=[]; const used=new Set([color.id+shape]);
+  const targetSlot=Math.floor(rand(0,6));
+  for(let i=0;i<6;i++){
+    if(i===targetSlot){ slots.push({color,shape,correct:true}); continue; }
+    let c,s,key;
+    do{ c=pick(COLORS); s=pick(SHAPES); key=c.id+s; }while(used.has(key));
+    used.add(key); slots.push({color:c,shape:s,correct:false});
+  }
+  grid.innerHTML=slots.map((sl,i)=>`
+    <button class="tile" data-i="${i}" data-correct="${sl.correct}" disabled aria-label="${sl.color.name} ${sl.shape}">
+      ${shapeSVG(sl.shape, sl.color.hex)}
+    </button>`).join('');
+  $('#promptTitle').innerHTML=`Find The <span class="hi">${target.color.name} ${cap(target.shape)}</span>`;
+  $('#promptSub').textContent='Click the matching shape as fast as you can.';
+  $('#modeLabel').textContent='All Players · Faster Correct Clicks Score More';
+  // countdown
+  runCountdown(()=>armRound());
+  // simulate ping fluctuation
+  $('#ping').textContent = Math.round(players[0].latency*1000 + rand(-8,14))+'ms';
+}
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+
+function runCountdown(done){
+  const ov=$('#countOverlay'), n=$('#countNum');
+  ov.classList.remove('hide');
+  let c=3; n.textContent=c; n.style.animation='none'; void n.offsetWidth; n.style.animation='';
+  const iv=setInterval(()=>{
+    c--;
+    if(c===0){ n.textContent='GO'; n.style.fontSize='84px'; }
+    else if(c<0){ clearInterval(iv); ov.classList.add('hide'); n.style.fontSize=''; done(); return; }
+    else { n.textContent=c; }
+    n.style.animation='none'; void n.offsetWidth; n.style.animation='pop .5s var(--ease-pop)';
+  },650);
+}
+
+function armRound(){
+  roundActive=true; roundStart=performance.now();
+  document.querySelectorAll('.tile').forEach(t=>t.disabled=false);
+  $('#timerLabel').textContent='GO!';
+  // timer bar
+  const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%';
+  void fill.offsetWidth; fill.style.transition=`width ${ROUND_TIME}s linear`; fill.style.width='0%';
+  // schedule bot resolutions
+  scheduleBots();
+  // hard round timeout
+  roundTimer=setTimeout(()=>resolveRound(),(ROUND_TIME)*1000);
+}
+let roundTimer=null, botTimers=[];
+
+function scheduleBots(){
+  botTimers.forEach(clearTimeout); botTimers=[];
+  players.forEach(p=>{
+    if(p.me||p.disconnected) return;
+    // reaction time model: better skill => faster; plus their network latency
+    const react = (1.0 - p.skill)*2.2 + rand(0.15,0.5);   // seconds of thinking
+    const correct = Math.random() < p.accuracy;
+    const arrival = react + p.latency;                     // when server receives
+    if(arrival < ROUND_TIME){
+      botTimers.push(setTimeout(()=>registerHit(p, correct, arrival),(arrival)*1000));
+    }
+  });
+}
+
+/* server-side collection: every player gets the full round to click; we resolve
+   at the timer and score all correct clicks by speed (server timestamp). */
+let hits=[], resolved=false, bufferTimer=null;
+function registerHit(player, correct, serverT){
+  if(resolved) return;
+  hits.push({player, correct, serverT});
+}
+
+function onTileClick(e){
+  const t=e.currentTarget;
+  if(!roundActive||myClicked) return;
+  myClicked=true;
+  const correct = t.dataset.correct==='true';
+  myTimeMs = performance.now()-roundStart;
+  const serverT = myTimeMs/1000 + players[0].latency;
+  t.classList.add(correct?'correct':'wrong');
+  if(correct){ registerHit(players[0], true, serverT); }
+  else {
+    // wrong = locked out for the round, no penalty by default
+    document.querySelectorAll('.tile').forEach(x=>x.disabled=true);
+    registerHit(players[0], false, serverT);
+  }
+}
+
+function resolveRound(){
+  if(resolved) return; resolved=true; roundActive=false;
+  clearTimeout(roundTimer); clearTimeout(bufferTimer); bufferTimer=null;
+  botTimers.forEach(clearTimeout);
+  document.querySelectorAll('.tile').forEach(t=>t.disabled=true);
+  $('#timerLabel').textContent='Round Over';
+
+  const valid=hits.filter(h=>h.correct).sort((a,b)=>a.serverT-b.serverT);
+  const winner = valid[0]?.player || null;   // fastest, for the flash + flavour
+  // SPEED SCORING — every correct click earns points, more for being faster
+  valid.forEach(h=>{ h.player.pts += score(h.serverT); });
+  const myHit = valid.find(h=>h.player.me);
+  const myGain = myHit ? score(myHit.serverT) : 0;
+
+  // reveal correct tile
+  document.querySelectorAll('.tile').forEach(t=>{
+    if(t.dataset.correct==='true') t.classList.add('correct');
+    else t.classList.add('dim');
+  });
+
+  renderTeams(); renderList(winner?winner.id:-1);
+  showResult(winner, valid, myGain);
+
+  setTimeout(()=>{ resetRoundState(); nextRound(); }, 2600);
+}
+
+function resetRoundState(){ hits=[]; resolved=false; }
+
+function showResult(winner, valid, myGain){
+  const ov=$('#resultOverlay'); const v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  const iWon = winner && winner.me;
+  if(myGain>0){
+    v.textContent = iWon ? 'Fastest!' : (myGain>=11?'Lightning!':'Nice!'); v.className='verdict win';
+    sub.textContent=`Correct in ${Math.round(myTimeMs)}ms — faster clicks score more.`;
+    pts.innerHTML=`+${myGain} points`;
+  } else if(myClicked){
+    v.textContent='Missed!'; v.className='verdict miss';
+    sub.innerHTML='Wrong shape this time — no points.';
+    pts.innerHTML='+0 points';
+  } else {
+    v.textContent='Too Slow!'; v.className='verdict late';
+    sub.innerHTML='You didn\'t click in time.';
+    pts.innerHTML='+0 points';
+  }
+  ov.classList.remove('hide');
+  setTimeout(()=>ov.classList.add('hide'), 2500);
+}
+
+function endGame(){
+  const ov=$('#resultOverlay'); const v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts);
+  const myRank=sorted.findIndex(p=>p.me)+1;
+  const teamTot=[0,0,0]; players.forEach(p=>teamTot[p.team]+=p.pts);
+  const winTeam=TEAMS[teamTot.indexOf(Math.max(...teamTot))].name;
+  $('#promptTitle').innerHTML='That\'s A <span class="hi">Wrap!</span>';
+  $('#promptSub').textContent='Great rushing. Here\'s where you landed.';
+  $('#timerLabel').textContent='Game Complete';
+  v.textContent = myRank===1?'Champion!':`You Placed #${myRank}`;
+  v.className='verdict '+(myRank===1?'win':'late');
+  sub.innerHTML=`You scored <b>${players[0].pts}</b> points across ${TOTAL_ROUNDS} rounds. Team <b>${winTeam}</b> took the round for the day.`;
+  pts.innerHTML=`Rank ${myRank} of 30`;
+  ov.classList.remove('hide');
+}
+
+/* ---------- wire up ---------- */
+grid.addEventListener('click', e=>{ const t=e.target.closest('.tile'); if(t&&!t.disabled) onTileClick({currentTarget:t}); });
+$('#startBtn').addEventListener('click', startGame);
+$('#roundTot').textContent=TOTAL_ROUNDS;
+
+// subtle live ping jitter while idle
+setInterval(()=>{ if(!roundActive) $('#ping').textContent=Math.round(45+rand(-6,10))+'ms'; }, 1200);
+</script>
+</body>
+</html>

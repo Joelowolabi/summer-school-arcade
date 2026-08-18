@@ -1,0 +1,210 @@
+<!-- Summer School Arcade — This or That (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>This or That — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .choices{display:grid; grid-template-columns:1fr auto 1fr; gap:18px; flex:1; align-items:stretch}
+  @media (max-width:640px){ .choices{grid-template-columns:1fr; } .vs-wrap{order:0} }
+  .choice{position:relative; border:1px solid var(--border-hairline); border-radius:var(--radius-2xl); background:var(--surface-card); box-shadow:var(--shadow-s); cursor:pointer; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:28px; text-align:center; transition:transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-base) var(--ease-out-soft), border-color var(--dur-fast) var(--ease-standard)}
+  .choice:hover{transform:translateY(-4px); box-shadow:var(--shadow-l)}
+  .choice:active{transform:scale(var(--press-scale))}
+  .choice:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+  .choice.picked{border-color:var(--accent-play); box-shadow:0 0 0 3px var(--purple-100), var(--shadow-l)}
+  .choice.win-side{border-color:var(--green-400)}
+  .choice[disabled]{cursor:default}
+  .choice .art{width:120px;height:120px;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;margin-bottom:18px;transition:transform var(--dur-base) var(--ease-pop)}
+  .choice:hover .art{transform:scale(1.05) rotate(-2deg)}
+  .choice h2{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-h1); letter-spacing:var(--ls-heading); color:var(--text-strong); margin:0}
+  .choice .tally{margin-top:14px; width:100%; display:none}
+  .choice.revealed .tally{display:block}
+  .bar-track{height:12px; border-radius:var(--radius-pill); background:var(--ink-100); overflow:hidden}
+  .bar-fill{height:100%; width:0; border-radius:var(--radius-pill); transition:width .8s var(--ease-out-soft)}
+  .pct{display:flex; justify-content:space-between; margin-top:8px; font-weight:var(--fw-bold); color:var(--text-strong)}
+  .pct .n{color:var(--text-muted); font-weight:var(--fw-medium); font-size:var(--fs-body-s)}
+  .vs-wrap{display:flex; align-items:center; justify-content:center}
+  .vs{width:58px;height:58px;border-radius:var(--radius-pill); background:var(--accent-deep); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-h4); box-shadow:var(--shadow-m)}
+  .majority-tag{position:absolute; top:14px; right:14px; background:var(--status-success-bg); color:var(--status-success); font-weight:var(--fw-bold); font-size:var(--fs-caption); padding:5px 12px; border-radius:var(--radius-pill); display:none}
+  .choice.win-side .majority-tag{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel">All 30 Players · Pick Your Side</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt"><h1 id="promptTitle">This <span class="hi">Or</span> That</h1><p id="promptSub">Tap the one you'd pick. Majority wins the round.</p></div>
+
+      <div class="choices" id="choices">
+        <button class="choice" id="cA" data-side="A"><span class="majority-tag">Majority</span><div class="art" id="artA"></div><h2 id="labelA">—</h2><div class="tally"><div class="bar-track"><div class="bar-fill" id="barA"></div></div><div class="pct"><span id="pctA">0%</span><span class="n" id="cntA">0 votes</span></div></div></button>
+        <div class="vs-wrap"><div class="vs">VS</div></div>
+        <button class="choice" id="cB" data-side="B"><span class="majority-tag">Majority</span><div class="art" id="artB"></div><h2 id="labelB">—</h2><div class="tally"><div class="bar-track"><div class="bar-fill" id="barB"></div></div><div class="pct"><span id="pctB">0%</span><span class="n" id="cntB">0 votes</span></div></div></button>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>This or That</h1>
+          <p class="goal">Goal: <b>side with the majority</b> of the room.</p>
+          <ol class="steps">
+            <li>Two options appear side by side.</li>
+            <li>Click the one you'd pick within 8 seconds.</li>
+            <li>All votes reveal as a live bar split.</li>
+            <li>The bigger side wins the round.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse click</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">+5 if you're with the majority · 8 rounds</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A = window.Arcade;
+const $ = s=>document.querySelector(s);
+
+/* ---- original, age 8-13, non-controversial prompt bank ---- */
+const PROMPTS = [
+  {a:{t:'Pizza',   c:'#F2683C', g:'slice'},   b:{t:'Tacos',    c:'#FFD93B', g:'taco'}},
+  {a:{t:'Beach',   c:'#4F9CF9', g:'wave'},    b:{t:'Mountains',c:'#3FBF7F', g:'peak'}},
+  {a:{t:'Dogs',    c:'#F2683C', g:'paw'},     b:{t:'Cats',     c:'#7B5BE8', g:'cat'}},
+  {a:{t:'Summer',  c:'#FFD93B', g:'sun'},     b:{t:'Winter',   c:'#4F9CF9', g:'snow'}},
+  {a:{t:'Super Speed', c:'#F2683C', g:'bolt'},b:{t:'Flying',   c:'#7B5BE8', g:'wing'}},
+  {a:{t:'Video Games', c:'#7B5BE8', g:'pad'}, b:{t:'Board Games', c:'#3FBF7F', g:'dice'}},
+  {a:{t:'Ice Cream',   c:'#4F9CF9', g:'cone'},b:{t:'Cookies',  c:'#F2683C', g:'cookie'}},
+  {a:{t:'Robots',  c:'#565165', g:'robot'},   b:{t:'Dinosaurs',c:'#3FBF7F', g:'dino'}},
+  {a:{t:'Morning', c:'#FFD93B', g:'sun'},     b:{t:'Night',    c:'#7B5BE8', g:'moon'}},
+  {a:{t:'Draw It', c:'#F2683C', g:'pencil'},  b:{t:'Build It', c:'#4F9CF9', g:'brick'}},
+  {a:{t:'Pancakes',c:'#FFD93B', g:'stack'},   b:{t:'Waffles',  c:'#F2683C', g:'grid'}},
+  {a:{t:'Space',   c:'#7B5BE8', g:'rocket'},  b:{t:'Ocean',    c:'#4F9CF9', g:'wave'}},
+];
+const GLYPH = {
+  slice:'M40 8 8 64h64z', taco:'M8 52a32 32 0 0 1 64 0z', paw:'M40 30a10 10 0 1 1 0 20 10 10 0 0 1 0-20zM20 24a6 6 0 1 1 0 12 6 6 0 0 1 0-12zM60 24a6 6 0 1 1 0 12 6 6 0 0 1 0-12z',
+  cat:'M20 20l8 12h24l8-12v40H20z', wave:'M6 44c8-12 16-12 24 0s16 12 24 0 16-12 20 0', peak:'M8 60 32 20l12 18 8-10 12 32z',
+  sun:'M40 24a16 16 0 1 1 0 32 16 16 0 0 1 0-32zM40 6v10M40 64v10M6 40h10M64 40h10M16 16l7 7M57 57l7 7M64 16l-7 7M23 57l-7 7',
+  snow:'M40 8v64M12 24l56 32M68 24 12 56M40 8l-8 8M40 8l8 8M40 72l-8-8M40 72l8-8', bolt:'M44 6 18 44h18l-6 30 30-40H40z', wing:'M8 40c20-20 48-20 56 0-20-4-40-4-56 0z',
+  pad:'M16 28h48v24H16zM26 36v8M22 40h8M50 38h.1M58 44h.1', dice:'M16 16h48v48H16zM30 30h.1M50 30h.1M40 40h.1M30 50h.1M50 50h.1',
+  cone:'M28 20a12 12 0 0 1 24 0c0 8-6 12-12 12s-12-4-12-12zM30 34 40 66 50 34', cookie:'M40 12a28 28 0 1 0 0 56 28 28 0 0 0 0-56zM30 32h.1M50 30h.1M46 48h.1M28 46h.1',
+  robot:'M24 24h32v28H24zM32 16v8M48 16v8M32 36h.1M48 36h.1M20 34h4M56 34h4', dino:'M12 56c0-20 14-32 30-32 6 0 8-8 14-8-2 6 0 10 0 14 0 18-14 26-30 26z',
+  moon:'M48 12a28 28 0 1 0 12 44A24 24 0 0 1 48 12z', pencil:'M20 60 16 44 48 12l12 12-32 32z', brick:'M14 22h52v14H14zM14 42h52v14H14zM40 22v14M28 42v14M52 42v14',
+  stack:'M14 26h52M14 40h52M14 54h52', grid:'M16 16h48v48H16zM32 16v48M48 16v48M16 32h48M16 48h48', rocket:'M40 6c12 8 16 22 16 34l-8 8H32l-8-8c0-12 4-26 16-34zM40 26a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
+};
+function art(c,g){ const d=GLYPH[g]||GLYPH.slice; return `<svg width="72" height="72" viewBox="0 0 80 80" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${(g==='paw'||g==='cookie'||g==='robot'||g==='pad'||g==='dice')?`<path d="${d}" fill="#fff" stroke="none"/>`:`<path d="${d}"/>`}</svg>`; }
+
+const TOTAL_ROUNDS=8, ROUND_TIME=8.0;
+let players=A.makeRoster(), deck=[...PROMPTS].sort(()=>Math.random()-.5), round=0, roundActive=false, myVote=null, cur=null;
+
+document.getElementById('hudHost').innerHTML = A.hud({title:'This or That', rounds:TOTAL_ROUNDS});
+document.getElementById('boardHost').innerHTML = A.board('Live Standings');
+A.renderBoard(players);
+
+function startGame(){ $('#preOverlay').classList.add('hide'); nextRound(); }
+function nextRound(){
+  if(round>=TOTAL_ROUNDS) return endGame();
+  round++; A.setRound(round,TOTAL_ROUNDS);
+  myVote=null; roundActive=false;
+  cur = deck[(round-1)%deck.length];
+  ['A','B'].forEach(side=>{
+    const o=cur[side.toLowerCase()];
+    $('#label'+side).textContent=o.t;
+    $('#art'+side).style.background=o.c;
+    $('#art'+side).innerHTML=art(o.c,o.g);
+    const c=$('#c'+side); c.classList.remove('picked','win-side','revealed'); c.disabled=true;
+    $('#bar'+side).style.width='0'; $('#bar'+side).style.background=o.c;
+    $('#pct'+side).textContent='0%'; $('#cnt'+side).textContent='0 votes';
+  });
+  $('#promptTitle').innerHTML=`${cur.a.t} <span class="hi">or</span> ${cur.b.t}?`;
+  $('#promptSub').textContent='Tap the one you\'d pick. Majority wins the round.';
+  A.setPing(players);
+  A.countdown($('#countOverlay'), arm);
+}
+function arm(){
+  roundActive=true;
+  $('#cA').disabled=false; $('#cB').disabled=false;
+  $('#timerLabel').textContent='Vote Now!';
+  const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+  fill.style.transition=`width ${ROUND_TIME}s linear`; fill.style.width='0%';
+  timer=setTimeout(reveal, ROUND_TIME*1000);
+}
+let timer=null;
+function vote(side){
+  if(!roundActive||myVote) return;
+  myVote=side; players[0]._vote=side; A.sfx('select');
+  $('#c'+side).classList.add('picked');
+  $('#c'+(side==='A'?'B':'A')).style.opacity=.72;
+}
+function reveal(){
+  roundActive=false; clearTimeout(timer);
+  $('#cA').disabled=true; $('#cB').disabled=true; $('#timerLabel').textContent='Results';
+  // bots vote — each prompt has a hidden lean so splits feel real
+  const lean = A.rand(0.28,0.72);
+  let a=0,b=0;
+  players.forEach(p=>{
+    if(p.disconnected) return;
+    if(p.me){ if(myVote){ myVote==='A'?a++:b++; } return; }
+    (Math.random()<lean) ? a++ : b++;
+  });
+  const tot=a+b || 1;
+  const win = a===b ? 'tie' : (a>b?'A':'B');
+  [['A',a],['B',b]].forEach(([side,n])=>{
+    const c=$('#c'+side); c.classList.add('revealed');
+    $('#bar'+side).style.width=Math.round(n/tot*100)+'%';
+    $('#pct'+side).textContent=Math.round(n/tot*100)+'%';
+    $('#cnt'+side).textContent=n+(n===1?' vote':' votes');
+    if(win===side) c.classList.add('win-side');
+  });
+  // faithful scoring: you score if you're on the majority side
+  let mine=0;
+  if(myVote && win!=='tie' && myVote===win){ players[0].pts+=5; mine=5; }
+  // give bots points on the winning side (approx split)
+  if(win!=='tie'){
+    const winners = players.filter(p=>!p.me&&!p.disconnected);
+    const share = win==='A'? a-(myVote==='A'?1:0) : b-(myVote==='B'?1:0);
+    let given=0; for(const p of winners){ if(given>=share) break; p.pts+=5; given++; }
+  }
+  A.renderBoard(players);
+  setTimeout(()=>showResult(win, a, b, mine), 700);
+}
+function showResult(win,a,b,mine){
+  const ov=$('#resultOverlay'); const v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  if(win==='tie'){ v.textContent='Dead Even!'; v.className='verdict late'; sub.textContent=`A perfect ${a}–${b} split. Nobody scores this one.`; pts.textContent='+0 points'; }
+  else if(!myVote){ v.textContent='No Vote!'; v.className='verdict miss'; sub.innerHTML=`You didn't pick in time. <b>${win==='A'?cur.a.t:cur.b.t}</b> took it.`; pts.textContent='+0 points'; }
+  else if(mine>0){ v.textContent='With The Crowd!'; v.className='verdict win'; sub.innerHTML=`Most players chose <b>${win==='A'?cur.a.t:cur.b.t}</b> too.`; pts.textContent='+5 points'; A.confetti($('#stage'),50); A.sfx('win'); }
+  else { v.textContent='Against The Grain!'; v.className='verdict late'; sub.innerHTML=`You went solo — the room picked <b>${win==='A'?cur.a.t:cur.b.t}</b>.`; pts.textContent='+0 points'; }
+  ov.classList.remove('hide');
+  setTimeout(()=>{ ov.classList.add('hide'); nextRound(); }, 2600);
+}
+function endGame(){
+  A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  const ov=$('#resultOverlay'); $('#promptTitle').innerHTML='That\'s A <span class="hi">Wrap!</span>'; $('#promptSub').textContent='Nice picks. Standings saved to the Season.'; $('#timerLabel').textContent='Complete';
+  $('#verdict').textContent = myRank<=3?'Top 3!':`You Placed #${myRank}`; $('#verdict').className='verdict '+(myRank<=3?'win':'late');
+  $('#verdictSub').innerHTML=`You scored <b>${players[0].pts}</b> this game. Season total now <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  $('#verdictPts').textContent=`Rank ${myRank} of 30`; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+
+$('#cA').addEventListener('click', ()=>vote('A'));
+$('#cB').addEventListener('click', ()=>vote('B'));
+$('#startBtn').addEventListener('click', startGame);
+setInterval(()=>{ if(!roundActive) A.setPing(players); }, 1400);
+</script>
+</body>
+</html>

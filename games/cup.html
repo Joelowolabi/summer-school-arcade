@@ -1,0 +1,271 @@
+<!-- Summer School Arcade — The Arcade Cup (individual tournament controller). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Arcade Cup — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  body{overflow:hidden}
+  .cup{height:100dvh;display:flex;flex-direction:column;max-width:100%;padding:0}
+  /* top bar during play */
+  .cupbar{display:flex;align-items:center;gap:14px;padding:10px 18px;color:#fff}
+  .cupbar .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4)}
+  .cupbar .brand .spark{width:28px;height:28px;border-radius:99px;background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900)}
+  .cupbar .grow{flex:1}
+  .cupbar .chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.18);border-radius:99px;padding:7px 14px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);white-space:nowrap}
+  .cupbar .chip b{color:var(--accent-sun)}
+  .frameWrap{flex:1;min-height:0;padding:0 12px 12px;position:relative}
+  #gameFrame{width:100%;height:100%;border:0;border-radius:var(--radius-xl);background:#fff;box-shadow:var(--shadow-xl);display:block}
+
+  /* centered card (setup / standings / podium) */
+  .screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:20px}
+  .screen.on{display:flex}
+  .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);width:100%;max-width:760px;max-height:100%;overflow:auto;padding:30px 32px}
+  .card h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);color:var(--text-strong);margin:0}
+  .card .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px}
+  .card p.lead{color:var(--text-muted);font-size:var(--fs-body-l);margin:8px 0 22px}
+  .pickgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
+  @media(max-width:560px){.pickgrid{grid-template-columns:1fr}}
+  .pick{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border-hairline);border-radius:var(--radius-l);cursor:pointer;transition:all var(--dur-fast) var(--ease-pop);background:var(--surface-card)}
+  .pick:hover{background:var(--surface-sunken)}
+  .pick.on{border-color:var(--accent-play);box-shadow:0 0 0 3px var(--purple-100)}
+  .pick .box{width:22px;height:22px;border-radius:6px;border:2px solid var(--border-strong);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff}
+  .pick.on .box{background:var(--accent-play);border-color:var(--accent-play)}
+  .pick .t{font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-body)}
+  .pick .t small{display:block;font-weight:var(--fw-regular);color:var(--text-muted);font-size:var(--fs-body-s)}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ladder{background:var(--surface-sunken);border-radius:var(--radius-l);padding:12px 16px;margin-bottom:16px;font-size:var(--fs-body-s);color:var(--text-body)}
+  .ladder b{color:var(--text-strong)}
+  .toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+  .toggle input{display:none}
+  .toggle .sw{width:44px;height:26px;border-radius:99px;background:var(--border-strong);position:relative;transition:background var(--dur-fast)}
+  .toggle .sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:99px;background:#fff;box-shadow:var(--shadow-xs);transition:transform var(--dur-fast) var(--ease-pop)}
+  .toggle input:checked + .sw{background:var(--accent-play)} .toggle input:checked + .sw::after{transform:translateX(18px)}
+  .toggle .lbl{font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-body)} .toggle .lbl small{display:block;font-weight:var(--fw-regular);color:var(--text-muted);font-size:var(--fs-body-s)}
+  .lastchamp{color:var(--text-muted);font-size:var(--fs-body-s)} .lastchamp b{color:var(--accent-play)}
+  .medal{display:inline-flex;align-items:center;gap:3px;background:var(--wash-sun);color:var(--ink-900);border-radius:99px;padding:2px 8px;font-size:var(--fs-micro);font-weight:var(--fw-bold);margin-left:6px}
+  .srow .gain.boost{color:var(--accent-play)}
+
+  /* standings list */
+  .stand{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+  .srow{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:var(--radius-pill);background:var(--surface-sunken)}
+  .srow.me{background:var(--purple-50);box-shadow:0 0 0 2px var(--purple-200) inset}
+  .srow.up{background:var(--green-100)}
+  .srow .rk{width:24px;text-align:center;font-family:var(--font-heading);font-weight:var(--fw-bold);color:var(--text-muted)}
+  .srow .av{width:30px;height:30px;border-radius:99px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
+  .srow .nm{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)}
+  .srow .gain{font-size:var(--fs-body-s);color:var(--status-success);font-weight:var(--fw-bold)}
+  .srow .tot{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong);min-width:38px;text-align:right}
+
+  /* podium */
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:10px 0 24px}
+  .pod{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .pod .av{width:60px;height:60px;border-radius:99px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-h3);box-shadow:var(--shadow-m)}
+  .pod .col{width:96px;border-radius:var(--radius-l) var(--radius-l) 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font-family:var(--font-display);font-weight:var(--fw-bold);color:#fff;font-size:var(--fs-h2)}
+  .pod .nm{font-weight:var(--fw-bold);color:var(--text-strong)}
+  .pod .pts{font-size:var(--fs-body-s);color:var(--text-muted)}
+  .pod1 .col{height:150px;background:var(--accent-sun);color:var(--ink-900)} .pod2 .col{height:112px;background:var(--ink-300)} .pod3 .col{height:88px;background:var(--orange-300)}
+</style>
+</head>
+<body>
+<div class="cup">
+  <!-- top bar (during play) -->
+  <div class="cupbar" id="cupbar" style="display:none">
+    <div class="brand"><span class="spark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 4H4v2a3 3 0 0 0 3 3M17 4h3v2a3 3 0 0 1-3 3"/></svg></span> The Arcade Cup</div>
+    <div class="grow"></div>
+    <span class="chip">Game <b id="gnum">1</b> / <span id="gtot">5</span> · <span id="gname">—</span></span>
+    <span class="chip" id="finalChip" style="display:none">FINAL · <b>2× points</b></span>
+    <span class="chip">Leader: <b id="leader">—</b></span>
+  </div>
+
+  <div class="frameWrap" id="frameWrap" style="display:none">
+    <iframe id="gameFrame" title="cup game"></iframe>
+  </div>
+
+  <!-- SETUP -->
+  <div class="screen on" id="setupScreen">
+    <div class="card">
+      <div class="kick">Individual Tournament</div>
+      <h1>The Arcade Cup</h1>
+      <p class="lead">Play a rotation of games back to back. Every game you earn <b>Cup points by placement</b>, so a drawing win counts the same as a reflex win. Highest total after the final game is crowned Champion.</p>
+      <div class="ladder">Placement → Cup points: <b>1st 15</b> · 2nd 12 · 3rd 10 · 4th 8 · 5th 7 · top-10 5 · top-20 3 · rest 1. The <b>final game is worth 2×</b>.</div>
+      <div class="row" style="justify-content:space-between;margin-bottom:20px;gap:12px">
+        <label class="toggle"><input type="checkbox" id="comebackChk" checked><span class="sw"></span><span class="lbl">Comeback Boost<small>bottom 5 each round earn +2</small></span></label>
+        <span class="lastchamp" id="lastChamp"></span>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <strong style="color:var(--text-strong);font-family:var(--font-heading)">Pick your games</strong>
+        <span style="color:var(--text-muted);font-size:var(--fs-body-s)"><span id="pickCount">5</span> selected · min 3</span>
+      </div>
+      <div class="pickgrid" id="pickgrid"></div>
+      <div class="row" style="justify-content:center">
+        <button class="btn btn-spark" id="startCupBtn">Start The Cup
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STANDINGS (between games) -->
+  <div class="screen" id="standScreen">
+    <div class="card">
+      <div class="kick" id="standKick">After Game 1</div>
+      <h1 id="standTitle">Cup Standings</h1>
+      <p class="lead" id="standSub"></p>
+      <div class="stand" id="standList"></div>
+      <div class="row" style="justify-content:center">
+        <button class="btn btn-play" id="nextGameBtn">Next Game
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PODIUM -->
+  <div class="screen" id="podiumScreen">
+    <div class="card" style="text-align:center">
+      <div class="kick">Champion Crowned</div>
+      <h1 id="champTitle">The Arcade Cup</h1>
+      <p class="lead" id="champSub"></p>
+      <div class="podium" id="podium"></div>
+      <div class="stand" id="fullStand" style="max-height:200px;overflow:auto"></div>
+      <div class="row" style="justify-content:center;margin-top:18px">
+        <a class="btn btn-secondary" href="index.html">Back To Hub</a>
+        <button class="btn btn-spark" id="againBtn">New Cup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+const CATALOG=[
+  {f:'trivia-sprint.html', t:'Trivia Sprint', d:'Fast quiz'},
+  {f:'odd-one-out.html', t:'Odd One Out', d:'Spot the difference'},
+  {f:'number-ninjas.html', t:'Number Ninjas', d:'Quick maths'},
+  {f:'copycat.html', t:'Copycat', d:'Memory'},
+  {f:'word-rain.html', t:'Word Rain', d:'Typing'},
+  {f:'trail-blazer.html', t:'Trail Blazer', d:'Light-cycle survival'},
+  {f:'maze-dash.html', t:'Maze Dash', d:'Maze race'},
+  {f:'this-or-that.html', t:'This or That', d:'Majority vote'},
+  {f:'quick-draw-guess.html', t:'Quick Draw Guess', d:'Draw & guess'},
+  {f:'color-wars.html', t:'Color Wars', d:'Team → ranked by tiles'},
+];
+const DEFAULT=new Set(['trivia-sprint.html','odd-one-out.html','copycat.html','trail-blazer.html','number-ninjas.html']);
+let selected=new Set(DEFAULT);
+
+function renderPicks(){
+  $('#pickgrid').innerHTML=CATALOG.map(g=>`
+    <div class="pick ${selected.has(g.f)?'on':''}" data-f="${g.f}">
+      <span class="box">${selected.has(g.f)?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>':''}</span>
+      <span class="t">${g.t}<small>${g.d}</small></span>
+    </div>`).join('');
+  $('#pickCount').textContent=selected.size;
+  $('#startCupBtn').disabled=selected.size<3;
+}
+$('#pickgrid').addEventListener('click',e=>{ const p=e.target.closest('.pick'); if(!p) return; const f=p.dataset.f;
+  if(selected.has(f)) selected.delete(f); else selected.add(f); renderPicks(); });
+renderPicks();
+
+/* ---- tournament state ---- */
+let games=[], gi=0, standings={}, lastGain={};
+const teamColor=t=>A.TEAMS[t].color;
+
+function initStandings(){
+  standings={}; const roster=A.makeRoster({dropouts:false});
+  roster.forEach(p=>{ standings[p.id]={id:p.id, name:p.me?'You':p.name, me:p.me, team:p.team, pts:0}; });
+}
+function sortedStand(){ return Object.values(standings).sort((a,b)=>b.pts-a.pts); }
+
+function startCup(){
+  games=CATALOG.filter(g=>selected.has(g.f));
+  gi=0; initStandings();
+  $('#setupScreen').classList.remove('on');
+  $('#gtot').textContent=games.length;
+  loadGame();
+}
+function loadGame(){
+  const g=games[gi]; const isFinal=gi===games.length-1;
+  $('#cupbar').style.display='flex'; $('#frameWrap').style.display='block';
+  $('#gnum').textContent=gi+1; $('#gname').textContent=g.t;
+  $('#finalChip').style.display=isFinal?'inline-block':'none';
+  $('#leader').textContent=leaderName();
+  $('#gameFrame').src=g.f+'?cup=1';
+}
+function leaderName(){ const s=sortedStand(); return s.length&&s[0].pts>0 ? `${s[0].name} (${s[0].pts})` : '—'; }
+
+window.addEventListener('message',e=>{
+  const d=e.data; if(!d||d.type!=='ssa-cup-result'||!Array.isArray(d.ranking)) return;
+  const isFinal=gi===games.length-1;
+  lastGain={};
+  d.ranking.forEach(r=>{
+    const base=A.cupPointsForPlace(r.place)*(isFinal?2:1);
+    const rec=standings[r.id]; if(!rec) return;
+    rec.pts+=base; rec.name=r.me?'You':r.name; rec.team=r.team;
+    if(r.place===1) rec.medals=(rec.medals||0)+1;
+    lastGain[r.id]={gain:base, place:r.place};
+  });
+  // comeback boost: current bottom 5 each earn +2 (not on the final)
+  if($('#comebackChk').checked && !isFinal){
+    sortedStand().slice(-5).forEach(p=>{ p.pts+=2; const g=lastGain[p.id]||{gain:0,place:null}; g.gain+=2; g.boost=true; lastGain[p.id]=g; });
+  }
+  showStandings(isFinal);
+});
+
+function showStandings(isFinal){
+  const mine=lastGain[0]||{};
+  $('#standKick').textContent=`After Game ${gi+1} of ${games.length} · ${games[gi].t}`;
+  $('#standTitle').textContent = isFinal? 'Final Standings' : 'Cup Standings';
+  $('#standSub').innerHTML = mine.place ? `You placed <b>#${mine.place}</b> and earned <b>+${mine.gain}</b> Cup points${isFinal?' (2× final!)':''}.` : 'Standings updated.';
+  const s=sortedStand().slice(0,8);
+  $('#standList').innerHTML=s.map((p,i)=>{
+    const g=lastGain[p.id];
+    return `<div class="srow ${p.me?'me':''}"><span class="rk">${i+1}</span>
+      <span class="av" style="background:${teamColor(p.team)}">${p.me?'★':p.name[0]}</span>
+      <span class="nm">${p.name}${p.medals?`<span class="medal"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4L4.2 8.7l5.4-.8z"/></svg>${p.medals}</span>`:''}</span>
+      ${g?`<span class="gain ${g.boost?'boost':''}">+${g.gain}</span>`:''}
+      <span class="tot">${p.pts}</span></div>`;
+  }).join('');
+  $('#nextGameBtn').textContent = isFinal? 'See The Champion' : 'Next Game';
+  $('#frameWrap').style.display='none'; $('#cupbar').style.display='none';
+  $('#standScreen').classList.add('on');
+  $('#nextGameBtn').onclick=()=>{
+    $('#standScreen').classList.remove('on');
+    if(isFinal){ showPodium(); }
+    else { gi++; loadGame(); }
+  };
+}
+
+function showPodium(){
+  const s=sortedStand(); const top=s.slice(0,3);
+  const champ=top[0];
+  $('#champSub').innerHTML = champ.me ? `<b>You</b> are the Arcade Cup Champion with <b>${champ.pts}</b> points!` : `<b>${champ.name}</b> wins the Cup with <b>${champ.pts}</b> points. You finished <b>#${s.findIndex(p=>p.me)+1}</b>.`;
+  const order=[top[1],top[0],top[2]].filter(Boolean); const cls=['pod2','pod1','pod3']; const medal=['2','1','3'];
+  $('#podium').innerHTML=order.map((p,i)=>{
+    const rank = p===top[0]?1:(p===top[1]?2:3);
+    return `<div class="pod ${p===top[0]?'pod1':(p===top[1]?'pod2':'pod3')}">
+      <span class="av" style="background:${teamColor(p.team)}">${p.me?'★':p.name[0]}</span>
+      <span class="nm">${p.name}</span><span class="pts">${p.pts} pts</span>
+      <div class="col">${rank}</div></div>`;
+  }).join('');
+  $('#fullStand').innerHTML=s.map((p,i)=>`<div class="srow ${p.me?'me':''}"><span class="rk">${i+1}</span>
+    <span class="av" style="background:${teamColor(p.team)}">${p.me?'★':p.name[0]}</span>
+    <span class="nm">${p.name}</span><span class="tot">${p.pts}</span></div>`).join('');
+  $('#podiumScreen').classList.add('on');
+  try{ localStorage.setItem('ssa_cup_champ', JSON.stringify({name:champ.name, pts:champ.pts, medals:champ.medals||0, at:Date.now()})); }catch(e){}
+  A.sfx(champ.me?'win':'tally');
+  if(champ.me){ burst(); }
+}
+function showLastChamp(){
+  try{ const c=JSON.parse(localStorage.getItem('ssa_cup_champ')||'null'); if(c) $('#lastChamp').innerHTML=`Last champion: <b>${c.name}</b> · ${c.pts} pts`; }catch(e){}
+}
+showLastChamp();
+function burst(){ const cols=['#F2683C','#7B5BE8','#FFD93B','#3FBF7F','#4F9CF9']; for(let i=0;i<120;i++){ const c=document.createElement('div'); c.className='confetti'; c.style.left=A.rand(0,100)+'%'; c.style.background=cols[i%5]; c.style.animationDuration=A.rand(1.8,3.4)+'s'; c.style.animationDelay=A.rand(0,.6)+'s'; document.body.appendChild(c); setTimeout(()=>c.remove(),4200); } }
+
+$('#startCupBtn').addEventListener('click', startCup);
+$('#againBtn').addEventListener('click', ()=>{ $('#podiumScreen').classList.remove('on'); $('#setupScreen').classList.add('on'); });
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+:root{
+/* ── Base ramps ───────────────────────────────────────────── */
+--purple-50:#F1ECFE;--purple-100:#E2D9FC;--purple-200:#C7B6F8;--purple-300:#A88FF3;
+--purple-400:#8E6FEE;--purple-500:#7B5BE8;--purple-600:#6B4CD8;--purple-700:#563BB4;
+--purple-800:#3E2C6B;--purple-900:#332352;
+
+--orange-50:#FEEDE7;--orange-100:#FDD8CB;--orange-200:#FAB59D;--orange-300:#F7906E;
+--orange-400:#F5764E;--orange-500:#F2683C;--orange-600:#DC552B;--orange-700:#B24320;
+
+--yellow-100:#FFF4C7;--yellow-200:#FFE98E;--yellow-300:#FFE063;--yellow-400:#FFD93B;
+--yellow-500:#F5C81F;--yellow-600:#D9A907;
+
+--ink-900:#1E1B26;--ink-800:#2A2733;--ink-700:#3B3746;--ink-600:#565165;
+--ink-500:#6F6A80;--ink-400:#8E8A9C;--ink-300:#B4B0C0;--ink-200:#DCD9E4;
+--ink-100:#ECEAF1;--ink-50:#F5F4F8;--white:#FFFFFF;
+
+--green-400:#3FBF7F;--green-100:#DEF5E9;
+--red-400:#E5484D;--red-100:#FBE1E2;
+--blue-400:#4F9CF9;--blue-100:#E2EEFE;
+
+/* ── Semantic: text ───────────────────────────────────────── */
+--text-strong:var(--ink-900);
+--text-body:var(--ink-700);
+--text-muted:var(--ink-400);
+--text-inverse:var(--white);
+--text-on-purple:var(--white);
+--text-on-yellow:var(--ink-900);
+--text-link:var(--purple-600);
+--text-link-hover:var(--purple-800);
+
+/* ── Semantic: surfaces ───────────────────────────────────── */
+--surface-page:var(--white);
+--surface-sunken:var(--ink-50);
+--surface-card:var(--white);
+--surface-card-quiet:var(--ink-50);
+--surface-inverse:var(--purple-800);
+--surface-hero:var(--purple-500);
+--surface-overlay:rgba(30,27,38,.45);
+
+/* ── Semantic: accents (the three play colours) ───────────── */
+--accent-play:var(--purple-500);   /* primary brand purple  — "Make Art" */
+--accent-spark:var(--orange-500);  /* energy / CTA highlight — "Build Games" */
+--accent-sun:var(--yellow-400);    /* warmth / delight       — "Learn Code" */
+--accent-deep:var(--purple-800);   /* grounding indigo       — footer, dark buttons */
+
+/* ── Semantic: borders ────────────────────────────────────── */
+--border-hairline:var(--ink-100);
+--border-soft:var(--ink-200);
+--border-strong:var(--ink-300);
+--border-focus:var(--purple-400);
+
+/* ── Semantic: status ─────────────────────────────────────── */
+--status-success:var(--green-400);--status-success-bg:var(--green-100);
+--status-danger:var(--red-400);--status-danger-bg:var(--red-100);
+--status-info:var(--blue-400);--status-info-bg:var(--blue-100);
+--status-warn:var(--yellow-500);--status-warn-bg:var(--yellow-100);
+
+/* ── Gradients / washes ───────────────────────────────────── */
+--wash-hero:linear-gradient(180deg,#8467F0 0%,#7B5BE8 55%,#7052E3 100%); /* @kind color */
+--wash-sun:linear-gradient(135deg,var(--yellow-300),var(--yellow-400)); /* @kind color */
+--wash-spark:linear-gradient(135deg,#F7906E,var(--orange-500)); /* @kind color */
+}

@@ -1,0 +1,176 @@
+<!-- Summer School Arcade — Mystery Box Roulette 3D (Three.js). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mystery Box Roulette 3D — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .d3{margin-left:6px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px}
+  .wheel-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:0}
+  #stage{min-height:auto}
+  .stage3d{width:100%;aspect-ratio:16 / 9;max-height:50vh;position:relative;border-radius:var(--radius-xl);overflow:hidden;background:radial-gradient(120% 100% at 50% 0%, #F4F1FE 0%, #EBE5FB 60%, #E2DAF6 100%)}
+  .stage3d canvas{display:block;width:100%;height:100%}
+  .reward-list{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:560px}
+  .rpill{display:inline-flex;align-items:center;gap:8px;background:var(--surface-sunken);border:1px solid var(--border-hairline);border-radius:var(--radius-pill);padding:7px 14px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);color:var(--text-body)}
+  .rpill .sw{width:12px;height:12px;border-radius:4px}
+  .winner-strip{display:inline-flex;align-items:center;gap:10px;background:var(--wash-sun);color:var(--ink-900);border-radius:var(--radius-pill);padding:10px 20px;font-weight:var(--fw-bold);box-shadow:var(--shadow-s)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage center" id="stage">
+      <div class="roundrow" style="width:100%">
+        <span class="eyebrow">Reward Round · Between Games<span class="d3">3D</span></span>
+        <span class="eyebrow" id="statusLabel">Winner Spins</span>
+      </div>
+
+      <div class="wheel-area">
+        <div class="winner-strip" id="winnerStrip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM7 4H4v2a3 3 0 0 0 3 3M17 4h3v2a3 3 0 0 1-3 3"/></svg>
+          <span id="winnerName">You</span> won the last round — spin the Mystery Box!
+        </div>
+
+        <div class="stage3d" id="stage3d"></div>
+
+        <button class="btn btn-spark" id="spinBtn">Spin The Box
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg></button>
+
+        <div class="reward-list" id="rewardList"></div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Mystery Box Roulette</h1>
+          <p class="goal">Goal: <b>spin the wheel for a surprise reward</b>.</p>
+          <ol class="steps">
+            <li>Round winners earn a spin between games.</li>
+            <li>Click Spin The Box and watch the 3D wheel turn.</li>
+            <li>Wherever the pointer lands is your reward.</li>
+            <li>It's applied to the leaderboard instantly.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Click Spin</span></div>
+            <div class="gm"><span class="gm-h">Rewards</span><span class="gm-v">Bonus points · power-ups · silly titles</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="guideBtn">Got It — Let Me Spin
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Jackpot!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px">Back To Games</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const A=window.Arcade; const $=s=>document.querySelector(s);
+const store={ get:k=>{ try{return localStorage.getItem(k);}catch(e){return null;} }, set:(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} } };
+let players=A.makeRoster(); const winner=players[0];
+
+const REWARDS=[
+  {label:'+15 Bonus Points', hex:0xF2683C, kind:'points', value:15},
+  {label:'Double Points Next Round', hex:0x7B5BE8, kind:'powerup'},
+  {label:'Title: "Chaos King"', hex:0xFFD93B, kind:'title', value:'Chaos King'},
+  {label:'+5 Bonus Points', hex:0x3FBF7F, kind:'points', value:5},
+  {label:'Fun Sound Effect', hex:0x4F9CF9, kind:'sfx'},
+  {label:'Title: "Speed Demon"', hex:0xE5484D, kind:'title', value:'Speed Demon'},
+  {label:'+10 Bonus Points', hex:0x8E6FEE, kind:'points', value:10},
+  {label:'Steal 5 Points', hex:0x565165, kind:'steal', value:5},
+];
+const N=REWARDS.length, SEG=(Math.PI*2)/N;
+
+/* ---------------- Three.js wheel ---------------- */
+const host=$('#stage3d');
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.1,100); camera.position.set(0,0.2,7.2);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.9));
+const key=new THREE.DirectionalLight(0xffffff,1.0); key.position.set(2,5,6); scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfa8ff,0.5); fill.position.set(-4,-1,3); scene.add(fill);
+
+const pivot=new THREE.Group(); pivot.rotation.x=-0.42; scene.add(pivot);   // slight tilt for 3D depth
+const spinner=new THREE.Group(); pivot.add(spinner);
+const R=2.5, DEPTH=0.5;
+for(let i=0;i<N;i++){
+  const geo=new THREE.CylinderGeometry(R,R,DEPTH,48,1,false, i*SEG, SEG);
+  const mat=new THREE.MeshStandardMaterial({color:REWARDS[i].hex, roughness:0.45, metalness:0.05});
+  const wedge=new THREE.Mesh(geo,mat); spinner.add(wedge);
+}
+spinner.rotation.x=Math.PI/2;  // lay the round face toward the camera (+Z)
+// rim
+const rim=new THREE.Mesh(new THREE.TorusGeometry(R,0.12,16,64), new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4}));
+spinner.add(rim);
+// hub
+const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,DEPTH+0.15,32), new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.35}));
+hub.rotation.x=Math.PI/2; spinner.add(hub);
+const spark=new THREE.Mesh(new THREE.IcosahedronGeometry(0.26,0), new THREE.MeshStandardMaterial({color:0x7B5BE8,roughness:0.4}));
+spark.position.z=DEPTH/2+0.15; pivot.add(spark);
+// pointer (fixed, at top)
+const pointer=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.5,20), new THREE.MeshStandardMaterial({color:0x1E1B26,roughness:0.5}));
+pointer.position.set(0,R+0.05,DEPTH); pointer.rotation.z=Math.PI; pivot.add(pointer);
+
+let curSpin=0, targetSpin=0, spinning=false;
+function resize(){ const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(host); resize();
+let t=0;
+function animate(){ requestAnimationFrame(animate); t+=0.016;
+  if(spinning){ curSpin += (targetSpin-curSpin)*0.045; if(Math.abs(targetSpin-curSpin)<0.002){ curSpin=targetSpin; spinning=false; onLanded(); } }
+  spinner.rotation.z = curSpin;                 // spin around face-normal
+  spark.rotation.y += 0.03; spark.rotation.x += 0.02;
+  if(!spinning){ pivot.rotation.y=Math.sin(t*0.5)*0.06; }
+  renderer.render(scene,camera);
+}
+animate();
+
+$('#rewardList').innerHTML=REWARDS.map(r=>`<span class="rpill"><span class="sw" style="background:#${r.hex.toString(16).padStart(6,'0')}"></span>${r.label}</span>`).join('');
+$('#winnerName').textContent='You';
+
+let landedIdx=-1;
+function spin(){
+  if(spinning) return; $('#spinBtn').disabled=true; $('#statusLabel').textContent='Spinning…';
+  const idx=Math.floor(Math.random()*N); landedIdx=idx;
+  const segCenter=idx*SEG+SEG/2;
+  const turns=6+Math.floor(Math.random()*3);
+  // pointer sits at top (+Y => angle PI/2 on the face). Land segCenter under it.
+  targetSpin = curSpin + turns*Math.PI*2 + (Math.PI/2 - segCenter - (curSpin%(Math.PI*2)));
+  spinning=true;
+}
+function onLanded(){ award(landedIdx); }
+
+function award(idx){
+  const r=REWARDS[idx]; $('#statusLabel').textContent='Reward!';
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  let gained=0, note='';
+  if(r.kind==='points'){ winner.pts+=r.value; gained=r.value; v.textContent='Bonus Points!'; sub.textContent=`The box paid out ${r.value} bonus points, added straight to your total.`; }
+  else if(r.kind==='powerup'){ A.powerup('Double Points — next round'); store.set('ssa_powerup','double'); v.textContent='Power-Up!'; sub.textContent='Double Points is armed for your next scored round. It carries into the next game.'; note='Double Points armed'; }
+  else if(r.kind==='title'){ store.set('ssa_title', r.value); v.textContent='New Title!'; sub.innerHTML=`You're now crowned <b>"${r.value}"</b> on the leaderboard.`; note=r.value; }
+  else if(r.kind==='sfx'){ v.textContent='Ta-da!'; sub.textContent='A fun sound effect plays on the Shared Display. No points — just vibes.'; beep(); }
+  else if(r.kind==='steal'){ const victim=A.pick(players.filter(p=>!p.me&&!p.disconnected)); winner.pts+=r.value; gained=r.value; v.textContent='Sneaky!'; sub.innerHTML=`You snagged ${r.value} points${victim?` from <b>${victim.name}</b>`:''}.`; }
+  pts.textContent=gained>0?`+${gained} points`:(note||'Reward applied');
+  A.finishGame(players); A.renderBoard(players,{flash:winner.id});
+  ov.classList.remove('hide'); A.confetti($('#stage'),90);
+}
+function beep(){ try{ const ac=new(window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(),g=ac.createGain(); o.connect(g); g.connect(ac.destination); o.type='triangle'; o.frequency.setValueAtTime(660,ac.currentTime); o.frequency.exponentialRampToValueAtTime(990,ac.currentTime+.15); g.gain.setValueAtTime(.12,ac.currentTime); g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.4); o.start(); o.stop(ac.currentTime+.4);}catch(e){} }
+
+$('#guideBtn').addEventListener('click', ()=>$('#preOverlay').classList.add('hide'));
+$('#spinBtn').addEventListener('click', spin);
+$('#nextBtn').addEventListener('click', ()=>{ $('#resultOverlay').classList.add('hide'); $('#spinBtn').disabled=false; $('#statusLabel').textContent='Winner Spins'; });
+document.getElementById('hudHost').innerHTML=A.hud({title:'Mystery Box', round:false});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+if(store.get('ssa_powerup')==='double') A.powerup('Double Points — armed');
+A.renderBoard(players);
+</script>
+</body>
+</html>

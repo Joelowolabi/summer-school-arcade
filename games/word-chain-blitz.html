@@ -1,0 +1,236 @@
+<!-- Summer School Arcade — Word Chain Blitz (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Chain Blitz — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .teamtabs{display:flex;gap:8px;margin-bottom:14px}
+  .ttab{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-radius:var(--radius-l);background:var(--surface-sunken);border:1px solid var(--border-hairline);cursor:default}
+  .ttab .nm{display:flex;align-items:center;gap:8px;font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-body-s)}
+  .ttab .nm .dot{width:10px;height:10px;border-radius:99px}
+  .ttab .prog{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4)}
+  .ttab.mine{border-color:var(--border-focus);box-shadow:0 0 0 3px var(--purple-100)}
+  .chain{flex:1;background:var(--surface-sunken);border-radius:var(--radius-xl);border:1px solid var(--border-hairline);padding:16px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:10px;align-content:flex-start;min-height:200px}
+  .word{display:inline-flex;align-items:center;gap:8px;background:var(--surface-card);border:1px solid var(--border-hairline);border-radius:var(--radius-pill);padding:8px 14px;box-shadow:var(--shadow-xs);font-weight:var(--fw-semibold);color:var(--text-strong);animation:wpop .34s var(--ease-pop)}
+  .word .by{font-size:var(--fs-micro);color:var(--text-muted);font-weight:var(--fw-medium)}
+  .word .lastl{color:var(--accent-play);text-transform:uppercase}
+  .word.mine{border-color:var(--border-focus);background:var(--purple-50)}
+  @keyframes wpop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .arrow{display:inline-flex;align-items:center;color:var(--text-muted)}
+  .inputrow{display:flex;gap:10px;margin-top:16px}
+  .needl{display:inline-flex;align-items:center;gap:8px;background:var(--accent-deep);color:#fff;border-radius:var(--radius-l);padding:0 18px;font-weight:var(--fw-bold);white-space:nowrap}
+  .needl b{font-family:var(--font-display);font-size:var(--fs-h3);text-transform:uppercase;margin-left:4px}
+  .winput{flex:1;height:var(--control-h-l);border-radius:var(--radius-pill);border:1px solid var(--border-soft);padding:0 20px;font-family:var(--font-core);font-size:var(--fs-body-l);color:var(--text-strong);background:var(--surface-card);transition:box-shadow var(--dur-fast)}
+  .winput:focus{outline:none;box-shadow:var(--focus-ring);border-color:var(--border-focus)}
+  .winput.bad{border-color:var(--red-400);box-shadow:0 0 0 3px var(--red-100);animation:shake .4s}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(4px)}50%{transform:translateX(-5px)}}
+  .feedback{min-height:20px;margin-top:10px;text-align:center;font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .feedback.ok{color:var(--status-success)} .feedback.err{color:var(--status-danger)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow">Team Relay · Race To 15 Words</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:12px"><h1 id="promptTitle">Word Chain <span class="hi">Blitz</span></h1>
+        <p id="promptSub">Each word must start with the last letter of the word before it. First team to 15 wins.</p></div>
+
+      <div class="teamtabs" id="teamtabs"></div>
+      <div class="chain" id="chain"></div>
+
+      <div class="inputrow">
+        <span class="needl">Next starts with<b id="needLetter">A</b></span>
+        <input class="winput" id="winput" placeholder="Type a word and press Enter…" autocomplete="off" spellcheck="false" disabled>
+        <button class="btn btn-play" id="submitBtn" disabled>Send</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Word Chain Blitz</h1>
+          <p class="goal">Goal: <b>first team to 15 chained words</b>.</p>
+          <ol class="steps">
+            <li>Each word must start with the last letter of the one before.</li>
+            <li>Type a word and press Enter to add it.</li>
+            <li>No repeats, real words only — invalid entries bounce.</li>
+            <li>Any teammate can grab the next slot; fastest valid wins.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Type + <span class="keycap">Enter</span></span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">+1 per word you add · winning team +8</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start The Chain
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const TEAMS=A.TEAMS, myTeam=players[0].team, TARGET=15, GAME_TIME=120;
+
+/* Age-appropriate word list, indexed by first letter, for validation + bot play.
+   (Original curated set — not exhaustive, but enough for a lively chain.) */
+const WORDS = "apple ant arm arrow art ask acorn ace amber angel able arch\n\
+ball bat bear bird boat book bug bus bee bread brave brush bloom\n\
+cat car cake cloud crab cup cow corn candy chair cheese climb\n\
+dog duck door drum desk dice deer dance dream dragon dust dive\n\
+egg elf ear earth echo eagle east edge engine\n\
+fish fox frog fire flag fun feather forest flower fast farm\n\
+goat gold game gift grass green glove grape ghost gate glow\n\
+hat hen home hill hand horse honey happy heart hop house\n\
+ice iron idea igloo inch island ink insect\n\
+jam jet jump jar juice jungle joke jewel\n\
+kite key king kid kick koala kind knee\n\
+lion leaf lamp log lake light lemon lucky ladder leap\n\
+moon map milk mouse maze music melon mask mango mud\n\
+nest net nut nose noon night noodle nice north\n\
+owl oak orange ocean otter open oven onion\n\
+pig pen pot park pear pond plant paint puzzle pumpkin\n\
+queen quilt quiz quick quack\n\
+rain rock rope robot ring rose river race rabbit roar\n\
+sun star ship sock snake sand smile spoon storm swing seed\n\
+tree top tent train tiger toast turtle team torch trip\n\
+umbrella under up urchin unicorn\n\
+van vase vine violet voice vote\n\
+web wing wolf wave wind water wagon whale wish wood\n\
+box fox fix mix wax\n\
+yak yarn year yellow yawn yoyo\n\
+zoo zebra zip zigzag zone".replace(/\n/g,' ').split(/\s+/).filter(Boolean);
+const DICT=new Set(WORDS);
+const byLetter={}; WORDS.forEach(w=>{ (byLetter[w[0]]=byLetter[w[0]]||[]).push(w); });
+
+/* per-team chain state */
+let chains, used, running=false, botTimer=null;
+
+function init(){
+  chains=[[],[],[]]; used=[new Set(),new Set(),new Set()];
+  // seed each team with a random start word
+  for(let t=0;t<3;t++){ const w=A.pick(WORDS); chains[t].push({w, by:'Start'}); used[t].add(w); }
+  renderTabs(); renderChain(); updateNeed();
+}
+function renderTabs(){
+  $('#teamtabs').innerHTML=TEAMS.map((t,i)=>`
+    <div class="ttab ${i===myTeam?'mine':''}"><span class="nm"><span class="dot" style="background:${t.color}"></span>${t.name}${i===myTeam?' · Your Team':''}</span><span class="prog">${chains[i].length-1}/${TARGET}</span></div>`).join('');
+}
+function renderChain(){
+  const c=chains[myTeam];
+  $('#chain').innerHTML=c.map((it,idx)=>{
+    const last=it.w[it.w.length-1];
+    const mine=it.by==='You';
+    return `<span class="word ${mine?'mine':''}">${it.w.slice(0,-1)}<span class="lastl">${last}</span><span class="by">· ${it.by}</span></span>`+
+      (idx<c.length-1?'<span class="arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>':'');
+  }).join('');
+  $('#chain').scrollTop=$('#chain').scrollHeight;
+}
+function needLetter(team){ const c=chains[team]; const last=c[c.length-1].w; return last[last.length-1]; }
+function updateNeed(){ $('#needLetter').textContent=needLetter(myTeam).toUpperCase(); }
+
+function trySubmit(team, word, by){
+  word=(word||'').toLowerCase().trim();
+  const need=needLetter(team);
+  if(!word) return {ok:false,msg:'Type a word first.'};
+  if(word[0]!==need) return {ok:false,msg:`Must start with "${need.toUpperCase()}".`};
+  if(used[team].has(word)) return {ok:false,msg:'Already used in this chain.'};
+  if(!DICT.has(word)) return {ok:false,msg:'Not in the word list.'};
+  chains[team].push({w:word, by}); used[team].add(word);
+  return {ok:true};
+}
+
+function mySubmit(){
+  if(!running) return;
+  const inp=$('#winput'); const r=trySubmit(myTeam, inp.value, 'You');
+  const fb=$('#feedback');
+  if(r.ok){
+    players[0].pts+=1; // +1 per word you add
+    inp.value=''; fb.textContent='Nice! +1'; fb.className='feedback ok';
+    renderChain(); renderTabs(); updateNeed(); A.renderBoard(players);
+    checkWin();
+  } else {
+    inp.classList.add('bad'); setTimeout(()=>inp.classList.remove('bad'),400);
+    fb.textContent=r.msg; fb.className='feedback err';
+  }
+}
+
+/* bots on other teams (and your teammates) add words periodically */
+function startBots(){
+  clearInterval(botTimer);
+  botTimer=setInterval(()=>{
+    if(!running) return;
+    for(let t=0;t<3;t++){
+      // a teammate/bot attempts a word based on team's aggregate speed
+      const teamBots=players.filter(p=>p.team===t&&!p.me&&!p.disconnected);
+      if(!teamBots.length) continue;
+      const speed=teamBots.reduce((s,p)=>s+p.skill,0)/teamBots.length;
+      if(Math.random()>speed*0.5) continue;
+      const need=needLetter(t);
+      const pool=(byLetter[need]||[]).filter(w=>!used[t].has(w));
+      if(!pool.length) continue;
+      const w=A.pick(pool); const bot=A.pick(teamBots);
+      const r=trySubmit(t, w, bot.name);
+      if(r.ok){ bot.pts+=1; if(t===myTeam){ renderChain(); updateNeed(); } renderTabs(); A.renderBoard(players); checkWin(); }
+    }
+  },700);
+}
+
+function checkWin(){
+  for(let t=0;t<3;t++){ if(chains[t].length-1>=TARGET){ end(t); return; } }
+}
+
+function start(){
+  $('#preOverlay').classList.add('hide'); init();
+  A.countdown($('#countOverlay'), ()=>{
+    running=true; const inp=$('#winput'); inp.disabled=false; $('#submitBtn').disabled=false; inp.focus();
+    $('#timerLabel').textContent='Go!';
+    const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+    fill.style.transition=`width ${GAME_TIME}s linear`; fill.style.width='0%';
+    startBots(); setTimeout(()=>{ if(running) end(null); }, GAME_TIME*1000);
+  });
+}
+
+function end(winTeam){
+  if(!running) return; running=false; clearInterval(botTimer);
+  $('#winput').disabled=true; $('#submitBtn').disabled=true;
+  const lens=chains.map(c=>c.length-1);
+  if(winTeam==null) winTeam=lens.indexOf(Math.max(...lens));
+  // scoring: winning team +8 each; consolation by progress
+  players.forEach(p=>{ if(p.disconnected) return; if(p.team===winTeam) p.pts+=8; else p.pts+=Math.round(lens[p.team]/TARGET*4); });
+  A.renderBoard(players);
+  const iWon=winTeam===myTeam;
+  const ov=$('#resultOverlay'), v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  v.textContent=iWon?'Team '+TEAMS[myTeam].name+' Wins!':'Team '+TEAMS[winTeam].name+' Wins';
+  v.className='verdict '+(iWon?'win':'late');
+  sub.innerHTML=`Chains — ${TEAMS[0].name} ${lens[0]} · ${TEAMS[1].name} ${lens[1]} · ${TEAMS[2].name} ${lens[2]} words. You added words worth points along the way.`;
+  pts.textContent=`+${iWon?8:Math.round(lens[myTeam]/TARGET*4)} team points`;
+  ov.classList.remove('hide'); if(iWon) A.confetti($('#stage'),90);
+  A.finishGame(players);
+}
+
+$('#winput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); mySubmit(); } });
+$('#submitBtn').addEventListener('click', mySubmit);
+$('#startBtn').addEventListener('click', start);
+document.getElementById('hudHost').innerHTML=A.hud({title:'Word Chain Blitz', round:false, extra:`<span class="chip hide-s"><span class="k">Team</span> <b style="color:${TEAMS[myTeam].color}">${TEAMS[myTeam].name}</b></span>`});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+setInterval(()=>{ if(!running) A.setPing(players); },1400);
+</script>
+</body>
+</html>

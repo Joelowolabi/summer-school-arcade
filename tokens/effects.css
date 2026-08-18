@@ -1,0 +1,23 @@
+:root{
+/* Shadows are soft, wide, low-opacity and neutral-violet — never black, never tight */
+--shadow-none:none;
+--shadow-xs:0 1px 2px rgba(30,27,38,.05);
+--shadow-s:0 2px 8px rgba(30,27,38,.06);
+--shadow-m:0 6px 20px rgba(30,27,38,.07);
+--shadow-l:0 14px 38px rgba(30,27,38,.09);
+--shadow-xl:0 26px 60px rgba(30,27,38,.12);
+--shadow-press:0 2px 6px rgba(30,27,38,.10);
+--shadow-purple:0 10px 24px rgba(107,76,216,.28);
+--shadow-spark:0 10px 24px rgba(242,104,60,.28);
+--shadow-inset-quiet:inset 0 0 0 1px var(--border-hairline);
+
+/* Focus */
+--focus-ring:0 0 0 3px var(--purple-100),0 0 0 5px var(--purple-400); /* @kind shadow */
+
+/* Glass / blur — used sparingly, only over photography or the hero wash */
+--blur-glass:blur(14px); /* @kind other */
+--glass-fill:rgba(255,255,255,.72); /* @kind color */
+
+/* Protection gradient for text over imagery */
+--scrim-bottom:linear-gradient(180deg,rgba(30,27,38,0) 0%,rgba(30,27,38,.55) 100%); /* @kind color */
+}

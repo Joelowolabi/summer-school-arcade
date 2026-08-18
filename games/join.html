@@ -1,0 +1,620 @@
+<!-- Summer School Arcade — Player Join (real multiplayer). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  html,body{height:auto}
+  body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 30px 34px;width:100%;max-width:440px}
+  .card .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px}
+  .card h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);color:var(--text-strong);margin:0 0 4px}
+  .card p.sub{color:var(--text-muted);margin:6px 0 22px}
+  .field{display:block;margin-bottom:16px}
+  .field label{display:block;font-weight:var(--fw-bold);color:var(--text-strong);margin-bottom:8px}
+  .field input{width:100%;height:var(--control-h-l);border-radius:var(--radius-pill);border:1px solid var(--border-soft);padding:0 20px;font-family:var(--font-core);font-size:var(--fs-body-l);color:var(--text-strong)}
+  .field input:focus{outline:none;box-shadow:var(--focus-ring);border-color:var(--border-focus)}
+  .field input.code-in{font-family:var(--font-mono);letter-spacing:.16em;text-transform:uppercase;text-align:center;font-size:var(--fs-h3);font-weight:var(--fw-bold)}
+  .avatars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .char-opt{border:2px solid var(--border-soft);border-radius:var(--radius-l);background:var(--surface-sunken);padding:8px 8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:transform .12s var(--ease-pop),border-color .12s,box-shadow .12s,background .12s}
+  .char-opt .cimg{width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+  .char-opt img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(30,27,38,.16))}
+  .char-opt .cn{font-size:var(--fs-caption);font-weight:var(--fw-bold);color:var(--text-muted)}
+  .char-opt:hover{transform:translateY(-2px)}
+  .char-opt.sel{border-color:var(--accent-play);box-shadow:0 0 0 3px var(--purple-100);background:var(--purple-50)}
+  .char-opt.sel .cn{color:var(--accent-play)}
+  .prow .av img,.yourteam .avwrap img{width:100%;height:100%;object-fit:contain}
+  .err{color:var(--status-danger);font-weight:var(--fw-semibold);font-size:var(--fs-body-s);min-height:20px;margin-bottom:6px}
+  .btn.full{width:100%}
+  /* lobby */
+  .yourteam{display:inline-flex;align-items:center;gap:8px;border-radius:var(--radius-pill);padding:8px 16px;color:#fff;font-weight:var(--fw-bold);margin-bottom:16px}
+  .plist{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto}
+  .prow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-pill);background:var(--surface-sunken)}
+  .prow.me{background:var(--purple-50);box-shadow:0 0 0 2px var(--purple-200) inset}
+  .prow .av{width:28px;height:28px;border-radius:99px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
+  .prow .nm{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)}
+  .waiting{text-align:center;color:var(--text-muted);margin-top:16px;font-weight:var(--fw-semibold)}
+  /* live answer panel */
+  .livehead{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px;text-align:center}
+  .liveq{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);line-height:1.15;margin-bottom:16px;text-align:center}
+  .liveq .livehint{font-family:var(--font-body);font-weight:var(--fw-regular);font-size:var(--fs-body);color:var(--text-muted);margin-top:6px}
+  .liveopts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .liveopt{display:flex;align-items:center;gap:10px;padding:16px;border:0;border-radius:var(--radius-l);color:#fff;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);cursor:pointer;box-shadow:var(--shadow-s);transition:transform .1s var(--ease-pop)}
+  .liveopt:active{transform:scale(.96)} .liveopt[disabled]{cursor:default}
+  .liveopt.picked{outline:3px solid var(--ink-900);outline-offset:-3px} .liveopt.right{outline:3px solid #fff;outline-offset:-3px} .liveopt.dim{opacity:.5}
+  .liveopt span{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:var(--fs-body)}
+  .livenote{text-align:center;color:var(--text-muted);margin-top:14px;font-weight:var(--fw-semibold)} .livenote b{color:var(--text-strong)}
+  /* vote (This or That) */
+  .livevote{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .livevcard{border:0;border-radius:var(--radius-xl);color:#fff;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);padding:26px 14px;cursor:pointer;box-shadow:var(--shadow-m);display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .1s var(--ease-pop);text-align:center}
+  .livevcard:active{transform:scale(.96)} .livevcard[disabled]{cursor:default}
+  .livevcard.picked{outline:3px solid var(--ink-900);outline-offset:-3px} .livevcard.win{outline:3px solid #fff;outline-offset:-3px} .livevcard.dim{opacity:.5}
+  .livevcard .vpct{font-family:var(--font-heading);font-size:var(--fs-h4);opacity:.9}
+  /* grid tiles (Odd One Out / Click Rush) */
+  .livegrid{display:grid;gap:10px;justify-content:center}
+  .livetile{border:0;border-radius:var(--radius-l);cursor:pointer;box-shadow:var(--shadow-s);aspect-ratio:1;width:min(22vw,92px);display:flex;align-items:center;justify-content:center;transition:transform .1s var(--ease-pop)}
+  .livetile.shape{background:var(--surface-sunken)}
+  .livetile:active{transform:scale(.94)} .livetile[disabled]{cursor:default}
+  .livetile.picked{outline:3px solid var(--ink-900);outline-offset:-3px} .livetile.right{outline:3px solid var(--accent-grow);outline-offset:-3px} .livetile.dim{opacity:.4}
+  /* real-time motion controller */
+  .motionwrap{position:relative}
+  .motionhead{font-family:var(--font-display);font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-h4);margin-bottom:8px;text-align:center;text-wrap:balance}
+  #mcanvas{width:100%;border-radius:var(--radius-l);background:#241b3a;display:block}
+  .moverlay{position:absolute;left:0;right:0;top:30px;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(36,27,58,.84);border-radius:var(--radius-l);color:#fff;text-align:center;padding:16px}
+  .mo-in{display:flex;flex-direction:column;gap:8px;align-items:center}
+  .mo-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3)}
+  .mo-h{font-size:var(--fs-body-s);opacity:.92;max-width:300px;line-height:1.35}
+  .mo-n{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:88px;line-height:1}
+  .mo-wait{font-size:var(--fs-body-s);opacity:.85}
+  .dpad{display:grid;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(2,54px);gap:8px;justify-content:center;margin-top:14px;grid-template-areas:". u ." "l dn r"}
+  .dbtn{border:0;border-radius:var(--radius-m);background:var(--surface-sunken);color:var(--text-strong);font-size:22px;font-weight:var(--fw-bold);cursor:pointer;box-shadow:var(--shadow-s);transition:transform .08s var(--ease-pop);touch-action:none}
+  .dbtn:active{transform:scale(.9);background:var(--purple-100);color:var(--accent-play)}
+  .mhint{text-align:center;color:var(--text-muted);font-size:var(--fs-caption);margin-top:8px}
+  .tapbtn{width:100%;margin-top:14px;border:0;border-radius:var(--radius-xl);padding:22px;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:#fff;background:linear-gradient(180deg,var(--accent-spark),var(--accent-play));box-shadow:var(--shadow-l);cursor:pointer;transition:transform .06s var(--ease-pop);touch-action:none;user-select:none}
+  .tapbtn:active{transform:scale(.95)}
+  .tapbtn.tug{background:linear-gradient(180deg,var(--accent-sun),var(--accent-flare,#F2683C))}
+  /* studio (doodle / monster / quick draw) */
+  .sprompt{font-family:var(--font-display);font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-h3);text-align:center;text-wrap:balance}
+  .ssub{color:var(--text-muted);font-size:var(--fs-body-s);text-align:center;margin:2px 0 10px}
+  #buildcv,#drawcv,#qdcv{width:100%;background:#fff;border-radius:var(--radius-l);display:block;touch-action:none;box-shadow:var(--shadow-s)}
+  .partrow{display:flex;align-items:center;gap:8px;margin:7px 0}
+  .partrow .plabel{width:58px;font-weight:var(--fw-bold);font-size:var(--fs-caption);color:var(--text-muted);text-transform:capitalize}
+  .partrow .pbtns{flex:1;display:flex;gap:6px;flex-wrap:wrap}
+  .pchip{padding:6px 11px;border-radius:var(--radius-pill);border:2px solid var(--border-soft);background:var(--surface-sunken);cursor:pointer;font-size:var(--fs-caption);font-weight:var(--fw-semibold);color:var(--text-muted)}
+  .pchip.sel{background:var(--purple-50);border-color:var(--accent-play);color:var(--accent-play)}
+  .studiobtns{display:flex;gap:8px;margin-top:12px}
+  .submitb{flex:1;border:0;border-radius:var(--radius-l);padding:16px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:#fff;background:var(--accent-grow);cursor:pointer;box-shadow:var(--shadow-s)}
+  .submitb.done{background:var(--surface-sunken);color:var(--text-muted)}
+  .ghostb{border:2px solid var(--border-soft);background:var(--surface);border-radius:var(--radius-l);padding:16px 18px;font-weight:var(--fw-bold);color:var(--text-muted);cursor:pointer}
+  .votegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+  .votecard{border:2px solid var(--border-soft);border-radius:var(--radius-l);padding:8px;cursor:pointer;text-align:center;background:var(--surface-sunken);transition:transform .1s var(--ease-pop)}
+  .votecard:active{transform:scale(.96)} .votecard.voted{border-color:var(--accent-play);background:var(--purple-50)}
+  .votecard canvas{width:100%;height:auto;background:#fff;border-radius:var(--radius-m)}
+  .votecard .vn{font-size:var(--fs-caption);font-weight:var(--fw-bold);color:var(--text-strong);margin-top:4px}
+  .guessrow{display:flex;gap:8px;margin-top:12px}
+  .guessrow input{flex:1;border:2px solid var(--border-soft);border-radius:var(--radius-l);padding:14px;font-size:var(--fs-body);font-family:var(--font-body)}
+  .qdword{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);letter-spacing:.28em;font-size:var(--fs-h2);color:var(--accent-play);margin:6px 0}
+  .qdfeed{margin-top:10px;max-height:110px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .qdfeed .gr{font-size:var(--fs-body-s);color:var(--text-muted)} .qdfeed .gr b{color:var(--text-strong)}
+  /* social */
+  .rolebox{background:var(--surface-sunken);border-radius:var(--radius-l);padding:18px;text-align:center;font-weight:var(--fw-semibold);color:var(--text-strong);margin:12px 0}
+  .rolebox.spy{background:#fdeee7;color:var(--accent-flare,#F2683C)}
+  .rolebox .rw{display:block;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);color:var(--accent-play);margin-top:4px}
+  .rolebox.spy .rw{color:var(--accent-flare,#F2683C)}
+  .socpads{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .socpad{aspect-ratio:1.5;border:0;border-radius:var(--radius-xl);opacity:.5;cursor:pointer;box-shadow:var(--shadow-s);transition:opacity .1s,transform .1s;touch-action:none}
+  .socpad.lit{opacity:1;transform:scale(.97)} .socpad[disabled]{cursor:default;opacity:.4}
+  .progressdots{display:flex;gap:7px;justify-content:center;margin-top:12px}
+  .pdot{width:13px;height:13px;border-radius:50%;background:var(--border-soft)} .pdot.on{background:var(--accent-play)}
+  .chainmini{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0;max-height:96px;overflow:auto}
+  .chainmini span{background:var(--surface-sunken);border-radius:var(--radius-pill);padding:5px 12px;font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:var(--text-muted)}
+  .chainmini span:last-child{background:var(--purple-50);color:var(--accent-play)}
+  .needline{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong);margin:6px 0}
+  .needline b{color:var(--accent-play)}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- STEP 1: code -->
+  <div id="stepCode">
+    <div class="kick">Join A Game</div><h1>Enter Code</h1>
+    <p class="sub">Type the room code shown on the big screen.</p>
+    <div class="err" id="errCode"></div>
+    <div class="field"><input class="code-in" id="codeIn" placeholder="ZAP-••••" maxlength="8" autocomplete="off"></div>
+    <button class="btn btn-spark full" id="codeBtn">Next</button>
+  </div>
+
+  <!-- STEP 2: name + avatar -->
+  <div id="stepName" class="hide">
+    <div class="kick">Almost There</div><h1>Your Name</h1>
+    <p class="sub">Pick a name and a colour — this is you on the leaderboard.</p>
+    <div class="err" id="errName"></div>
+    <div class="field"><label>Display name</label><input id="nameIn" placeholder="e.g. Zoe" maxlength="14" autocomplete="off"></div>
+    <div class="field"><label>Pick a character</label><div class="avatars" id="avatars"></div></div>
+    <button class="btn btn-spark full" id="joinBtn">Join The Room</button>
+  </div>
+
+  <!-- STEP 3: lobby -->
+  <div id="stepLobby" class="hide">
+    <div class="kick">You're In!</div><h1 id="lobbyTitle">Lobby</h1>
+    <p class="sub">Room <b id="lobbyCode" style="font-family:var(--font-mono)"></b></p>
+    <div class="yourteam" id="yourteam"></div>
+    <div class="plist" id="plist"></div>
+    <div class="waiting" id="waiting">Waiting for the host to start…</div>
+  </div>
+</div>
+
+<script type="module">
+import * as Net from './arcade-net.js';
+import * as Bank from './live-bank.js';
+import * as Arena from './arena-core.js';
+import { renderArena } from './arena-render.js';
+import * as Mash from './mash-core.js';
+import { renderBalloon, renderTug } from './mash-render.js';
+import * as Studio from './studio-core.js';
+import { PARTS, PART_KEYS, randomMonster, clampMonster, renderMonster } from './monster.js';
+import * as Social from './social-core.js';
+const $=s=>document.querySelector(s);
+let chosenAvatar=Net.CHARACTERS[0].id, room=null, me=null, players=[], answeredRound=-1;
+
+// character picker
+$('#avatars').innerHTML = Net.CHARACTERS.map((c,i)=>`<div class="char-opt ${i===0?'sel':''}" data-id="${c.id}"><div class="cimg"><img src="${c.img}" alt="${c.name}"></div><span class="cn">${c.name}</span></div>`).join('');
+$('#avatars').addEventListener('click', e=>{ const o=e.target.closest('.char-opt'); if(!o) return; chosenAvatar=o.dataset.id; $('#avatars').querySelectorAll('.char-opt').forEach(x=>x.classList.remove('sel')); o.classList.add('sel'); });
+
+// prefill code from ?code= or a saved reconnect
+const qp=new URLSearchParams(location.search);
+if(qp.get('code')) $('#codeIn').value=qp.get('code');
+
+// auto-reconnect when returning from a game (?code present + a saved name)
+(async ()=>{
+  const code=qp.get('code'), savedName=localStorage.getItem('ssa_join_name');
+  if(!code || !savedName) return;
+  try{
+    room = await Net.getRoomByCode(code);
+    if(!room || room.status==='ended') return;
+    me = await Net.joinRoom(code, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
+    Net.heartbeat(me.id);
+    $('#stepCode').classList.add('hide');
+    enterLobby();
+  }catch(e){}
+})();
+
+$('#codeBtn').addEventListener('click', checkCode);
+$('#codeIn').addEventListener('keydown', e=>{ if(e.key==='Enter') checkCode(); });
+async function checkCode(){
+  $('#errCode').textContent='';
+  const code=$('#codeIn').value.trim();
+  if(code.length<4){ $('#errCode').textContent='Enter the full code.'; return; }
+  $('#codeBtn').disabled=true; $('#codeBtn').textContent='Checking…';
+  room = await Net.getRoomByCode(code);
+  $('#codeBtn').disabled=false; $('#codeBtn').textContent='Next';
+  if(!room){ $('#errCode').textContent='No room with that code. Check the screen.'; return; }
+  if(room.status==='ended'){ $('#errCode').textContent='That game has ended.'; return; }
+  $('#stepCode').classList.add('hide'); $('#stepName').classList.remove('hide'); $('#nameIn').focus();
+}
+
+$('#joinBtn').addEventListener('click', join);
+$('#nameIn').addEventListener('keydown', e=>{ if(e.key==='Enter') join(); });
+async function join(){
+  $('#errName').textContent='';
+  const name=$('#nameIn').value.trim();
+  if(name.length<1){ $('#errName').textContent='Type a name.'; return; }
+  if(/[^\w \-]/.test(name)){ $('#errName').textContent='Letters and numbers only.'; return; }
+  $('#joinBtn').disabled=true; $('#joinBtn').textContent='Joining…';
+  try{
+    me = await Net.joinRoom(room.code, name, chosenAvatar);
+    localStorage.setItem('ssa_join_room', room.code);
+    localStorage.setItem('ssa_join_name', name);
+    localStorage.setItem('ssa_join_char', chosenAvatar);
+    Net.heartbeat(me.id);
+    enterLobby();
+  }catch(e){
+    $('#joinBtn').disabled=false; $('#joinBtn').textContent='Join The Room';
+    $('#errName').textContent = e.message==='ROOM_NOT_FOUND' ? 'Room not found.' : 'Could not join. Try again.';
+  }
+}
+
+async function enterLobby(){
+  $('#stepName').classList.add('hide'); $('#stepLobby').classList.remove('hide');
+  $('#lobbyCode').textContent=room.code;
+  $('#yourteam').style.background=Net.TEAM_COLORS[me.team];
+  const myImg=Net.charImg(me.avatar);
+  $('#yourteam').innerHTML=`${myImg?`<span class="avwrap" style="width:26px;height:26px;display:inline-flex">`+`<img src="${myImg}" alt=""></span>`:''}<span>You're on Team ${Net.TEAM_NAMES[me.team]}</span>`;
+  Net.onPlayers(room.id, async ()=>{ players=await Net.listPlayers(room.id); renderLobby(); if(room.state&&room.state.live&&room.state.live.phase==='reveal') renderRoomState(); });
+  Net.onRoom(room.id, ({new:r})=>{ room=Object.assign(room,r); renderRoomState(); });
+  players=await Net.listPlayers(room.id); renderLobby(); renderRoomState();
+}
+function roster(show){ const p=$('#plist'), y=$('#yourteam'); if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none'; }
+function renderRoomState(){
+  const w=$('#waiting');
+  const live = room.state && room.state.live;
+  if(room.status==='in_game' && live && (live.phase==='question'||live.phase==='reveal')){ roster(false); closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); return renderLive(live); }
+  if(room.status==='in_game' && Arena.isMotion(room.current_game)){ roster(false); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); return renderMotion(room.current_game); }
+  if(room.status==='in_game' && Mash.isMash(room.current_game)){ roster(false); closeMotion(); closeStudio(); closeQuickDraw(); closeSocial(); return renderMash(room.current_game); }
+  if(room.status==='in_game' && live && live.family==='studio'){ roster(false); closeMotion(); closeMash(); closeQuickDraw(); closeSocial(); return renderStudio(live); }
+  if(room.status==='in_game' && Studio.isQuickDraw(room.current_game)){ roster(false); closeMotion(); closeMash(); closeStudio(); closeSocial(); return renderQuickDraw(room.current_game); }
+  if(room.status==='in_game' && live && (live.family==='spy'||live.family==='wordchain'||live.family==='copycat')){ roster(false); closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); return renderSocial(live); }
+  closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial(); roster(true);
+  if(room.status==='in_game' && room.current_game){
+    w.innerHTML=`<div style="margin-bottom:12px;color:var(--text-strong)"><b>Now playing: ${Net.gameLabel(room.current_game)}</b></div>
+      <a class="btn btn-spark" href="${room.current_game}?room=${room.id}&player=${me.id}&code=${room.code}" style="text-decoration:none">Play Now
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>`;
+  } else if(room.status==='results' || room.status==='ended'){
+    w.innerHTML='<b>Session complete!</b><br>Check the big screen for the final standings.';
+  } else {
+    w.textContent='Waiting for the host to start…';
+  }
+}
+function renderLive(live){
+  const w=$('#waiting'); const L=['A','B','C','D'], colors=['#F2683C','#7B5BE8','#3FBF7F','#4F9CF9'];
+  const type=live.type||'mcq';
+  const answered = answeredRound===live.round;
+  const send=async i=>{ if(answeredRound===live.round) return; answeredRound=live.round;
+    try{ await Net.submitAnswer(room.id, me.id, live.game, live.round, i); }catch(e){} };
+  const myPts=()=>(players.find(p=>p.id===me.id)||{}).points || 0;
+
+  if(live.phase==='question'){
+    let body;
+    if(type==='mcq') body=`<div class="liveq">${live.prompt}${live.hint?`<div class="livehint">${live.hint}</div>`:''}</div>
+      <div class="liveopts">${live.options.map((o,i)=>`<button class="liveopt tap" data-i="${i}" style="background:${colors[i]}" ${answered?'disabled':''}><span>${L[i]}</span>${o}</button>`).join('')}</div>`;
+    else if(type==='vote') body=`<div class="liveq">${live.prompt}</div>
+      <div class="livevote">${live.options.map((o,i)=>`<button class="livevcard tap" data-i="${i}" style="background:${live.colors[i]}" ${answered?'disabled':''}>${o}</button>`).join('')}</div>`;
+    else body=`<div class="liveq">${live.prompt}</div>
+      <div class="livegrid" style="grid-template-columns:repeat(${live.cols},auto)">${live.tiles.map((t,i)=>live.variant==='shape'
+        ?`<button class="livetile shape tap" data-i="${i}" ${answered?'disabled':''}>${Bank.shapeSVG(t.s,t.c,46)}</button>`
+        :`<button class="livetile tap" data-i="${i}" style="background:${t.c}" ${answered?'disabled':''}></button>`).join('')}</div>`;
+    w.innerHTML=`<div class="livehead">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</div>${body}
+      <div class="livenote" id="lnote">${answered?'Locked in — hang tight!':(type==='vote'?'Pick a side, fast!':type==='grid'?'Tap the right one, fast!':'Tap your answer, fast!')}</div>`;
+    if(!answered) w.querySelectorAll('.tap').forEach(b=>b.addEventListener('click', async ()=>{
+      if(answeredRound===live.round) return;
+      w.querySelectorAll('.tap').forEach(x=>{ x.disabled=true; }); b.classList.add('picked');
+      $('#lnote').textContent='Locked in — hang tight!';
+      await send(+b.dataset.i);
+    }));
+  } else {  // reveal
+    let body;
+    if(type==='mcq') body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
+      <div class="liveopts">${live.options.map((o,i)=>`<div class="liveopt ${i===live.correct?'right':'dim'}" style="background:${i===live.correct?colors[i]:'var(--surface-sunken)'};color:${i===live.correct?'#fff':'var(--text-muted)'}"><span style="${i===live.correct?'':'background:var(--border-soft)'}">${L[i]}</span>${o}${i===live.correct?' ✓':''}</div>`).join('')}</div>`;
+    else if(type==='vote'){ const tot=Math.max(1,(live.tally[0]||0)+(live.tally[1]||0));
+      body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
+      <div class="livevote">${live.options.map((o,i)=>`<div class="livevcard ${live.winner===i?'win':'dim'}" style="background:${live.colors[i]}">${o}<span class="vpct">${Math.round((live.tally[i]||0)/tot*100)}%</span></div>`).join('')}</div>`;
+    } else body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
+      <div class="livegrid" style="grid-template-columns:repeat(${live.cols},auto)">${live.tiles.map((t,i)=>`<div class="livetile ${live.variant==='shape'?'shape':''} ${i===live.correct?'right':'dim'}" ${live.variant==='shape'?'':`style="background:${t.c}"`}>${live.variant==='shape'?Bank.shapeSVG(t.s,t.c,46):''}</div>`).join('')}</div>`;
+    w.innerHTML=`<div class="livehead">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</div>${body}
+      <div class="livenote">Your score: <b>${myPts()}</b></div>`;
+  }
+}
+/* ---- real-time motion controller (player = input + renderer) ---- */
+let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null;
+function motionKey(e){
+  const k=e.key; let d=null;
+  if(k==='ArrowUp'||k==='w'||k==='W') d=0; else if(k==='ArrowRight'||k==='d'||k==='D') d=1;
+  else if(k==='ArrowDown'||k==='s'||k==='S') d=2; else if(k==='ArrowLeft'||k==='a'||k==='A') d=3;
+  if(d!=null){ e.preventDefault(); sendDir(d); }
+}
+function sendDir(dir){ if(!mArena||!me) return; if(mDir===dir) return; mDir=dir; try{ mArena.sendInput({ id:me.id, dir }); }catch(e){} }
+function openMotion(file){
+  if(mArena && mFile===file) return;
+  closeMotion(true);
+  mFile=file;
+  mArena=Net.openArena(room.id, {
+    onState:(snap)=>{ mSnap=snap; drawMotion(); },
+    onMeta:(m)=>onMotionMeta(m),
+  });
+}
+function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mDir=null; if(!keepUi) mUiFile=null; }
+function sizeMotionCanvas(cv){ const w=cv.parentElement.getBoundingClientRect().width||320; cv.width=Math.floor(w); cv.height=Math.floor(w*0.62); }
+function renderMotion(file){
+  openMotion(file);
+  if(mUiFile===file && document.getElementById('mcanvas')) return; // already built — don't clobber the canvas
+  mUiFile=file;
+  const w=$('#waiting');
+  w.innerHTML=`<div class="motionwrap">
+      <div class="motionhead" id="mhead">${Arena.motionTitle(file)}</div>
+      <canvas id="mcanvas"></canvas>
+      <div class="moverlay" id="moverlay"><div class="mo-in"><div class="mo-t">${Arena.motionTitle(file)}</div><div class="mo-h">${Arena.motionHowto(file)}</div><div class="mo-wait">Get ready…</div></div></div>
+      <div class="dpad">
+        <button class="dbtn" data-d="0" style="grid-area:u">▲</button>
+        <button class="dbtn" data-d="3" style="grid-area:l">◀</button>
+        <button class="dbtn" data-d="2" style="grid-area:dn">▼</button>
+        <button class="dbtn" data-d="1" style="grid-area:r">▶</button>
+      </div>
+      <div class="mhint">Arrow keys or the pad to steer</div>
+    </div>`;
+  const cv=$('#mcanvas'); sizeMotionCanvas(cv);
+  w.querySelectorAll('.dbtn').forEach(b=>{ const d=+b.dataset.d;
+    b.addEventListener('click',()=>sendDir(d));
+    b.addEventListener('touchstart',e=>{ e.preventDefault(); sendDir(d); },{passive:false}); });
+  if(!mKeyBound){ document.addEventListener('keydown', motionKey); mKeyBound=true; }
+  if(mSnap) drawMotion();
+}
+function drawMotion(){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
+  renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id });
+  const meP=mSnap.players.find(p=>p.id===me.id), mh=$('#mhead');
+  if(mh){ mh.textContent = !meP ? Arena.motionTitle(mSnap.file)
+    : meP.alive===false ? "You're out — cheer your team on!"
+    : Arena.motionTitle(mSnap.file)+' · '+scoreLabel(mSnap.mode, meP); }
+  if(!mSnap.over){ const ov=$('#moverlay'); if(ov && ov.dataset.state!=='count' && ov.dataset.state!=='over') ov.style.display='none'; }
+}
+function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):('you: '+p.score); }
+function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
+  if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
+    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`; }
+  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; mDir=null; }
+  else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
+    ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':(m.msg||'Finished!')}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
+}
+/* ---- mash controller (Balloon Pop Race, Tug of War) ---- */
+let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false;
+function mashKeydown(e){ if(e.key===' '||e.key==='Spacebar'){ e.preventDefault(); mashTap(); } }
+function mashTap(){ kTaps++; }
+function openMash(file){
+  if(kArena && kFile===file) return;
+  closeMash(true);
+  kFile=file; kKind=Mash.mashKind(file);
+  kArena=Net.openArena(room.id, { onState:(s)=>{ kSnap=s; drawMash(); }, onMeta:(m)=>onMashMeta(m) });
+  kSender=setInterval(()=>{ if(kTaps>0 && kArena){ try{ kArena.sendInput({ id:me.id, taps:kTaps }); }catch(e){} kTaps=0; } }, 120);
+}
+function closeMash(keepUi){ if(kArena){ kArena.close(); kArena=null; } if(kSender){ clearInterval(kSender); kSender=null; }
+  if(kKeyBound){ document.removeEventListener('keydown', mashKeydown); kKeyBound=false; } kFile=null; kSnap=null; kTaps=0; if(!keepUi) kUiFile=null; }
+function renderMash(file){
+  openMash(file);
+  if(kUiFile===file && document.getElementById('kcanvas')) return;
+  kUiFile=file; const kind=Mash.mashKind(file);
+  const label = kind==='balloon' ? 'PUMP! 🎈' : 'PULL! 🪢';
+  const w=$('#waiting');
+  w.innerHTML=`<div class="motionwrap">
+      <div class="motionhead" id="khead">${Mash.mashTitle(file)}</div>
+      <canvas id="kcanvas"></canvas>
+      <div class="moverlay" id="koverlay"><div class="mo-in"><div class="mo-t">${Mash.mashTitle(file)}</div><div class="mo-h">${Mash.mashHowto(file)}</div><div class="mo-wait">Get ready…</div></div></div>
+      <button class="tapbtn ${kind==='tug'?'tug':''}" id="ktap">${label}</button>
+      <div class="mhint">Tap the button or hit SPACE — fast as you can!</div>
+    </div>`;
+  const cv=$('#kcanvas'); sizeMotionCanvas(cv);
+  const btn=$('#ktap');
+  btn.addEventListener('click', mashTap);
+  btn.addEventListener('touchstart', e=>{ e.preventDefault(); mashTap(); }, {passive:false});
+  if(!kKeyBound){ document.addEventListener('keydown', mashKeydown); kKeyBound=true; }
+  if(kSnap) drawMash();
+}
+function drawMash(){ const cv=$('#kcanvas'); if(!cv||!kSnap) return;
+  const ctx=cv.getContext('2d');
+  if(kKind==='balloon') renderBalloon(ctx, kSnap, { dark:true, meId:me.id, solo:true });
+  else renderTug(ctx, kSnap, { dark:true, myTeam:(players.find(p=>p.id===me.id)||{}).team });
+  const kh=$('#khead');
+  if(kh){ if(kKind==='balloon'){ const me2=kSnap.players.find(p=>p.id===me.id);
+      kh.textContent = me2 ? `You've popped ${me2.pops} · ${kSnap.remain}s left` : Mash.mashTitle(kFile); }
+    else { const myT=(players.find(p=>p.id===me.id)||{}).team; kh.textContent = `Pull for ${['Red','Blue','Green'][myT]||'your'} team!`; } }
+  if(!kSnap.over){ const ov=$('#koverlay'); if(ov && ov.dataset.state!=='count' && ov.dataset.state!=='over') ov.style.display='none'; }
+}
+function onMashMeta(m){ const ov=$('#koverlay'); if(!ov) return;
+  if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
+    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`; }
+  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; kTaps=0; }
+  else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
+    ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':'Finished!'}</div><div class="mo-h">${m.msg||''}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
+}
+/* ---- studio games (Doodle Duel / Build-a-Monster) ---- */
+let sUiKey=null, sMon=null, sSubmitted=false;
+function closeStudio(){ sUiKey=null; sMon=null; sSubmitted=false; }
+function renderStudio(live){
+  const key=live.kind+'|'+live.phase+'|'+live.round+'|'+(live.entries?live.entries.length:0)+'|'+(live.winner?live.winner.playerId:'');
+  if(sUiKey===key && $('#studioroot')) return; sUiKey=key;
+  if(live.phase==='make'){ if(live.kind==='monster') buildMonsterUI(live); else buildDoodleUI(live); }
+  else if(live.phase==='vote') buildVoteUI(live);
+  else buildResultUI(live);
+}
+function chipInner(k,opt,i){ return k==='color'
+  ? `<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${PARTS.color[i]}"></span>` : opt; }
+function drawBuild(){ const cv=$('#buildcv'); if(!cv||!sMon) return; const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height); ctx.fillStyle='#f4f1fb'; ctx.fillRect(0,0,cv.width,cv.height);
+  renderMonster(ctx, cv.width/2, cv.height/2, Math.min(cv.width,cv.height)*0.78, sMon); }
+function buildMonsterUI(live){
+  if(!sMon) sMon=randomMonster(); sSubmitted=false;
+  const rows=PART_KEYS.map(k=>`<div class="partrow"><span class="plabel">${k}</span><div class="pbtns">${
+    PARTS[k].map((opt,i)=>`<button class="pchip ${sMon[k]===i?'sel':''}" data-k="${k}" data-i="${i}">${chipInner(k,opt,i)}</button>`).join('')}</div></div>`).join('');
+  $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Build your monster!</div><div class="ssub">Pick parts, then Submit before time's up</div>
+    <canvas id="buildcv" height="190"></canvas>${rows}
+    <div class="studiobtns"><button class="submitb" id="subm">Submit my monster ✓</button><button class="ghostb" id="rnd">🎲</button></div></div>`;
+  const cv=$('#buildcv'); cv.width=cv.getBoundingClientRect().width||320; drawBuild();
+  $('#studioroot').querySelectorAll('.pchip').forEach(b=>b.addEventListener('click',()=>{ if(sSubmitted) return;
+    sMon[b.dataset.k]=+b.dataset.i; b.parentElement.querySelectorAll('.pchip').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); drawBuild(); }));
+  $('#rnd').addEventListener('click',()=>{ if(sSubmitted) return; sMon=randomMonster(); buildMonsterUI(live); });
+  $('#subm').addEventListener('click',async()=>{ if(sSubmitted) return; sSubmitted=true; const b=$('#subm'); b.classList.add('done'); b.textContent='Submitted! ✓';
+    try{ await Net.submitWork(room.id, me.id, live.game, live.round, clampMonster(sMon)); }catch(e){} });
+}
+function buildDoodleUI(live){ sSubmitted=false;
+  $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Draw: ${live.prompt}</div><div class="ssub">Finger or mouse — then Submit</div>
+    <canvas id="drawcv" height="240"></canvas>
+    <div class="studiobtns"><button class="submitb" id="subm">Submit my drawing ✓</button><button class="ghostb" id="clr">Clear</button></div></div>`;
+  const cv=$('#drawcv'); cv.width=cv.getBoundingClientRect().width||320; const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+  let drawing=false,last=null; const pos=e=>{ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*cv.width/r.width, y:(t.clientY-r.top)*cv.height/r.height}; };
+  const down=e=>{ e.preventDefault(); drawing=true; last=pos(e); };
+  const move=e=>{ if(!drawing) return; e.preventDefault(); const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; };
+  const up=()=>{ drawing=false; };
+  cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
+  $('#clr').addEventListener('click',()=>{ ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); });
+  $('#subm').addEventListener('click',async()=>{ if(sSubmitted) return; sSubmitted=true; const b=$('#subm'); b.classList.add('done'); b.textContent='Submitted! ✓';
+    const o=document.createElement('canvas'); o.width=200; o.height=Math.round(200*cv.height/cv.width); o.getContext('2d').drawImage(cv,0,0,o.width,o.height);
+    try{ await Net.submitWork(room.id, me.id, live.game, live.round, o.toDataURL('image/png')); }catch(e){} });
+}
+function buildVoteUI(live){
+  const entries=(live.entries||[]).filter(e=>e.playerId!==me.id);
+  const cards=entries.map(e=>`<div class="votecard" data-t="${e.playerId}">${e.mon?`<canvas class="vcv" width="130" height="110"></canvas>`:`<div style="padding:16px 6px;font-size:var(--fs-h1);color:var(--accent-play)">#${e.n}</div>`}<div class="vn">${e.name}</div></div>`).join('');
+  $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Vote for your favourite!</div><div class="ssub">Tap one — you can't pick your own 😉</div>
+    <div class="votegrid">${cards||'<div class="ssub">Nothing to vote on this round</div>'}</div>
+    <div class="ssub" id="votemsg" style="margin-top:10px">Big screen shows every creation ✨</div></div>`;
+  $('#studioroot').querySelectorAll('.votecard').forEach(card=>{ const t=card.dataset.t; const e=entries.find(x=>x.playerId===t);
+    const cvs=card.querySelector('canvas'); if(cvs&&e&&e.mon){ cvs.width=cvs.getBoundingClientRect().width||130; renderMonster(cvs.getContext('2d'), cvs.width/2, cvs.height/2, Math.min(cvs.width,cvs.height)*0.8, e.mon); }
+    card.addEventListener('click',async()=>{ if(card.classList.contains('voted')) return;
+      $('#studioroot').querySelectorAll('.votecard').forEach(c=>c.classList.remove('voted')); card.classList.add('voted');
+      $('#votemsg').textContent='Vote locked in!';
+      try{ await Net.castVote(room.id, me.id, live.game, live.round, t); }catch(e){} }); });
+}
+function buildResultUI(live){ const w=live.winner;
+  $('#waiting').innerHTML=`<div id="studioroot" style="text-align:center"><div class="sprompt">🏆 ${w?w.name+' wins!':'Nice work, everyone!'}</div>
+    <div class="ssub">${w?'with '+w.votes+' vote'+(w.votes===1?'':'s'):''}</div><div class="ssub">Waiting for the next game…</div></div>`;
+}
+
+/* ---- Quick Draw Guess (live pictionary) ---- */
+let qdArena=null, qdRound=null, qdDrawer=null, qdWord=null, qdIsDrawer=false, qdStrokes=[], qdUiKey=null, qdLocked=false;
+function closeQuickDraw(){ if(qdArena){ qdArena.close(); qdArena=null; } qdRound=null; qdWord=null; qdIsDrawer=false; qdStrokes=[]; qdUiKey=null; qdLocked=false; }
+function renderQuickDraw(file){
+  if(!qdArena){ qdArena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.stroke&&m.drawer===qdDrawer){ qdStrokes.push(m.stroke); drawQD(); } }, onMeta:(m)=>onQDMeta(m,file) }); }
+  if(qdUiKey) return;   // a round/waiting screen is already up
+  qdUiKey='waiting';
+  $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">Quick Draw Guess</div><div class="ssub">Get ready — first to guess wins!</div><canvas id="qdcv" height="220"></canvas></div>`;
+  const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; drawQD();
+}
+function onQDMeta(m,file){
+  if(m.kind==='round'){ qdRound=m.round; qdDrawer=m.drawer; qdIsDrawer=(m.drawer===me.id); qdWord=null; qdStrokes=[]; qdLocked=false; buildQDRound(file,m); }
+  else if(m.kind==='word'){ if(m.drawer===me.id && m.round===qdRound){ qdWord=m.word; const el=$('#qdword'); if(el) el.textContent=qdWord; } }
+  else if(m.kind==='solved'){ addFeed(`🎉 <b>${m.who}</b> got it — <b>${m.word}</b>!`); qdLocked=true; const b=$('#qdsend'); if(b) b.disabled=true; }
+  else if(m.kind==='timeup'){ addFeed(`⏱ time's up — it was <b>${m.word}</b>`); qdLocked=true; const b=$('#qdsend'); if(b) b.disabled=true; }
+  else if(m.kind==='over'){ qdRound=null; qdUiKey='over'; $('#waiting').innerHTML=`<div id="qdroot" style="text-align:center"><div class="sprompt">🏆 Great drawing!</div><div class="ssub">Waiting for the next game…</div></div>`; }
+}
+function buildQDRound(file,m){ qdUiKey='round'+m.round;
+  if(qdIsDrawer){
+    $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">You're drawing! ✏️</div><div class="qdword" id="qdword">…</div><canvas id="qdcv" height="230"></canvas><div class="ssub">Draw it — no letters or words allowed!</div></div>`;
+    const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; const ctx=cv.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+    let drawing=false,last=null; const pos=e=>{ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)/r.width, y:(t.clientY-r.top)/r.height}; };
+    const emit=(a,b,x,y)=>{ const st={a,b,x,y,c:'#3E2C6B',w:3}; qdStrokes.push(st); if(qdArena){ try{ qdArena.sendInput({stroke:st, drawer:me.id, round:qdRound}); }catch(e){} } };
+    const down=e=>{ e.preventDefault(); drawing=true; last=pos(e); };
+    const move=e=>{ if(!drawing) return; e.preventDefault(); const p=pos(e); emit(last.x,last.y,p.x,p.y);
+      ctx.beginPath(); ctx.moveTo(last.x*cv.width,last.y*cv.height); ctx.lineTo(p.x*cv.width,p.y*cv.height); ctx.stroke(); last=p; };
+    const up=()=>drawing=false;
+    cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+    cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
+  } else {
+    $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">${m.drawerName} is drawing…</div><div class="qdword">${'_ '.repeat(m.wordLen).trim()}</div>
+      <canvas id="qdcv" height="200"></canvas>
+      <div class="guessrow"><input id="qdguess" placeholder="Type your guess…" autocomplete="off"><button class="submitb" id="qdsend" style="flex:0 0 auto;padding:14px 18px">Guess</button></div>
+      <div class="qdfeed" id="qdfeed"></div></div>`;
+    const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; drawQD();
+    const send=async()=>{ if(qdLocked) return; const inp=$('#qdguess'); const t=(inp.value||'').trim(); if(!t) return; inp.value='';
+      addFeed(`<b>you:</b> ${t}`); try{ await Net.sendGuess(room.id, me.id, file, qdRound, t); }catch(e){} };
+    $('#qdsend').addEventListener('click', send);
+    $('#qdguess').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
+  }
+}
+function drawQD(){ const cv=$('#qdcv'); if(!cv) return; const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const st of qdStrokes){ ctx.strokeStyle=st.c||'#3E2C6B'; ctx.lineWidth=st.w||3; ctx.beginPath(); ctx.moveTo(st.a*cv.width,st.b*cv.height); ctx.lineTo(st.x*cv.width,st.y*cv.height); ctx.stroke(); } }
+function addFeed(html){ const f=$('#qdfeed'); if(!f) return; const d=document.createElement('div'); d.className='gr'; d.innerHTML=html; f.appendChild(d); f.scrollTop=f.scrollHeight; }
+
+/* ================= social games (Secret Spy / Word Chain / Copycat) ================= */
+let socArena=null, socUiKey=null, spyRole=null, spySubmitted=false,
+    copySeq=[], copySeqRound=-1, copyTaps=[], copySubmitted=false, copyEliminated=false, copyPlaying=false;
+function closeSocial(){ if(socArena){ socArena.close(); socArena=null; }
+  socUiKey=null; spyRole=null; spySubmitted=false; copySeq=[]; copySeqRound=-1; copyTaps=[]; copySubmitted=false; copyEliminated=false; copyPlaying=false; }
+function ensureSocialChannel(kind){ if(kind==='wordchain') return; if(socArena) return;
+  socArena=Net.openArena(room.id, { onMeta:(m)=>onSocialMeta(m) }); }
+function renderSocial(live){ ensureSocialChannel(live.family);
+  if(live.family==='spy') return renderSpy(live);
+  if(live.family==='wordchain') return renderWordChain(live);
+  return renderCopycat(live);
+}
+function onSocialMeta(m){
+  if(m.kind==='roles'){ if(m.roles && me && m.roles[me.id]!==undefined){ spyRole=m.roles[me.id]; updateSpyRole(); } }
+  else if(m.kind==='seq'){ copySeq=m.seq||[]; copySeqRound=m.round; maybePlayCopy(); }
+  else if(m.kind==='result'){ if(m.out && me && m.out.indexOf(me.id)>=0) copyEliminated=true; }
+}
+/* --- Secret Spy (player) --- */
+function updateSpyRole(){ const el=$('#spyrole'); if(!el) return;
+  if(spyRole==='__SPY__'){ el.className='rolebox spy'; el.innerHTML=`🕵️ You're a SPY!<span class="rw">Blend in…</span>You don't know the word — bluff a clue that fits the topic!`; }
+  else if(spyRole){ el.className='rolebox'; el.innerHTML=`Your secret word:<span class="rw">${spyRole}</span>Give a clue that proves you know it (but don't say it!)`; }
+}
+function renderSpy(live){
+  if(live.phase==='clue'){
+    if(socUiKey==='spy-clue') { updateSpyRole(); return; } socUiKey='spy-clue'; spySubmitted=false;
+    $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">🕵️ Secret Spy</div><div class="ssub">Topic: <b>${live.category}</b></div>
+      <div id="spyrole" class="rolebox">Getting your secret role…</div>
+      <div class="guessrow"><input id="clueinput" placeholder="Your one-word clue…" autocomplete="off"><button class="submitb" id="cluesend" style="flex:0 0 auto;padding:14px 18px">Send</button></div>
+      <div class="ssub" id="cluemsg">Everyone gives a clue — then you'll vote out the spies.</div></div>`;
+    updateSpyRole();
+    const send=async()=>{ if(spySubmitted) return; const t=($('#clueinput').value||'').trim(); if(!t) return; spySubmitted=true;
+      $('#clueinput').disabled=true; $('#cluesend').disabled=true; $('#cluemsg').textContent='Clue sent! Waiting for the others…';
+      try{ await Net.submitWork(room.id, me.id, live.game, live.round, t.split(/\s+/)[0]); }catch(e){} };
+    $('#cluesend').addEventListener('click', send); $('#clueinput').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();send();} });
+  } else if(live.phase==='vote'){
+    if(socUiKey==='spy-vote') return; socUiKey='spy-vote';
+    const entries=(live.entries||[]).filter(e=>e.playerId!==me.id);
+    $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">Who's the spy? 🕵️</div><div class="ssub">Tap the faker — clues shown below</div>
+      <div class="votegrid">${entries.map(e=>`<div class="votecard" data-t="${e.playerId}"><div class="vn">${e.name}</div><div style="color:var(--accent-play);font-weight:var(--fw-bold)">"${e.clue}"</div></div>`).join('')||'<div class="ssub">No clues to judge</div>'}</div></div>`;
+    $('#socroot').querySelectorAll('.votecard').forEach(card=>card.addEventListener('click',async()=>{ if(card.classList.contains('voted')) return;
+      $('#socroot').querySelectorAll('.votecard').forEach(c=>c.classList.remove('voted')); card.classList.add('voted');
+      try{ await Net.castVote(room.id, me.id, live.game, live.round, card.dataset.t); }catch(e){} }));
+  } else { // reveal
+    if(socUiKey==='spy-reveal') return; socUiKey='spy-reveal';
+    const iAmSpy = spyRole==='__SPY__';
+    $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">${live.caught?'🎯 A spy was caught!':'🕵️ The spy escaped!'}</div>
+      <div class="rolebox">The word was <span class="rw">${live.word}</span>Spies: ${(live.spies||[]).join(', ')||'—'}</div>
+      <div class="ssub">${iAmSpy?'You were a spy 🤫':'Did you catch one?'} · Waiting for the next game…</div></div>`;
+  }
+}
+/* --- Word Chain (player) --- */
+function renderWordChain(live){
+  if(live.phase==='done'){ socUiKey='wc-done';
+    $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">🔗 ${(live.chain||[]).length} words long!</div><div class="chainmini">${(live.chain||[]).map(w=>`<span>${w}</span>`).join('')}</div><div class="ssub">Waiting for the next game…</div></div>`; return; }
+  const key='wc'+live.link;
+  if(socUiKey!==key){ socUiKey=key;
+    $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">🔗 Word Chain — link ${live.link}</div>
+      <div class="chainmini" id="wcchain"></div><div class="needline" id="wcneed"></div>
+      <div class="guessrow"><input id="wcinput" placeholder="Type a word…" autocomplete="off"><button class="submitb" id="wcsend" style="flex:0 0 auto;padding:14px 18px">Go</button></div>
+      <div class="ssub" id="wcmsg">Fastest valid word scores!</div></div>`;
+    const send=async()=>{ const t=($('#wcinput').value||'').trim(); if(!t) return; $('#wcinput').value='';
+      try{ await Net.sendGuess(room.id, me.id, live.game, live.link, t); }catch(e){} };
+    $('#wcsend').addEventListener('click', send); $('#wcinput').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();send();} });
+  }
+  const chain=live.chain||[]; const cm=$('#wcchain'); if(cm) cm.innerHTML=chain.map(w=>`<span>${w}</span>`).join('');
+  const nl=$('#wcneed'); if(nl) nl.innerHTML=`next word starts with <b>${(live.need||'').toUpperCase()}</b>`;
+  const msg=$('#wcmsg'); if(msg && live.lastScorer) msg.textContent='✅ '+live.lastScorer+' scored "'+chain[chain.length-1]+'"';
+}
+/* --- Copycat (player) --- */
+function padGrid(disabled){ return `<div class="socpads">${Social.COPY_COLORS.map((c,i)=>`<button class="socpad" data-i="${i}" style="background:${c}" ${disabled?'disabled':''}></button>`).join('')}</div>`; }
+function flashPad(i){ const p=document.querySelectorAll('.socpad')[i]; if(!p) return; p.classList.add('lit'); setTimeout(()=>p.classList.remove('lit'),300); }
+async function maybePlayCopy(){ if(copyPlaying) return; const pads=document.querySelectorAll('.socpad'); if(!pads.length || !copySeq.length) return;
+  copyPlaying=true; await new Promise(r=>setTimeout(r,400));
+  for(const c of copySeq){ flashPad(c); await new Promise(r=>setTimeout(r,560)); } copyPlaying=false; }
+function renderCopycat(live){
+  if(live.phase==='done'){ socUiKey='cc-done';
+    $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">🏆 ${live.winner?live.winner+' wins!':'Nice memory!'}</div><div class="ssub">Waiting for the next game…</div></div>`; return; }
+  if(copyEliminated){ if(socUiKey==='cc-out') return; socUiKey='cc-out';
+    $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">💥 You're out!</div><div class="ssub">Cheer the others on — watch the big screen!</div></div>`; return; }
+  if(live.phase==='watch'){ const key='cc-w'+live.round;
+    if(socUiKey!==key){ socUiKey=key; copyTaps=[]; copySubmitted=false;
+      $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">👀 Watch closely!</div><div class="ssub">Round ${live.round} · ${live.len} in a row</div>${padGrid(true)}</div>`; }
+    if(copySeqRound===live.round) maybePlayCopy();
+  } else if(live.phase==='input'){ const key='cc-i'+live.round;
+    if(socUiKey!==key){ socUiKey=key; copyTaps=[]; copySubmitted=false;
+      $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">🎯 Your turn!</div><div class="ssub">Tap the ${live.len} colours in order</div>${padGrid(false)}
+        <div class="progressdots" id="pdots">${Array.from({length:live.len}).map(()=>'<span class="pdot"></span>').join('')}</div></div>`;
+      const total=live.len;
+      $('#socroot').querySelectorAll('.socpad').forEach(b=>b.addEventListener('click',async()=>{ if(copySubmitted||copyEliminated) return;
+        const i=+b.dataset.i; copyTaps.push(i); flashPad(i);
+        const dots=$('#pdots').querySelectorAll('.pdot'); if(dots[copyTaps.length-1]) dots[copyTaps.length-1].classList.add('on');
+        if(copyTaps.length>=total){ copySubmitted=true; $('#socroot').querySelectorAll('.socpad').forEach(x=>x.disabled=true);
+          try{ await Net.submitWork(room.id, me.id, live.game, live.round, copyTaps.slice()); }catch(e){} } }));
+    }
+  }
+}
+function renderLobby(){
+  $('#plist').innerHTML=players.map(p=>{
+    const img=Net.charImg(p.avatar);
+    const av=img ? `<span class="av" style="background:${Net.TEAM_COLORS[p.team]};overflow:hidden"><img src="${img}" alt=""></span>`
+                 : `<span class="av" style="background:${Net.TEAM_COLORS[p.team]}">${(p.name[0]||'?').toUpperCase()}</span>`;
+    return `<div class="prow ${p.id===me.id?'me':''}">${av}
+      <span class="nm">${p.name}${p.id===me.id?' (You)':''}</span><span style="color:var(--text-muted);font-size:var(--fs-body-s)">${Net.TEAM_NAMES[p.team]}</span></div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

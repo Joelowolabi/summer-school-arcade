@@ -1,0 +1,142 @@
+<!-- Summer School Arcade — Odd One Out (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Odd One Out — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .board-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+  .oo-grid{display:grid;gap:12px;width:100%;max-width:min(56vh,520px);aspect-ratio:1/1}
+  .oo-tile{border:0;border-radius:var(--radius-l);cursor:pointer;box-shadow:var(--shadow-s);transition:transform var(--dur-fast) var(--ease-pop),box-shadow var(--dur-base) var(--ease-out-soft)}
+  .oo-tile:hover{transform:translateY(-3px) scale(1.03);box-shadow:var(--shadow-l)}
+  .oo-tile:active{transform:scale(.95)}
+  .oo-tile:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .oo-tile.reveal-odd{box-shadow:0 0 0 4px var(--green-400),var(--shadow-l);animation:pulse .5s var(--ease-pop)}
+  .oo-tile.reveal-wrong{box-shadow:0 0 0 4px var(--red-400),var(--shadow-s)}
+  .oo-tile.dim{opacity:.5}
+  @keyframes pulse{0%{transform:scale(.8)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel">All Players · Spot The Odd One</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt"><h1 id="promptTitle">Odd <span class="hi">One Out</span></h1><p id="promptSub">One tile is a slightly different shade. Click it first!</p></div>
+      <div class="board-wrap"><div class="oo-grid" id="grid"></div></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Odd One Out</h1>
+          <p class="goal">Goal: <b>spot and click the odd tile</b>.</p>
+          <ol class="steps">
+            <li>Every tile is the same colour — except one.</li>
+            <li>Spot the slightly different shade.</li>
+            <li>Click it fast — faster finds score more.</li>
+            <li>It gets harder: more tiles, subtler differences.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse click</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Correct = up to +12 with speed bonus · 10 rounds</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Playing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const PALETTE=[[242,104,60],[123,91,232],[63,191,127],[79,156,249],[245,200,31],[229,72,77]];
+const TOTAL=10, ROUND_TIME=6;
+let round=0, active=false, oddIdx=-1, myClicked=false, myRight=false, roundStart=0;
+function score(t){ return 4 + Math.round(Math.max(0,(ROUND_TIME-t)/ROUND_TIME)*8); }   // 12 (instant) .. 4 (last second)
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Odd One Out', rounds:TOTAL});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+
+function gridSize(r){ if(r<=3) return 3; if(r<=6) return 4; return 5; }
+function diffDelta(r){ return Math.max(10, 46 - r*4); }   // shade difference shrinks each round
+function rgb(a){ return `rgb(${a[0]},${a[1]},${a[2]})`; }
+function shade(a,d){ return a.map(v=>Math.max(0,Math.min(255, v+d))); }
+
+function startGame(){ $('#preOverlay').classList.add('hide'); next(); }
+function next(){
+  if(round>=TOTAL) return end();
+  round++; A.setRound(round,TOTAL); myClicked=false; myRight=false; active=false;
+  const n=gridSize(round), N=n*n; oddIdx=Math.floor(Math.random()*N);
+  const base=A.pick(PALETTE); const dir=Math.random()<0.5?1:-1; const odd=shade(base, dir*diffDelta(round));
+  $('#grid').style.gridTemplateColumns=`repeat(${n},1fr)`;
+  let html=''; for(let i=0;i<N;i++){ html+=`<button class="oo-tile" data-i="${i}" style="background:${rgb(i===oddIdx?odd:base)}"></button>`; }
+  $('#grid').innerHTML=html;
+  $('#promptSub').textContent='One tile is a slightly different shade. Spot it fast!';
+  A.setPing(players);
+  A.countdown($('#countOverlay'), arm);
+}
+function arm(){
+  active=true; roundStart=performance.now();
+  $('#timerLabel').textContent='Find It!';
+  const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+  fill.style.transition=`width ${ROUND_TIME}s linear`; fill.style.width='0%';
+  roundTimer=setTimeout(reveal, ROUND_TIME*1000);
+  // precompute each bot's find speed + correctness; scored at reveal
+  players.forEach(p=>{ if(p.me||p.disconnected) return;
+    p._correct = Math.random() < (p.accuracy - round*0.02);
+    p._t = Math.min(ROUND_TIME-0.1, (1.0-p.skill)*2.4 + round*0.12 + A.rand(0.2,0.9));
+  });
+}
+let roundTimer=null;
+$('#grid').addEventListener('click', e=>{
+  const t=e.target.closest('.oo-tile'); if(!t||!active||myClicked) return;
+  myClicked=true; myRight=+t.dataset.i===oddIdx;
+  players[0]._t=(performance.now()-roundStart)/1000;
+  A.sfx(myRight?'correct':'wrong');
+  t.classList.add(myRight?'reveal-odd':'reveal-wrong');
+  document.querySelectorAll('.oo-tile').forEach(x=>x.style.pointerEvents='none');   // your one guess is locked
+});
+function reveal(){
+  active=false; clearTimeout(roundTimer);
+  // SPEED SCORING — everyone who found the odd tile earns points, more for being faster
+  let myGain=0;
+  if(myRight){ myGain=score(players[0]._t||ROUND_TIME); players[0].pts+=myGain; }
+  players.forEach(p=>{ if(p.me||p.disconnected) return; if(p._correct) p.pts+=score(p._t); });
+  document.querySelectorAll('.oo-tile').forEach((t,i)=>{ t.style.pointerEvents='none'; if(i===oddIdx) t.classList.add('reveal-odd'); else t.classList.add('dim'); });
+  A.renderBoard(players);
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  if(myRight){ v.textContent=myGain>=11?'Eagle Eyes!':'You Found It!'; v.className='verdict win'; sub.textContent='Nice spotting — faster finds score more.'; pts.textContent=`+${myGain} points`; A.confetti($('#stage'),30); A.sfx('win'); }
+  else if(myClicked){ v.textContent='Wrong One!'; v.className='verdict miss'; sub.textContent='That wasn\'t the odd tile this time.'; pts.textContent='+0 points'; A.sfx('wrong'); }
+  else { v.textContent='Too Slow!'; v.className='verdict late'; sub.textContent='You didn\'t spot it in time.'; pts.textContent='+0 points'; }
+  ov.classList.remove('hide');
+  setTimeout(()=>{ ov.classList.add('hide'); next(); }, 2200);
+}
+function end(){
+  A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  const ov=$('#resultOverlay');
+  $('#promptTitle').innerHTML='Eagle <span class="hi">Eyes!</span>'; $('#promptSub').textContent='Nice spotting.'; $('#timerLabel').textContent='Complete';
+  $('#verdict').textContent = myRank===1?'Champion!':`You Placed #${myRank}`; $('#verdict').className='verdict '+(myRank<=3?'win':'late');
+  $('#verdictSub').innerHTML=`You scored <b>${players[0].pts}</b> this game. Season total <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  $('#verdictPts').textContent=`Rank ${myRank} of 30`; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+$('#startBtn').addEventListener('click', startGame);
+setInterval(()=>{ if(!active) A.setPing(players); },1400);
+</script>
+</body>
+</html>

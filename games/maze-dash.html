@@ -1,0 +1,213 @@
+<!-- Summer School Arcade — Maze Dash 3D (Three.js). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maze Dash — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .d3{margin-left:6px;background:var(--accent-deep);color:#fff;font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px}
+  #stage{min-height:auto}
+  .play{flex:1;display:flex;gap:16px;min-height:0}
+  .maze{flex:1;aspect-ratio:15 / 11;max-height:56vh;position:relative;border-radius:var(--radius-xl);overflow:hidden;background:#EEE9FB;border:1px solid var(--border-hairline)}
+  .maze canvas{display:block;width:100%;height:100%}
+  .racers{width:210px;flex:0 0 auto;display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+  @media (max-width:760px){ .racers{display:none} }
+  .rc{display:flex;align-items:center;gap:8px}
+  .rc .nm{width:56px;font-size:var(--fs-body-s);font-weight:var(--fw-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rc.me .nm{color:var(--accent-play)}
+  .rc .track{flex:1;height:12px;border-radius:99px;background:var(--ink-100);overflow:hidden}
+  .rc .track i{display:block;height:100%;width:0;border-radius:99px;transition:width .2s linear}
+  .rc .fin{font-size:var(--fs-micro);font-weight:var(--fw-bold);color:var(--status-success)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="modeLabel">All Players · Race To The Exit<span class="d3">3D</span></span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:10px"><h1 id="promptTitle">Maze <span class="hi">Dash</span></h1>
+        <p id="promptSub">Find the exit before everyone else. The green tile is the goal.</p></div>
+
+      <div class="play">
+        <div class="maze" id="maze"></div>
+        <div class="racers" id="racers"></div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Maze Dash</h1>
+          <p class="goal">Goal: <b>reach the exit first</b>.</p>
+          <ol class="steps">
+            <li>You start at the corner; the exit glows green.</li>
+            <li>Steer through the maze to reach it.</li>
+            <li>Everyone races the same maze at once.</li>
+            <li>Faster finishes score more — best of 3 mazes.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v"><span class="keycap">W</span><span class="keycap">A</span><span class="keycap">S</span><span class="keycap">D</span> or arrow keys</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Placement points each maze · 3 mazes</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start Racing
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+        <button class="btn btn-play sm" id="nextBtn" style="margin-top:18px;display:none">Next Maze</button>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const GW=15, GH=11, ROUNDS=3, ROUND_TIME=30;
+let round=0, walls=null, dist=null, maxDist=1, px=0, py=0, running=false, myFinish=0, bots=[], raf=null, startTime=0;
+
+/* ---------------- Three.js ---------------- */
+const host=$('#maze');
+const scene=new THREE.Scene();
+const camera=new THREE.OrthographicCamera(-10,10,10,-10,0.1,100);
+camera.position.set(0,40,0); camera.up.set(0,0,-1); camera.lookAt(0,0,0);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+host.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
+const key=new THREE.DirectionalLight(0xffffff,0.85); key.position.set(5,14,4); scene.add(key);
+const fill=new THREE.DirectionalLight(0xbfa8ff,0.4); fill.position.set(-5,10,-4); scene.add(fill);
+
+const CS=0.7, MW=GW*CS, MH=GH*CS;
+function gx(x){ return (x-(GW-1)/2)*CS; }
+function gz(y){ return (y-(GH-1)/2)*CS; }
+const floor=new THREE.Mesh(new THREE.BoxGeometry(MW+CS,0.3,MH+CS), new THREE.MeshStandardMaterial({color:0xFBFAFE,roughness:0.95}));
+floor.position.y=-0.2; scene.add(floor);
+// exit tile (glowing)
+const exitTile=new THREE.Mesh(new THREE.BoxGeometry(CS*0.92,0.12,CS*0.92), new THREE.MeshStandardMaterial({color:0x3FBF7F,emissive:0x1f6b47,emissiveIntensity:0.6,roughness:0.4}));
+scene.add(exitTile);
+// player marker
+const player=new THREE.Group();
+const pbody=new THREE.Mesh(new THREE.SphereGeometry(CS*0.3,20,16), new THREE.MeshStandardMaterial({color:0xF2683C,roughness:0.35,emissive:0x5a2410,emissiveIntensity:0.3}));
+pbody.position.y=CS*0.32; player.add(pbody); scene.add(player);
+// wall group (rebuilt each maze)
+let wallGroup=new THREE.Group(); scene.add(wallGroup);
+const wallMat=new THREE.MeshStandardMaterial({color:0x7B5BE8,roughness:0.6,emissive:0x2a1f52,emissiveIntensity:0.25});
+let prx=0, prz=0;   // smoothed player render pos
+
+function resize(){ const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false);
+  const aspect=w/h,pad=CS*0.9; const AW=MW+2*pad,AH=MH+2*pad; const ar=AW/AH; let hw,hh;
+  if(aspect>ar){ hh=AH/2; hw=hh*aspect; } else { hw=AW/2; hh=hw/aspect; }
+  camera.left=-hw; camera.right=hw; camera.top=hh; camera.bottom=-hh; camera.updateProjectionMatrix(); }
+if(window.ResizeObserver) new ResizeObserver(resize).observe(host); else window.addEventListener('resize',resize);
+resize();
+
+function buildWalls(){
+  scene.remove(wallGroup); wallGroup.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); wallGroup=new THREE.Group();
+  const th=CS*0.14, hgt=0.5;
+  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const w=walls[ci(x,y)]; const X=gx(x), Z=gz(y);
+    if(w[0]){ const m=new THREE.Mesh(new THREE.BoxGeometry(CS+th,hgt,th),wallMat); m.position.set(X,0.15,Z-CS/2); wallGroup.add(m); }
+    if(w[3]){ const m=new THREE.Mesh(new THREE.BoxGeometry(th,hgt,CS+th),wallMat); m.position.set(X-CS/2,0.15,Z); wallGroup.add(m); }
+    if(x===GW-1&&w[1]){ const m=new THREE.Mesh(new THREE.BoxGeometry(th,hgt,CS+th),wallMat); m.position.set(X+CS/2,0.15,Z); wallGroup.add(m); }
+    if(y===GH-1&&w[2]){ const m=new THREE.Mesh(new THREE.BoxGeometry(CS+th,hgt,th),wallMat); m.position.set(X,0.15,Z+CS/2); wallGroup.add(m); }
+  }
+  scene.add(wallGroup);
+  exitTile.position.set(gx(GW-1),-0.05,gz(GH-1));
+}
+function renderScene(){
+  prx += (gx(px)-prx)*0.35; prz += (gz(py)-prz)*0.35;
+  player.position.set(prx,0,prz);
+  exitTile.material.emissiveIntensity=0.5+Math.sin(performance.now()/300)*0.25;
+  renderer.render(scene,camera);
+}
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Maze Dash', rounds:ROUNDS});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+
+function ci(x,y){ return y*GW+x; }
+function genMaze(){
+  walls=Array.from({length:GW*GH},()=>[true,true,true,true]);
+  const vis=new Uint8Array(GW*GH); const stack=[[0,0]]; vis[0]=1;
+  const dirs=[[0,-1,0,2],[1,0,1,3],[0,1,2,0],[-1,0,3,1]];
+  while(stack.length){ const [x,y]=stack[stack.length-1];
+    const opts=dirs.filter(([dx,dy])=>{ const nx=x+dx,ny=y+dy; return nx>=0&&ny>=0&&nx<GW&&ny<GH&&!vis[ci(nx,ny)]; });
+    if(!opts.length){ stack.pop(); continue; }
+    const [dx,dy,wh,wt]=A.pick(opts); const nx=x+dx,ny=y+dy;
+    walls[ci(x,y)][wh]=false; walls[ci(nx,ny)][wt]=false; vis[ci(nx,ny)]=1; stack.push([nx,ny]);
+  }
+  dist=new Int16Array(GW*GH).fill(-1); const q=[[GW-1,GH-1]]; dist[ci(GW-1,GH-1)]=0; maxDist=0;
+  const nb=[[0,-1,0],[1,0,1],[0,1,2],[-1,0,3]];
+  while(q.length){ const [x,y]=q.shift(); for(const [dx,dy,w] of nb){ if(walls[ci(x,y)][w]) continue; const nx=x+dx,ny=y+dy; if(nx<0||ny<0||nx>=GW||ny>=GH) continue; if(dist[ci(nx,ny)]<0){ dist[ci(nx,ny)]=dist[ci(x,y)]+1; maxDist=Math.max(maxDist,dist[ci(nx,ny)]); q.push([nx,ny]); } } }
+}
+
+function start(){ $('#preOverlay').classList.add('hide'); round=0; nextRound(); }
+function nextRound(){
+  if(round>=ROUNDS) return end();
+  round++; A.setRound(round,ROUNDS); genMaze(); px=0; py=0; prx=gx(0); prz=gz(0); myFinish=0; startTime=0;
+  bots=players.filter(p=>!p.me&&!p.disconnected).map(p=>({p, time:(maxDist*0.32)*(1.5-p.skill)+A.rand(1.5,5), prog:0, fin:0}));
+  buildWalls(); renderScene(); renderRacers();
+  A.countdown($('#countOverlay'), ()=>{ running=true; startTime=performance.now(); $('#timerLabel').textContent='Go!';
+    const f=$('#timerFill'); f.style.transition='none'; f.style.width='100%'; void f.offsetWidth; f.style.transition=`width ${ROUND_TIME}s linear`; f.style.width='0%';
+    roundTimer=setTimeout(()=>resolve(), ROUND_TIME*1000); raf=requestAnimationFrame(loop); });
+}
+let roundTimer=null;
+const MOVE={ArrowUp:[0,-1,0],ArrowDown:[0,1,2],ArrowLeft:[-1,0,3],ArrowRight:[1,0,1],w:[0,-1,0],s:[0,1,2],a:[-1,0,3],d:[1,0,1],W:[0,-1,0],S:[0,1,2],A:[-1,0,3],D:[1,0,1]};
+window.addEventListener('keydown',e=>{ const m=MOVE[e.key]; if(!m||!running||myFinish) return; e.preventDefault();
+  const [dx,dy,w]=m; if(walls[ci(px,py)][w]) return; px+=dx; py+=dy; A.sfx('click');
+  if(px===GW-1&&py===GH-1){ myFinish=(performance.now()-startTime)/1000; A.sfx('correct'); }
+});
+function loop(t){ if(!running) return; const el=(t-startTime)/1000;
+  bots.forEach(b=>{ if(!b.fin){ b.prog=Math.min(1, el/b.time); if(b.prog>=1) b.fin=b.time; } });
+  renderRacers(); renderScene();
+  if(myFinish && bots.every(b=>b.fin)) return resolve();
+  raf=requestAnimationFrame(loop);
+}
+function myProg(){ if(myFinish) return 1; const d=dist[ci(px,py)]; return maxDist? (maxDist-d)/maxDist : 0; }
+function renderRacers(){
+  const rows=[{me:true,name:'You',prog:myProg(),fin:myFinish}, ...bots.slice(0,7).map(b=>({me:false,name:b.p.name,prog:b.prog,fin:b.fin,color:A.TEAMS[b.p.team].color}))];
+  $('#racers').innerHTML=rows.map(r=>`<div class="rc ${r.me?'me':''}"><span class="nm">${r.name}</span>
+    <span class="track"><i style="width:${Math.round(r.prog*100)}%;background:${r.me?'var(--accent-play)':(r.color||'#8E8A9C')}"></i></span>
+    ${r.fin?'<span class="fin">✓</span>':''}</div>`).join('');
+}
+function resolve(){
+  if(!running) return; running=false; cancelAnimationFrame(raf); clearTimeout(roundTimer);
+  const entries=[{me:true,p:players[0],time: myFinish|| (ROUND_TIME + dist[ci(px,py)])}, ...bots.map(b=>({me:false,p:b.p,time:b.fin|| (ROUND_TIME + b.time)}))];
+  entries.sort((a,b)=>a.time-b.time);
+  entries.forEach((e,i)=>{ e.p.pts += Math.max(2, 14 - i); });
+  A.renderBoard(players);
+  const myPlace=entries.findIndex(e=>e.me)+1;
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts'),nb=$('#nextBtn');
+  v.textContent = myPlace===1?'First Out!':(myFinish?`Finished #${myPlace}`:'Ran Out Of Time');
+  v.className='verdict '+(myPlace<=3?'win':'late');
+  sub.innerHTML = myFinish?`You reached the exit in <b>${myFinish.toFixed(1)}s</b> — place #${myPlace} this maze.`:`You didn't reach the exit in time. Place #${myPlace}.`;
+  pts.textContent=`+${Math.max(2,14-(myPlace-1))} points`;
+  if(myPlace<=3){ A.confetti($('#stage'),40); A.sfx('win'); } else A.sfx('lose');
+  ov.classList.remove('hide');
+  if(round>=ROUNDS){ nb.style.display='none'; setTimeout(end, 1800); }
+  else { nb.style.display='inline-flex'; nb.textContent='Next Maze'; nb.onclick=()=>{ A.sfx('click'); ov.classList.add('hide'); nb.style.display='none'; nextRound(); }; }
+}
+function end(){
+  A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  const ov=$('#resultOverlay');
+  $('#promptTitle').innerHTML='Maze Dash <span class="hi">Complete!</span>'; $('#timerLabel').textContent='Done';
+  $('#verdict').textContent = myRank<=3?'Top 3!':`You Placed #${myRank}`; $('#verdict').className='verdict '+(myRank<=3?'win':'late');
+  $('#verdictSub').innerHTML=`You scored <b>${players[0].pts}</b> across ${ROUNDS} mazes. Season total <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  $('#verdictPts').textContent=`Rank ${myRank} of 30`; $('#nextBtn').style.display='none'; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+$('#startBtn').addEventListener('click', ()=>{ A.sfx('click'); start(); });
+setInterval(()=>{ if(!running) A.setPing(players); },1400);
+</script>
+</body>
+</html>

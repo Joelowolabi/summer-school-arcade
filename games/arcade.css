@@ -1,0 +1,128 @@
+/* ============================================================
+   Summer School Arcade — shared game chrome (Zappy Design System)
+   Link AFTER ../styles.css. Provides the HUD, stage, scoreboard,
+   overlays, buttons and result screens every game reuses.
+============================================================ */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:var(--font-core);
+  color:var(--text-body);
+  background:radial-gradient(120% 90% at 50% -10%, #8B70F2 0%, var(--purple-500) 42%, var(--purple-600) 100%);
+  height:100dvh; display:flex; flex-direction:column; overflow:hidden;   /* whole game fits one viewport — no page scroll */
+}
+.wrap{width:100%; max-width:min(1500px, 95vw); height:100%; margin:0 auto; padding:14px 20px 16px; display:flex; flex-direction:column; gap:14px; flex:1; min-height:0}
+
+/* ── HUD ─────────────────────────────────────────────── */
+.hud{display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18);
+  backdrop-filter:var(--blur-glass); -webkit-backdrop-filter:var(--blur-glass); border-radius:var(--radius-pill); padding:10px 14px 10px 18px; color:#fff}
+.brand{display:flex; align-items:center; gap:10px; font-family:var(--font-heading); font-weight:var(--fw-bold); letter-spacing:var(--ls-heading); font-size:var(--fs-h4)}
+.brand .spark{width:26px;height:26px;border-radius:var(--radius-pill);background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900);box-shadow:var(--shadow-s);flex:0 0 auto}
+.brand small{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.8;font-weight:var(--fw-medium);display:block;margin-top:-2px}
+.hud .grow{flex:1}
+.chip{display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.16); border-radius:var(--radius-pill); padding:7px 14px; font-size:var(--fs-body-s); font-weight:var(--fw-semibold); white-space:nowrap}
+.chip .k{opacity:.72; font-weight:var(--fw-medium)}
+.chip.code{font-family:var(--font-mono); letter-spacing:.14em; font-weight:var(--fw-bold)}
+.conn{width:9px;height:9px;border-radius:var(--radius-pill);background:var(--green-400);box-shadow:0 0 0 3px rgba(63,191,127,.28)}
+@media (max-width:620px){ .chip.hide-s{display:none} .brand small{display:none} }
+
+/* ── Layout: stage + board ───────────────────────────── */
+.layout{display:grid; grid-template-columns:1fr 320px; grid-template-rows:minmax(0,1fr); gap:18px; flex:1; min-height:0}
+.layout.wide{grid-template-columns:1fr}
+.layout>*{min-height:0; min-width:0}
+/* board is injected into a wrapper div; dissolve the wrapper so .board is the real
+   grid item and inherits the bounded row height (its player list scrolls internally) */
+#boardHost{display:contents}
+@media (max-width:900px){ .layout{grid-template-columns:1fr; grid-template-rows:none; overflow-y:auto} .board{order:-1} }
+
+.stage{background:var(--surface-page); border-radius:var(--radius-2xl); box-shadow:var(--shadow-xl); padding:24px; display:flex; flex-direction:column; position:relative; overflow:hidden; min-height:0}
+
+.roundrow{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:6px}
+.eyebrow{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--text-muted); font-weight:var(--fw-semibold)}
+.timerpill{display:flex; align-items:center; gap:10px}
+.timer-track{width:150px; height:8px; border-radius:var(--radius-pill); background:var(--ink-100); overflow:hidden}
+.timer-fill{height:100%; width:100%; background:var(--accent-play); border-radius:var(--radius-pill); transition:width .1s linear}
+
+.prompt{margin:4px 0 22px}
+.prompt h1{font-family:var(--font-display); font-weight:var(--fw-bold); letter-spacing:var(--ls-display); color:var(--text-strong); font-size:var(--fs-display-m); line-height:var(--lh-tight); margin:0}
+.prompt h1 .hi{color:var(--accent-play)}
+.prompt p{margin:6px 0 0; color:var(--text-muted); font-size:var(--fs-body-l)}
+
+/* ── Buttons ─────────────────────────────────────────── */
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:10px; font-family:var(--font-core); font-weight:var(--fw-semibold); font-size:var(--fs-body-l); border:0; cursor:pointer; border-radius:var(--radius-pill); height:var(--control-h-l); padding:0 var(--space-8); transition:var(--transition-control); text-decoration:none}
+.btn:focus-visible{outline:none; box-shadow:var(--focus-ring)}
+.btn-spark{background:var(--accent-spark); color:#fff; box-shadow:var(--shadow-spark)}
+.btn-play{background:var(--accent-play); color:#fff; box-shadow:var(--shadow-purple)}
+.btn-deep{background:var(--accent-deep); color:#fff; box-shadow:var(--shadow-m)}
+.btn-sun{background:var(--accent-sun); color:var(--text-on-yellow); box-shadow:var(--shadow-s)}
+.btn-ghost{background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.22)}
+.btn-secondary{background:var(--surface-card); color:var(--text-strong); border:1px solid var(--border-soft); box-shadow:var(--shadow-xs)}
+.btn:hover{filter:brightness(1.06); transform:translateY(var(--hover-lift))}
+.btn-secondary:hover,.btn-ghost:hover{filter:none; background:var(--surface-sunken)}
+.btn-ghost:hover{background:rgba(255,255,255,.22)}
+.btn:active{transform:scale(var(--press-scale)); box-shadow:var(--shadow-press)}
+.btn.sm{height:var(--control-h-m); font-size:var(--fs-body); padding:0 var(--space-6)}
+.btn[disabled]{opacity:.45; pointer-events:none}
+
+/* ── Overlays: countdown / result / pre ──────────────── */
+.overlay{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(255,255,255,.72); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:5; padding:24px}
+.overlay.hide{display:none}
+.count{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:120px; color:var(--accent-play); line-height:1; animation:pop .5s var(--ease-pop)}
+@keyframes pop{from{transform:scale(.4); opacity:0}to{transform:scale(1); opacity:1}}
+.verdict{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-display-l); letter-spacing:var(--ls-display); line-height:1; margin:0}
+.verdict.win{color:var(--green-400)} .verdict.miss{color:var(--accent-spark)} .verdict.late{color:var(--ink-500)}
+.verdict-sub{margin:10px 0 0; color:var(--text-body); font-size:var(--fs-body-l); max-width:400px}
+.verdict-pts{margin-top:14px; display:inline-flex; align-items:center; gap:8px; background:var(--surface-sunken); border-radius:var(--radius-pill); padding:8px 18px; font-weight:var(--fw-bold); color:var(--text-strong); font-size:var(--fs-h4)}
+.pre{gap:0}
+.pre .kicker{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--accent-play); font-weight:var(--fw-bold); margin-bottom:12px}
+.pre h1{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-display-l); letter-spacing:var(--ls-display); color:var(--text-strong); margin:0}
+.pre p{color:var(--text-muted); font-size:var(--fs-body-l); max-width:440px; text-align:center; margin:12px 0 24px}
+
+/* ── How-to-Play guide (shown in the pre-game overlay) ── */
+.guide{width:100%; max-width:600px; text-align:left; display:flex; flex-direction:column; align-items:center}
+.guide .kicker{font:var(--type-eyebrow); text-transform:uppercase; letter-spacing:var(--ls-eyebrow); color:var(--accent-play); font-weight:var(--fw-bold); margin-bottom:8px}
+.guide h1{font-family:var(--font-display); font-weight:var(--fw-bold); font-size:var(--fs-h1); letter-spacing:var(--ls-heading); color:var(--text-strong); margin:0 0 4px; text-align:center}
+.guide .goal{color:var(--text-body); font-size:var(--fs-body-l); text-align:center; margin:0 0 18px}
+.guide .goal b{color:var(--accent-play)}
+.guide .steps{list-style:none; counter-reset:g; margin:0 0 16px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; width:100%}
+@media (max-width:560px){ .guide .steps{grid-template-columns:1fr} }
+.guide .steps li{counter-increment:g; position:relative; padding-left:34px; color:var(--text-body); font-size:var(--fs-body-s); line-height:var(--lh-snug); min-height:26px; display:flex; align-items:center}
+.guide .steps li::before{content:counter(g); position:absolute; left:0; top:0; width:24px; height:24px; border-radius:var(--radius-pill); background:var(--purple-100); color:var(--purple-700); font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-caption); display:flex; align-items:center; justify-content:center}
+.guide .gmeta{display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:22px; width:100%}
+.guide .gm{display:flex; align-items:center; gap:8px; background:var(--surface-sunken); border:1px solid var(--border-hairline); border-radius:var(--radius-pill); padding:8px 14px; font-size:var(--fs-body-s)}
+.guide .gm .gm-h{font-weight:var(--fw-bold); color:var(--text-strong)}
+.guide .gm .gm-v{color:var(--text-muted)}
+.guide .keycap{display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px; padding:0 6px; border-radius:var(--radius-s); background:var(--surface-card); border:1px solid var(--border-soft); box-shadow:var(--shadow-xs); font-weight:var(--fw-bold); font-size:var(--fs-micro); color:var(--text-body); margin:0 2px}
+
+/* ── Scoreboard ──────────────────────────────────────── */
+.board{background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); backdrop-filter:var(--blur-glass); -webkit-backdrop-filter:var(--blur-glass); border-radius:var(--radius-2xl); padding:18px; display:flex; flex-direction:column; gap:14px; color:#fff; min-height:0}
+.board h2{margin:0; font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-h4); display:flex; align-items:center; gap:8px}
+.teams{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+.teamcard{background:rgba(255,255,255,.10); border-radius:var(--radius-m); padding:10px; text-align:center}
+.teamcard .dot{width:10px;height:10px;border-radius:var(--radius-pill);display:inline-block;margin-right:6px;vertical-align:middle}
+.teamcard .tn{font-size:var(--fs-caption); opacity:.85; font-weight:var(--fw-medium)}
+.teamcard .ts{font-family:var(--font-heading); font-weight:var(--fw-bold); font-size:var(--fs-h4); margin-top:2px}
+.teamcard.lead{outline:2px solid var(--accent-sun); outline-offset:-2px}
+.list{display:flex; flex-direction:column; gap:4px; overflow-y:auto; margin:0 -6px; padding:0 6px; flex:1; min-height:120px}
+.list::-webkit-scrollbar{width:6px} .list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25); border-radius:99px}
+.prow{display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:var(--radius-pill); transition:background var(--dur-base) var(--ease-standard)}
+.prow.me{background:rgba(255,255,255,.16)}
+.prow.flash{background:rgba(255,217,59,.28)}
+.rank{width:20px; text-align:center; font-weight:var(--fw-bold); font-size:var(--fs-body-s); opacity:.7}
+.av{width:26px;height:26px;border-radius:var(--radius-pill);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:var(--fw-bold);font-size:var(--fs-caption);color:#fff}
+.pname{flex:1; font-size:var(--fs-body-s); font-weight:var(--fw-medium); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.pname .youtag{font-size:var(--fs-micro); background:rgba(255,255,255,.22); border-radius:99px; padding:1px 6px; margin-left:6px}
+.ppts{font-weight:var(--fw-bold); font-size:var(--fs-body-s); font-variant-numeric:tabular-nums}
+.pdisc{width:7px;height:7px;border-radius:99px;background:var(--red-400);box-shadow:0 0 0 2px rgba(229,72,77,.3)}
+.foot{color:rgba(255,255,255,.85); font-size:var(--fs-caption); text-align:center; padding-top:2px}
+.foot b{color:#fff}
+
+/* powerup banner (Mystery Box double-points etc.) */
+.pu-banner{display:none; align-items:center; gap:8px; background:var(--wash-sun); color:var(--ink-900); border-radius:var(--radius-pill); padding:8px 14px; font-weight:var(--fw-bold); font-size:var(--fs-body-s); box-shadow:var(--shadow-s)}
+.pu-banner.on{display:inline-flex}
+
+/* generic helpers */
+.center{align-items:center; justify-content:center}
+.confetti{position:absolute; top:-12px; width:10px; height:14px; border-radius:2px; z-index:6; pointer-events:none; animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(640px) rotate(540deg); opacity:.2}}

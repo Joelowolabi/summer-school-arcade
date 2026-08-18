@@ -1,0 +1,227 @@
+<!-- Summer School Arcade — Build-a-Monster (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build-a-Monster — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .part-badge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-100);color:var(--purple-700);font-weight:var(--fw-bold);border-radius:var(--radius-pill);padding:8px 16px;font-size:var(--fs-body-s)}
+  .draw-area{flex:1;display:flex;gap:16px;min-height:0}
+  .tools{display:flex;flex-direction:column;gap:10px;width:64px}
+  .swatch{width:44px;height:44px;border-radius:var(--radius-pill);border:2px solid #fff;box-shadow:var(--shadow-s),0 0 0 1px var(--border-soft);cursor:pointer;transition:transform var(--dur-fast) var(--ease-pop)}
+  .swatch:hover{transform:scale(1.1)} .swatch.sel{box-shadow:var(--shadow-s),0 0 0 3px var(--accent-play)}
+  .tool-btn{width:44px;height:44px;border-radius:var(--radius-m);border:1px solid var(--border-soft);background:var(--surface-card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-body);box-shadow:var(--shadow-xs)}
+  .tool-btn:hover{background:var(--surface-sunken)} .tool-btn:active{transform:scale(.94)}
+  .canvas-wrap{flex:1;position:relative;background:#fff;border-radius:var(--radius-xl);border:1px solid var(--border-hairline);box-shadow:var(--shadow-s);overflow:hidden}
+  #pad{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .frame-guide{position:absolute;left:0;right:0;pointer-events:none;font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--text-muted)}
+  .guide-line{position:absolute;left:12px;right:12px;border-top:2px dashed var(--border-soft);opacity:.7}
+  /* reveal + vote */
+  .monsters{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;overflow-y:auto;align-content:start}
+  .mcard{background:#fff;border:1px solid var(--border-hairline);border-radius:var(--radius-l);box-shadow:var(--shadow-s);overflow:hidden;position:relative}
+  .mcard canvas{display:block;width:100%;background:#fff;aspect-ratio:3/4}
+  .mcard .cap{padding:8px 12px;font-size:var(--fs-body-s);font-weight:var(--fw-bold);display:flex;align-items:center;gap:6px}
+  .votebtns{display:flex;gap:6px;padding:0 10px 10px}
+  .vbtn{flex:1;border:1px solid var(--border-soft);background:var(--surface-card);border-radius:var(--radius-pill);padding:6px 4px;font-size:var(--fs-micro);font-weight:var(--fw-bold);cursor:pointer;color:var(--text-body);transition:all var(--dur-fast) var(--ease-pop)}
+  .vbtn:hover{background:var(--surface-sunken)} .vbtn.on{background:var(--accent-play);color:#fff;border-color:var(--accent-play)}
+  .catwins{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px}
+  .catwin{background:var(--accent-sun);color:var(--ink-900);font-size:var(--fs-micro);font-weight:var(--fw-bold);padding:3px 8px;border-radius:99px}
+  .phase-note{color:var(--text-muted);font-size:var(--fs-body-s);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow" id="phaseLabel">Draw Your Part</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:12px">
+        <h1 id="promptTitle">Build-a-<span class="hi">Monster</span></h1>
+        <p id="promptSub" style="display:flex;align-items:center;gap:12px">You're drawing the <span class="part-badge" id="partBadge">head</span> — no peeking at the other parts!</p>
+      </div>
+
+      <div class="draw-area" id="drawArea">
+        <div class="tools" id="tools"></div>
+        <div class="canvas-wrap"><canvas id="pad"></canvas>
+          <div class="guide-line" id="guideTop" style="top:33%"></div>
+          <div class="guide-line" id="guideBot" style="top:66%"></div>
+        </div>
+      </div>
+
+      <div class="monsters" id="monsters" style="display:none"></div>
+      <div class="phase-note" id="phaseNote" style="display:none"></div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Build-a-Monster</h1>
+          <p class="goal">Goal: <b>build the funniest, scariest or weirdest monster</b>.</p>
+          <ol class="steps">
+            <li>You're assigned one body part — draw it blind.</li>
+            <li>Five parts stitch into one composite monster.</li>
+            <li>All 30 players vote in three categories.</li>
+            <li>One monster can win more than one category.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse drag to draw your part</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Category win +team pts · your monster winning +12</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Get My Part
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const TEAMS=A.TEAMS, myTeam=players[0].team;
+const PARTS=['head','torso','arms','legs','feet'];
+const CATS=['Funniest','Scariest','Weirdest'];
+const COLORS=['#1E1B26','#F2683C','#7B5BE8','#FFD93B','#3FBF7F','#4F9CF9','#E5484D'];
+let color=COLORS[Math.floor(Math.random()*COLORS.length)];
+const myPart=PARTS[Math.floor(Math.random()*5)];
+$('#partBadge').textContent=myPart;
+
+/* pad limited to my part's horizontal band */
+const pad=$('#pad'), pctx=pad.getContext('2d');
+let strokes=[], cur=null, drawing=false, phase='pre';
+const DRAW_TIME=45;
+function fitPad(){ const r=pad.parentElement.getBoundingClientRect(); pad.width=r.width; pad.height=r.height; redraw(); }
+function redraw(){ pctx.clearRect(0,0,pad.width,pad.height); pctx.lineCap='round'; pctx.lineJoin='round';
+  for(const s of strokes){ pctx.strokeStyle=s.c; pctx.lineWidth=s.w; pctx.beginPath(); s.pts.forEach((p,i)=>i?pctx.lineTo(p.x,p.y):pctx.moveTo(p.x,p.y)); pctx.stroke(); } }
+function pos(e){ const r=pad.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+function down(e){ if(phase!=='draw') return; drawing=true; cur={c:color,w:7,pts:[pos(e)]}; strokes.push(cur); e.preventDefault(); }
+function move(e){ if(!drawing) return; cur.pts.push(pos(e)); redraw(); e.preventDefault(); }
+function up(){ drawing=false; }
+pad.addEventListener('mousedown',down); pad.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+pad.addEventListener('touchstart',down,{passive:false}); pad.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+
+function renderTools(){
+  $('#tools').innerHTML=COLORS.map(c=>`<div class="swatch ${c===color?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('')
+    +`<div class="tool-btn" id="undoBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-1"/></svg></div>`
+    +`<div class="tool-btn" id="clearBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></div>`;
+  $('#tools').querySelectorAll('.swatch').forEach(s=>s.onclick=()=>{ color=s.dataset.c; renderTools(); });
+  $('#undoBtn').onclick=()=>{ strokes.pop(); redraw(); }; $('#clearBtn').onclick=()=>{ strokes=[]; redraw(); };
+}
+
+function mulberry(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+/* draw a procedural body part for a bot into a band of a canvas */
+function botPart(ctx,w,h,y0,y1,seed){
+  const rng=mulberry(seed); ctx.lineCap='round'; ctx.lineJoin='round';
+  const n=2+Math.floor(rng()*3);
+  for(let k=0;k<n;k++){ ctx.strokeStyle=COLORS[Math.floor(rng()*COLORS.length)]; ctx.lineWidth=4+rng()*6;
+    ctx.beginPath(); let x=w*0.3+rng()*w*0.4, y=y0+rng()*(y1-y0); ctx.moveTo(x,y);
+    const segs=4+Math.floor(rng()*5);
+    for(let i=0;i<segs;i++){ x+=(rng()-0.5)*w*0.4; y+=(rng()-0.5)*(y1-y0)*0.8; x=Math.max(10,Math.min(w-10,x)); y=Math.max(y0+4,Math.min(y1-4,y)); ctx.lineTo(x,y); } ctx.stroke(); }
+}
+
+/* build monsters: 2 groups per team × 3 teams = 6 */
+let monsters=[]; let myVotes={Funniest:null,Scariest:null,Weirdest:null};
+function start(){
+  $('#preOverlay').classList.add('hide'); renderTools(); fitPad(); strokes=[];
+  phase='draw'; $('#drawArea').style.display='flex'; $('#monsters').style.display='none'; $('#phaseNote').style.display='none';
+  $('#phaseLabel').textContent='Draw Your Part';
+  A.countdown($('#countOverlay'), ()=>{
+    $('#timerLabel').textContent='Draw!';
+    const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+    fill.style.transition=`width ${DRAW_TIME}s linear`; fill.style.width='0%';
+    drawTimer=setTimeout(reveal, DRAW_TIME*1000);
+  });
+}
+let drawTimer=null;
+const partBand={head:[0,.2],torso:[.2,.45],arms:[.45,.6],legs:[.6,.85],feet:[.85,1]};
+
+function reveal(){
+  clearTimeout(drawTimer); phase='vote';
+  // capture my strokes bounding into the right band region proportionally
+  const myImg=(()=>{ const c=document.createElement('canvas'); c.width=pad.width; c.height=pad.height; c.getContext('2d').drawImage(pad,0,0); return c.toDataURL(); })();
+  monsters=[];
+  for(let t=0;t<3;t++){ for(let g=0;g<2;g++){
+    const isMine = (t===myTeam && g===0);
+    monsters.push({ team:t, group:g, mine:isMine, myImg: isMine?myImg:null, myPart:isMine?myPart:null, seed:(t*7+g*13+3), votes:{Funniest:0,Scariest:0,Weirdest:0} });
+  }}
+  $('#drawArea').style.display='none'; $('#monsters').style.display='grid'; $('#phaseNote').style.display='block';
+  $('#phaseLabel').textContent='Vote · 3 Categories';
+  $('#promptTitle').innerHTML='Meet The <span class="hi">Monsters</span>';
+  $('#promptSub').textContent='Six stitched-together monsters. Vote once in each category.';
+  $('#phaseNote').textContent='Funniest · Scariest · Weirdest — a group can win more than one.';
+  $('#timerLabel').textContent='Vote';
+  renderMonsters(false);
+  $('#timerFill').style.transition='none'; $('#timerFill').style.width='100%'; void $('#timerFill').offsetWidth;
+  $('#timerFill').style.transition='width 20s linear'; $('#timerFill').style.width='0%';
+  voteTimer=setTimeout(resolve,20000);
+}
+let voteTimer=null;
+
+function renderMonsters(reveal){
+  const g=$('#monsters'); g.innerHTML='';
+  monsters.forEach((m,idx)=>{
+    const card=document.createElement('div'); card.className='mcard';
+    card.innerHTML=`<canvas width="240" height="320"></canvas>
+      <div class="cap"><span style="color:${TEAMS[m.team].color}">●</span> Team ${TEAMS[m.team].name} · Monster ${m.group+1}${m.mine?' (Yours)':''}</div>
+      <div class="votebtns">${CATS.map(c=>`<button class="vbtn ${myVotes[c]===idx?'on':''}" data-cat="${c}" data-i="${idx}">${c.slice(0,4)}</button>`).join('')}</div>
+      <div class="catwins" id="cw${idx}"></div>`;
+    const cvs=card.querySelector('canvas'); const ctx=cvs.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,240,320);
+    // draw 5 parts; if mine, overlay my image scaled into its band
+    Object.entries(partBand).forEach(([part,[a,b]])=>{ botPart(ctx,240,320,a*320,b*320, m.seed*100+part.length); });
+    if(m.mine && m.myImg){ const im=new Image(); const [a,b]=partBand[m.myPart]; im.onload=()=>{ ctx.drawImage(im, 0,0,pad.width,pad.height, 0,a*320,240,(b-a)*320); }; im.src=m.myImg; }
+    g.appendChild(card);
+    card.querySelectorAll('.vbtn').forEach(btn=>{ if(!reveal) btn.onclick=()=>{ myVotes[btn.dataset.cat]=+btn.dataset.i; renderMonsters(false); }; });
+    if(reveal){ const cw=card.querySelector('#cw'+idx); CATS.forEach(c=>{ if(m._wins&&m._wins.includes(c)) cw.innerHTML+=`<span class="catwin">${c}</span>`; }); }
+  });
+}
+
+function resolve(){
+  clearTimeout(voteTimer);
+  monsters.forEach(m=>m.votes={Funniest:0,Scariest:0,Weirdest:0});
+  players.forEach(p=>{ if(p.disconnected) return;
+    CATS.forEach(c=>{ let idx; if(p.me){ idx=myVotes[c]; if(idx==null) return; } else { idx=Math.floor(Math.random()*6); } monsters[idx].votes[c]++; });
+  });
+  // determine category winners
+  CATS.forEach(c=>{ let best=0; monsters.forEach((m,i)=>{ if(m.votes[c]>monsters[best].votes[c]) best=i; }); (monsters[best]._wins=monsters[best]._wins||[]).push(c); });
+  // scoring: each category win = +10 to that group's team; your monster winning any = +12 to you; voting = +1 per category voted
+  let mine=0;
+  monsters.forEach(m=>{ if(m._wins){ players.forEach(p=>{ if(p.team===m.team&&!p.disconnected) p.pts+=3; }); if(m.mine){ players[0].pts+=12*m._wins.length; mine+=12*m._wins.length; } } });
+  CATS.forEach(c=>{ if(myVotes[c]!=null){ players[0].pts+=1; mine+=1; } });
+  A.renderBoard(players);
+  renderMonsters(true);
+  setTimeout(()=>endGame(mine), 2000);
+}
+
+function endGame(mine){
+  A.finishGame(players);
+  const myMonster=monsters.find(m=>m.mine); const iWon=myMonster&&myMonster._wins;
+  const ov=$('#resultOverlay'), v=$('#verdict'), sub=$('#verdictSub'), pts=$('#verdictPts');
+  $('#timerLabel').textContent='Complete';
+  v.textContent=iWon?'Your Monster Won!':'Monsters Revealed';
+  v.className='verdict '+(iWon?'win':'late');
+  const myRank=[...players].sort((a,b)=>b.pts-a.pts).findIndex(p=>p.me)+1;
+  sub.innerHTML=iWon?`Your group's monster took: <b>${myMonster._wins.join(', ')}</b>. You scored <b>${players[0].pts}</b> this game.`
+    :`You scored <b>${players[0].pts}</b> points this game. Rank #${myRank} of 30.`;
+  pts.textContent=`Season total ${players[0].seasonPts+players[0].pts}`;
+  ov.classList.remove('hide'); if(iWon) A.confetti($('#stage'),100);
+}
+
+$('#startBtn').addEventListener('click', start);
+window.addEventListener('resize',()=>{ if(phase==='draw') fitPad(); });
+document.getElementById('hudHost').innerHTML=A.hud({title:'Build-a-Monster', round:false, extra:`<span class="chip hide-s"><span class="k">Team</span> <b style="color:${TEAMS[myTeam].color}">${TEAMS[myTeam].name}</b></span>`});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+setInterval(()=>{ if(phase==='pre') A.setPing(players); },1400);
+</script>
+</body>
+</html>

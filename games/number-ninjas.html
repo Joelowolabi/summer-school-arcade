@@ -1,0 +1,150 @@
+<!-- Summer School Arcade — Number Ninjas (Player screen). Zappy Design System. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Number Ninjas — Summer School Arcade</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="arcade.css">
+<style>
+  .q-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;gap:24px;min-height:0}
+  .problem{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);color:var(--text-strong);text-align:center}
+  .problem .hint{display:block;font-family:var(--font-body);font-weight:var(--fw-regular);font-size:var(--fs-body-l);color:var(--text-muted);margin-top:6px;letter-spacing:0}
+  .answers{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .ans{padding:24px 10px;border:1px solid var(--border-hairline);border-radius:var(--radius-xl);background:var(--surface-card);box-shadow:var(--shadow-s);cursor:pointer;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h1);color:var(--text-strong);transition:transform var(--dur-fast) var(--ease-pop),box-shadow var(--dur-base) var(--ease-out-soft),border-color var(--dur-fast)}
+  .ans:hover{transform:translateY(-3px);box-shadow:var(--shadow-l)} .ans:active{transform:scale(.96)} .ans:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  .ans.picked{border-color:var(--accent-play);box-shadow:0 0 0 3px var(--purple-100),var(--shadow-l)}
+  .ans.correct{border-color:var(--green-400);box-shadow:0 0 0 3px var(--green-100),var(--shadow-l)}
+  .ans.wrong{border-color:var(--red-400);box-shadow:0 0 0 3px var(--red-100)}
+  .ans[disabled]{cursor:default}
+  @media (max-width:640px){ .answers{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="hudHost"></div>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <div class="roundrow">
+        <span class="eyebrow">All Players · Faster Answers Score More</span>
+        <div class="timerpill"><span class="eyebrow" id="timerLabel">Get Ready</span><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div></div>
+      </div>
+      <div class="prompt" style="margin-bottom:6px"><h1 id="promptTitle">Number <span class="hi">Ninjas</span></h1></div>
+      <div class="q-wrap">
+        <div class="problem" id="problem">—</div>
+        <div class="answers" id="answers"></div>
+      </div>
+
+      <div class="overlay pre center" id="preOverlay">
+        <div class="guide">
+          <div class="kicker">How to Play</div><h1>Number Ninjas</h1>
+          <p class="goal">Goal: <b>solve it faster than everyone else</b>.</p>
+          <ol class="steps">
+            <li>A quick number puzzle flashes up.</li>
+            <li>Pick the correct answer from four options.</li>
+            <li>Everyone who's right scores — the faster, the more.</li>
+            <li>Add, subtract, multiply and spot patterns.</li>
+          </ol>
+          <div class="gmeta">
+            <div class="gm"><span class="gm-h">Controls</span><span class="gm-v">Mouse click (or <span class="keycap">1</span><span class="keycap">2</span><span class="keycap">3</span><span class="keycap">4</span>)</span></div>
+            <div class="gm"><span class="gm-h">Scoring</span><span class="gm-v">Correct = up to +12 with speed bonus · 10 rounds</span></div>
+          </div>
+        </div>
+        <button class="btn btn-spark" id="startBtn">Start
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </div>
+      <div class="overlay hide center" id="countOverlay"><div class="count">3</div></div>
+      <div class="overlay hide center" id="resultOverlay">
+        <p class="verdict win" id="verdict">Nice!</p><p class="verdict-sub" id="verdictSub"></p><span class="verdict-pts" id="verdictPts"></span>
+      </div>
+    </div>
+    <div id="boardHost"></div>
+  </div>
+</div>
+
+<script src="arcade.js"></script>
+<script>
+const A=window.Arcade; const $=s=>document.querySelector(s);
+let players=A.makeRoster();
+const TOTAL=10, ROUND_TIME=7;
+let round=0, active=false, roundStart=0, myAnswer=-1;
+function score(t){ return 4 + Math.round(Math.max(0,(ROUND_TIME-t)/ROUND_TIME)*8); }   // 12 (instant) .. 4 (last second)
+
+document.getElementById('hudHost').innerHTML=A.hud({title:'Number Ninjas', rounds:TOTAL});
+document.getElementById('boardHost').innerHTML=A.board('Live Standings');
+A.renderBoard(players);
+
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+function makeProblem(r){
+  const hard=r>6, mid=r>3;
+  const type=A.pick(mid?['add','sub','mul','seq','mul']:['add','sub','add']);
+  let text='', ans=0, hint='';
+  if(type==='add'){ const a=ri(mid?10:2,hard?60:20), b=ri(mid?10:2,hard?40:15); text=`${a} + ${b}`; ans=a+b; }
+  else if(type==='sub'){ let a=ri(10,hard?80:30), b=ri(1,a); text=`${a} − ${b}`; ans=a-b; }
+  else if(type==='mul'){ const a=ri(2,hard?12:6), b=ri(2,hard?12:6); text=`${a} × ${b}`; ans=a*b; }
+  else { const start=ri(1,6), step=ri(2,hard?6:4); const s=[start,start+step,start+2*step,start+3*step]; text=`${s[0]}, ${s[1]}, ${s[2]}, ?`; ans=s[3]; hint='What comes next?'; }
+  // build 4 options
+  const opts=new Set([ans]); while(opts.size<4){ const d=ans + ri(-6,6)*(hard?2:1); if(d!==ans && d>=0) opts.add(d); }
+  const arr=[...opts].sort(()=>Math.random()-.5);
+  return {text, ans, hint, opts:arr, correctIdx:arr.indexOf(ans)};
+}
+let cur=null;
+function start(){ $('#preOverlay').classList.add('hide'); next(); }
+function next(){
+  if(round>=TOTAL) return end();
+  round++; A.setRound(round,TOTAL); myAnswer=-1; active=false;
+  cur=makeProblem(round);
+  $('#problem').innerHTML=`${cur.text}${cur.hint?`<span class="hint">${cur.hint}</span>`:''}`;
+  $('#answers').innerHTML=cur.opts.map((v,i)=>`<button class="ans" data-i="${i}">${v}</button>`).join('');
+  A.setPing(players);
+  A.countdown($('#countOverlay'), arm);
+}
+function arm(){
+  active=true; roundStart=performance.now(); $('#timerLabel').textContent='Solve!';
+  const fill=$('#timerFill'); fill.style.transition='none'; fill.style.width='100%'; void fill.offsetWidth;
+  fill.style.transition=`width ${ROUND_TIME}s linear`; fill.style.width='0%';
+  roundTimer=setTimeout(reveal, ROUND_TIME*1000);
+  // precompute each bot's speed + correctness; everyone is scored at the reveal
+  players.forEach(p=>{ if(p.me||p.disconnected) return;
+    p._correct = Math.random()<(p.accuracy-0.05);
+    p._t = Math.min(ROUND_TIME-0.1, (1-p.skill)*3.5 + round*0.1 + A.rand(0.4,1.6));
+  });
+}
+let roundTimer=null;
+$('#answers').addEventListener('click', e=>{
+  const b=e.target.closest('.ans'); if(!b||!active||myAnswer>=0) return;
+  myAnswer=+b.dataset.i; players[0]._t=(performance.now()-roundStart)/1000;
+  document.querySelectorAll('.ans').forEach(x=>x.disabled=true);
+  b.classList.add('picked'); A.sfx('select');   // lock in, don't reveal yet
+});
+function reveal(){
+  active=false; clearTimeout(roundTimer);
+  // SPEED SCORING — everyone who's correct earns points, more for answering faster
+  let myGain=0;
+  if(myAnswer===cur.correctIdx){ myGain=score(players[0]._t||ROUND_TIME); players[0].pts+=myGain; }
+  players.forEach(p=>{ if(p.me||p.disconnected) return; if(p._correct) p.pts+=score(p._t); });
+  document.querySelectorAll('.ans').forEach((x,i)=>{ x.disabled=true; if(i===cur.correctIdx) x.classList.add('correct'); else if(i===myAnswer) x.classList.add('wrong'); });
+  A.renderBoard(players);
+  const ov=$('#resultOverlay'),v=$('#verdict'),sub=$('#verdictSub'),pts=$('#verdictPts');
+  if(myAnswer===cur.correctIdx){ v.textContent=myGain>=11?'Lightning Fast!':'Correct!'; v.className='verdict win'; sub.innerHTML=`${cur.text} = <b>${cur.ans}</b>. The quicker you were, the more you scored.`; pts.textContent=`+${myGain} points`; A.confetti($('#stage'),30); A.sfx('correct'); }
+  else if(myAnswer>=0){ v.textContent='Not Quite'; v.className='verdict miss'; sub.innerHTML=`It was <b>${cur.ans}</b>.`; pts.textContent='+0 points'; A.sfx('wrong'); }
+  else { v.textContent='Time!'; v.className='verdict late'; sub.innerHTML=`It was <b>${cur.ans}</b>.`; pts.textContent='+0 points'; A.sfx('wrong'); }
+  ov.classList.remove('hide');
+  setTimeout(()=>{ ov.classList.add('hide'); next(); }, 2100);
+}
+function end(){
+  A.finishGame(players);
+  const sorted=[...players].sort((a,b)=>b.pts-a.pts); const myRank=sorted.findIndex(p=>p.me)+1;
+  $('#promptTitle').innerHTML='Ninja <span class="hi">Complete!</span>'; $('#timerLabel').textContent='Done';
+  const ov=$('#resultOverlay');
+  $('#verdict').textContent=myRank<=3?'Top 3!':`You Placed #${myRank}`; $('#verdict').className='verdict '+(myRank<=3?'win':'late');
+  $('#verdictSub').innerHTML=`You scored <b>${players[0].pts}</b> this game. Season total <b>${players[0].seasonPts+players[0].pts}</b>.`;
+  $('#verdictPts').textContent=`Rank ${myRank} of 30`; ov.classList.remove('hide'); if(myRank<=3) A.confetti($('#stage'),90);
+}
+window.addEventListener('keydown',e=>{ const i='1234'.indexOf(e.key); if(i>=0&&active){ const b=document.querySelector(`.ans[data-i="${i}"]`); if(b&&!b.disabled) b.click(); } });
+$('#startBtn').addEventListener('click', start);
+setInterval(()=>{ if(!active) A.setPing(players); },1400);
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/", "destination": "/games/landing.html", "permanent": false },
+    { "source": "/play", "destination": "/games/landing.html", "permanent": false },
+    { "source": "/host", "destination": "/games/host.html", "permanent": false },
+    { "source": "/join", "destination": "/games/join.html", "permanent": false }
+  ]
+}
