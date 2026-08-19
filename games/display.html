@@ -42,7 +42,9 @@
   .lead{flex:1;display:grid;grid-template-columns:1.3fr 1fr;gap:28px;min-height:0}
   .nowcard{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-2xl);padding:30px;color:#fff;display:flex;flex-direction:column;min-height:0}
   .nowcard .k{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.85;font-weight:var(--fw-bold)}
-  .nowcard h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);margin:6px 0 20px}
+  .nowcard h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);margin:2px 0 0}
+  .nowhead{display:flex;align-items:center;gap:18px;margin-bottom:20px}
+  .nowicon{width:clamp(64px,7vw,96px);height:clamp(64px,7vw,96px);object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))}
   .llist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
   .lrow{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.08);border-radius:var(--radius-pill);padding:10px 16px}
   .lrow .rk{width:30px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);opacity:.8;text-align:center}
@@ -225,8 +227,7 @@ function renderGame(){
   $('#stage').innerHTML=`
     <div class="lead ${cls}">
       <div class="nowcard">
-        <div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div>
-        <h1>${Net.gameLabel(room.current_game)}</h1>
+        <div class="nowhead"><img class="nowicon" src="assets/games/${(room.current_game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'')}.png" alt="" onerror="this.style.display='none'"><div><div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div><h1>${Net.gameLabel(room.current_game)}</h1></div></div>
         <div class="llist">${sorted.map((p,i)=>`
           <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}</div>
       </div>

@@ -107,6 +107,13 @@
   .srow .sn{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)} .srow .sn em{font-style:normal;font-size:10px;background:var(--accent-play);color:#fff;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
   .srow .sp{font-family:var(--font-heading);font-weight:var(--fw-bold);color:var(--text-strong);font-variant-numeric:tabular-nums}
   .readywait{text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);margin-top:4px}
+  /* celebratory win / result screen */
+  .winwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+  .wintrophy{font-size:clamp(78px,16vh,150px);line-height:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,.34));animation:trophyPop .5s var(--ease-pop)}
+  @keyframes trophyPop{from{transform:scale(.4) rotate(-14deg);opacity:0}to{transform:none;opacity:1}}
+  .winname{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(30px,6.5vh,56px);color:var(--text-strong);line-height:1.05;text-wrap:balance}
+  .winsub{color:var(--text-muted);font-size:var(--fs-h3);font-weight:var(--fw-bold)}
+  .winwait{color:var(--text-muted);margin-top:16px;font-weight:var(--fw-semibold)}
   /* vote (This or That) */
   .livevote{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .livevcard{border:0;border-radius:var(--radius-xl);color:#fff;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);padding:26px 14px;cursor:pointer;box-shadow:var(--shadow-m);display:flex;flex-direction:column;align-items:center;gap:6px;transition:transform .1s var(--ease-pop);text-align:center}
@@ -139,7 +146,7 @@
   /* studio (doodle / monster / quick draw) */
   .sprompt{font-family:var(--font-display);font-weight:var(--fw-bold);color:var(--text-strong);font-size:var(--fs-h3);text-align:center;text-wrap:balance}
   .ssub{color:var(--text-muted);font-size:var(--fs-body-s);text-align:center;margin:2px 0 10px}
-  #buildcv,#drawcv,#qdcv{width:100%;background:#fff;border-radius:var(--radius-l);display:block;touch-action:none;box-shadow:var(--shadow-s)}
+  #buildcv,#drawcv,#qdcv{width:100%;max-width:min(94vw,640px);margin:0 auto;background:#fff;border-radius:var(--radius-l);display:block;touch-action:none;box-shadow:var(--shadow-l)}
   .partrow{display:flex;align-items:center;gap:8px;margin:7px 0}
   .partrow .plabel{width:58px;font-weight:var(--fw-bold);font-size:var(--fs-caption);color:var(--text-muted);text-transform:capitalize}
   .partrow .pbtns{flex:1;display:flex;gap:6px;flex-wrap:wrap}
@@ -154,6 +161,13 @@
   .votecard:active{transform:scale(.96)} .votecard.voted{border-color:var(--accent-play);background:var(--purple-50)}
   .votecard canvas{width:100%;height:auto;background:#fff;border-radius:var(--radius-m)}
   .votecard .vn{font-size:var(--fs-caption);font-weight:var(--fw-bold);color:var(--text-strong);margin-top:4px}
+  /* Secret Spy vote cards */
+  .spygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:6px}
+  .spycard{border:2px solid var(--border-soft);border-radius:var(--radius-xl);background:var(--surface-sunken);padding:18px 16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;text-align:center;transition:transform .1s var(--ease-pop),border-color .12s,background .12s;color:inherit}
+  .spycard:active{transform:scale(.97)}
+  .spycard.voted{border-color:var(--accent-sun);background:rgba(255,217,59,.2)}
+  .spycard .scn{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong)}
+  .spycard .scclue{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--accent-sun)}
   .guessrow{display:flex;gap:8px;margin-top:12px}
   .guessrow input{flex:1;border:2px solid var(--border-soft);border-radius:var(--radius-l);padding:14px;font-size:var(--fs-body);font-family:var(--font-body)}
   .qdword{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);letter-spacing:.28em;font-size:var(--fs-h2);color:var(--accent-play);margin:6px 0}
@@ -341,6 +355,7 @@ function renderFinalStandings(){
     <div class="rt" style="text-align:center">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</div>
     <div class="standtitle">Final standings</div>${standingsPanel()}</div>`;
 }
+function winHTML(title, sub){ return `<div class="winwrap"><div class="wintrophy">🏆</div><div class="winname">${title}</div>${sub?`<div class="winsub">${sub}</div>`:''}<div class="winwait">Waiting for the next game…</div></div>`; }
 function gameIcon(file){ const slug=(file||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
   return `<div class="gamehero"><img src="assets/games/${slug}.png" alt="" onerror="this.parentElement.style.display='none'"></div>`; }
 let liveTimerIv=null;
@@ -527,7 +542,7 @@ function buildMonsterUI(live){
   $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Build your monster!</div><div class="ssub">Pick parts, then Submit before time's up</div>
     <canvas id="buildcv" height="190"></canvas>${rows}
     <div class="studiobtns"><button class="submitb" id="subm">Submit my monster ✓</button><button class="ghostb" id="rnd">🎲</button></div></div>`;
-  const cv=$('#buildcv'); cv.width=cv.getBoundingClientRect().width||320; drawBuild();
+  const cv=$('#buildcv'); const bw=Math.round(cv.getBoundingClientRect().width||320); cv.width=bw; cv.height=Math.round(bw*0.62); drawBuild();
   $('#studioroot').querySelectorAll('.pchip').forEach(b=>b.addEventListener('click',()=>{ if(sSubmitted) return;
     sMon[b.dataset.k]=+b.dataset.i; b.parentElement.querySelectorAll('.pchip').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); drawBuild(); }));
   $('#rnd').addEventListener('click',()=>{ if(sSubmitted) return; sMon=randomMonster(); buildMonsterUI(live); });
@@ -538,8 +553,8 @@ function buildDoodleUI(live){ sSubmitted=false;
   $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Draw: ${live.prompt}</div><div class="ssub">Finger or mouse — then Submit</div>
     <canvas id="drawcv" height="240"></canvas>
     <div class="studiobtns"><button class="submitb" id="subm">Submit my drawing ✓</button><button class="ghostb" id="clr">Clear</button></div></div>`;
-  const cv=$('#drawcv'); cv.width=cv.getBoundingClientRect().width||320; const ctx=cv.getContext('2d');
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+  const cv=$('#drawcv'); const bw=Math.round(cv.getBoundingClientRect().width||320); cv.width=bw; cv.height=Math.round(bw*0.72); const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=Math.max(3,bw*0.008); ctx.lineCap='round'; ctx.lineJoin='round';
   let drawing=false,last=null; const pos=e=>{ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)*cv.width/r.width, y:(t.clientY-r.top)*cv.height/r.height}; };
   const down=e=>{ e.preventDefault(); drawing=true; last=pos(e); };
   const move=e=>{ if(!drawing) return; e.preventDefault(); const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; };
@@ -565,8 +580,7 @@ function buildVoteUI(live){
       try{ await Net.castVote(room.id, me.id, live.game, live.round, t); }catch(e){} }); });
 }
 function buildResultUI(live){ const w=live.winner;
-  $('#waiting').innerHTML=`<div id="studioroot" style="text-align:center"><div class="sprompt">🏆 ${w?w.name+' wins!':'Nice work, everyone!'}</div>
-    <div class="ssub">${w?'with '+w.votes+' vote'+(w.votes===1?'':'s'):''}</div><div class="ssub">Waiting for the next game…</div></div>`;
+  $('#waiting').innerHTML=winHTML(w?w.name+' wins!':'Nice work, everyone!', w?('with '+w.votes+' vote'+(w.votes===1?'':'s')):'');
 }
 
 /* ---- Quick Draw Guess (live pictionary) ---- */
@@ -577,19 +591,19 @@ function renderQuickDraw(file){
   if(qdUiKey) return;   // a round/waiting screen is already up
   qdUiKey='waiting';
   $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">Quick Draw Guess</div><div class="ssub">Get ready — first to guess wins!</div><canvas id="qdcv" height="220"></canvas></div>`;
-  const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; drawQD();
+  const cv=$('#qdcv'); cv.width=Math.round(cv.getBoundingClientRect().width||320); cv.height=Math.round(cv.width*0.66); drawQD();
 }
 function onQDMeta(m,file){
   if(m.kind==='round'){ qdRound=m.round; qdDrawer=m.drawer; qdIsDrawer=(m.drawer===me.id); qdWord=null; qdStrokes=[]; qdLocked=false; buildQDRound(file,m); }
   else if(m.kind==='word'){ if(m.drawer===me.id && m.round===qdRound){ qdWord=m.word; const el=$('#qdword'); if(el) el.textContent=qdWord; } }
   else if(m.kind==='solved'){ addFeed(`🎉 <b>${m.who}</b> got it — <b>${m.word}</b>!`); qdLocked=true; const b=$('#qdsend'); if(b) b.disabled=true; }
   else if(m.kind==='timeup'){ addFeed(`⏱ time's up — it was <b>${m.word}</b>`); qdLocked=true; const b=$('#qdsend'); if(b) b.disabled=true; }
-  else if(m.kind==='over'){ qdRound=null; qdUiKey='over'; $('#waiting').innerHTML=`<div id="qdroot" style="text-align:center"><div class="sprompt">🏆 Great drawing!</div><div class="ssub">Waiting for the next game…</div></div>`; }
+  else if(m.kind==='over'){ qdRound=null; qdUiKey='over'; $('#waiting').innerHTML=winHTML('Great drawing!','Nice guessing, everyone'); }
 }
 function buildQDRound(file,m){ qdUiKey='round'+m.round;
   if(qdIsDrawer){
     $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">You're drawing! ✏️</div><div class="qdword" id="qdword">…</div><canvas id="qdcv" height="230"></canvas><div class="ssub">Draw it — no letters or words allowed!</div></div>`;
-    const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; const ctx=cv.getContext('2d');
+    const cv=$('#qdcv'); cv.width=Math.round(cv.getBoundingClientRect().width||320); cv.height=Math.round(cv.width*0.66); const ctx=cv.getContext('2d');
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
     let drawing=false,last=null; const pos=e=>{ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return {x:(t.clientX-r.left)/r.width, y:(t.clientY-r.top)/r.height}; };
     const emit=(a,b,x,y)=>{ const st={a,b,x,y,c:'#3E2C6B',w:3}; qdStrokes.push(st); if(qdArena){ try{ qdArena.sendInput({stroke:st, drawer:me.id, round:qdRound}); }catch(e){} } };
@@ -604,7 +618,7 @@ function buildQDRound(file,m){ qdUiKey='round'+m.round;
       <canvas id="qdcv" height="200"></canvas>
       <div class="guessrow"><input id="qdguess" placeholder="Type your guess…" autocomplete="off"><button class="submitb" id="qdsend" style="flex:0 0 auto;padding:14px 18px">Guess</button></div>
       <div class="qdfeed" id="qdfeed"></div></div>`;
-    const cv=$('#qdcv'); cv.width=cv.getBoundingClientRect().width||320; drawQD();
+    const cv=$('#qdcv'); cv.width=Math.round(cv.getBoundingClientRect().width||320); cv.height=Math.round(cv.width*0.66); drawQD();
     const send=async()=>{ if(qdLocked) return; const inp=$('#qdguess'); const t=(inp.value||'').trim(); if(!t) return; inp.value='';
       addFeed(`<b>you:</b> ${t}`); try{ await Net.sendGuess(room.id, me.id, file, qdRound, t); }catch(e){} };
     $('#qdsend').addEventListener('click', send);
@@ -653,10 +667,10 @@ function renderSpy(live){
   } else if(live.phase==='vote'){
     if(socUiKey==='spy-vote') return; socUiKey='spy-vote';
     const entries=(live.entries||[]).filter(e=>e.playerId!==me.id);
-    $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">Who's the spy? 🕵️</div><div class="ssub">Tap the faker — clues shown below</div>
-      <div class="votegrid">${entries.map(e=>`<div class="votecard" data-t="${e.playerId}"><div class="vn">${e.name}</div><div style="color:var(--accent-play);font-weight:var(--fw-bold)">"${e.clue}"</div></div>`).join('')||'<div class="ssub">No clues to judge</div>'}</div></div>`;
-    $('#socroot').querySelectorAll('.votecard').forEach(card=>card.addEventListener('click',async()=>{ if(card.classList.contains('voted')) return;
-      $('#socroot').querySelectorAll('.votecard').forEach(c=>c.classList.remove('voted')); card.classList.add('voted');
+    $('#waiting').innerHTML=`<div id="socroot"><div class="sprompt">Who's the spy? 🕵️</div><div class="ssub">Tap the faker — their clue is the odd one out</div>
+      <div class="spygrid">${entries.map(e=>`<button class="spycard" data-t="${e.playerId}"><span class="scn">${e.name}</span><span class="scclue">"${e.clue}"</span></button>`).join('')||'<div class="ssub">No clues to judge</div>'}</div></div>`;
+    $('#socroot').querySelectorAll('.spycard').forEach(card=>card.addEventListener('click',async()=>{ if(card.classList.contains('voted')) return;
+      $('#socroot').querySelectorAll('.spycard').forEach(c=>c.classList.remove('voted')); card.classList.add('voted');
       try{ await Net.castVote(room.id, me.id, live.game, live.round, card.dataset.t); }catch(e){} }));
   } else { // reveal
     if(socUiKey==='spy-reveal') return; socUiKey='spy-reveal';
@@ -692,7 +706,7 @@ async function maybePlayCopy(){ if(copyPlaying) return; const pads=document.quer
   for(const c of copySeq){ flashPad(c); await new Promise(r=>setTimeout(r,560)); } copyPlaying=false; }
 function renderCopycat(live){
   if(live.phase==='done'){ socUiKey='cc-done';
-    $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">🏆 ${live.winner?live.winner+' wins!':'Nice memory!'}</div><div class="ssub">Waiting for the next game…</div></div>`; return; }
+    $('#waiting').innerHTML=winHTML(live.winner?live.winner+' wins!':'Nice memory!', 'Sharpest memory in the room'); return; }
   if(copyEliminated){ if(socUiKey==='cc-out') return; socUiKey='cc-out';
     $('#waiting').innerHTML=`<div id="socroot" style="text-align:center"><div class="sprompt">💥 You're out!</div><div class="ssub">Cheer the others on — watch the big screen!</div></div>`; return; }
   if(live.phase==='watch'){ const key='cc-w'+live.round;

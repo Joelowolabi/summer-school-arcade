@@ -12,8 +12,9 @@
   body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:block}
   .page{max-width:1100px;margin:0 auto;padding:24px 24px 48px}
   .top{display:flex;align-items:center;gap:12px;color:#fff;margin-bottom:18px}
-  .top .brand{display:flex;align-items:center;gap:10px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3)}
-  .top .brand .spark{width:34px;height:34px;border-radius:99px;background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900)}
+  .top .brand{display:flex;align-items:center;gap:12px}
+  .hlogo{height:40px;width:auto;display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,.25))}
+  .hostbadge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);color:#fff;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-body-s);border-radius:var(--radius-pill);padding:4px 12px}
   .top .grow{flex:1}
   .cols{display:grid;grid-template-columns:360px 1fr;gap:20px}
   @media(max-width:820px){ .cols{grid-template-columns:1fr} }
@@ -40,10 +41,11 @@
   .empty{color:var(--text-muted);grid-column:1/-1;text-align:center;padding:30px 0}
   .startrow{display:flex;align-items:center;gap:14px;margin-top:20px}
   .status{color:#fff;text-align:center;padding:10px}
-  /* game picker */
-  .picker{margin-top:20px}
+  /* game picker — prominent */
+  .picker{margin-top:20px;border:2px solid var(--purple-200);background:linear-gradient(180deg,var(--purple-50),var(--surface-page) 60%)}
   .pickhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .pickhead h2{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong);margin:0}
+  .pickhead .pico{width:44px;height:44px;border-radius:var(--radius-l);background:var(--accent-play);display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto;box-shadow:var(--shadow-s)}
+  .pickhead h2{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);margin:0}
   .pickhead .cnt{color:var(--text-muted);font-weight:var(--fw-semibold);font-size:var(--fs-body-s)} .pickhead .cnt b{color:var(--accent-play)}
   .plink{background:none;border:0;color:var(--accent-play);font-family:var(--font-core);font-weight:var(--fw-bold);font-size:var(--fs-body-s);cursor:pointer;padding:6px 8px;border-radius:var(--radius-s)}
   .plink:hover{background:var(--surface-sunken)}
@@ -66,7 +68,7 @@
 <body>
 <div class="page">
   <div class="top">
-    <div class="brand"><span class="spark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span> Summer School Arcade · Host</div>
+    <div class="brand"><img class="hlogo" src="../assets/logo-zappy.png" alt="Zappy"><span class="hostbadge">Host</span></div>
     <div class="grow"></div>
     <a class="btn btn-ghost sm" href="index.html">Exit</a>
   </div>
@@ -106,8 +108,9 @@
 
   <div class="card picker" id="pickerCard" style="display:none">
     <div class="pickhead">
-      <h2>Choose games</h2>
-      <span class="cnt">· <b id="gcount">0</b> selected, in order</span>
+      <span class="pico">🎮</span>
+      <h2>Choose the games</h2>
+      <span class="cnt"><b id="gcount">0</b> selected, in order</span>
       <div style="flex:1"></div>
       <button class="plink" id="selAll">Select all</button>
       <button class="plink" id="selNone">Clear</button>
