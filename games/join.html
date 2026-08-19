@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="arcade.css">
 <style>
   html,body{height:auto}
-  body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:flex;align-items:center;justify-content:center;padding:20px}
+  body{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;display:block;padding:0}
   .card{background:var(--surface-page);border-radius:var(--radius-2xl);box-shadow:var(--shadow-xl);padding:30px 30px 34px;width:100%;max-width:440px}
   /* GAMEPLAY: full-bleed, in the shared-display style (purple ground, white text, translucent panels) */
   body.playing{padding:0}
@@ -207,11 +207,59 @@
   .needline{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h3);color:var(--text-strong);margin:6px 0}
   .needline b{color:var(--accent-play)}
   .hide{display:none}
+  /* ===== edge-to-edge join (code + name + lobby): brand hero | form ===== */
+  .joinshell{width:100%;min-height:100dvh;display:grid;grid-template-columns:1.05fr .95fr}
+  .joinhero{position:relative;overflow:hidden;color:#fff;display:flex;flex-direction:column;justify-content:center;gap:20px;padding:clamp(32px,5vw,76px)}
+  .joinhero::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(700px 520px at 18% 20%, rgba(255,255,255,.14), transparent 64%),
+              radial-gradient(560px 460px at 92% 88%, rgba(255,217,59,.14), transparent 66%),
+              radial-gradient(480px 420px at 80% 10%, rgba(242,104,60,.12), transparent 68%);}
+  .joinhero>*{position:relative;z-index:1}
+  .joinhero .hlogo{height:clamp(46px,5vw,66px);width:auto;align-self:flex-start;filter:drop-shadow(0 3px 10px rgba(0,0,0,.28))}
+  .herotitle{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(40px,6vw,74px);line-height:1;margin:0;text-wrap:balance}
+  .herolead{font-size:clamp(16px,1.5vw,22px);line-height:1.4;opacity:.92;max-width:26ch;margin:0}
+  .herochips{display:flex;flex-wrap:wrap;gap:10px}
+  .herochip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);border-radius:var(--radius-pill);padding:9px 16px;font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:#fff}
+  .heromascots{display:flex;align-items:flex-end;margin-top:6px}
+  .heromascots img{height:clamp(64px,8vw,116px);width:auto;margin-left:-16px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.3));animation:bobm 3.2s ease-in-out infinite}
+  .heromascots img:first-child{margin-left:0}
+  .heromascots img:nth-child(2){animation-delay:.35s} .heromascots img:nth-child(3){animation-delay:.7s}
+  .heromascots img:nth-child(4){animation-delay:1.05s} .heromascots img:nth-child(5){animation-delay:1.4s} .heromascots img:nth-child(6){animation-delay:1.75s}
+  @keyframes bobm{50%{transform:translateY(-10px)}}
+  .heroteams{display:flex;gap:10px}
+  .heroteams .ht{background:var(--c);color:#fff;border-radius:var(--radius-pill);padding:7px 18px;font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
+  .joincard{background:var(--surface-page);display:flex;align-items:center;justify-content:center;padding:clamp(24px,4vw,56px)}
+  .joincard .card:not(.play){box-shadow:none;background:transparent;padding:0;max-width:430px}
+  @media (max-width:860px){
+    .joinshell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+    .joinhero{padding:26px 24px 20px;gap:12px;text-align:center;align-items:center}
+    .joinhero .hlogo{align-self:center} .herotitle{font-size:clamp(30px,9vw,46px)} .herolead{display:none}
+    .herochips{justify-content:center} .heromascots{justify-content:center} .heroteams{display:none}
+    .joincard{padding:26px 22px 44px}
+  }
+  /* play mode: collapse the shell, hide the hero, let the card go full-bleed on purple */
+  body.playing .joinshell{display:block;min-height:0} body.playing .joinhero{display:none}
+  body.playing .joincard{display:block;background:transparent;padding:0}
 </style>
 </head>
 <body>
 <div id="playbar"><img class="pblogo" src="../assets/logo-zappy.png" alt="Zappy"><span class="pbcode" id="pbcode"></span></div>
-<div class="card">
+<div class="joinshell" id="joinshell">
+  <aside class="joinhero" id="joinhero">
+    <img class="hlogo" src="../assets/logo-zappy.png" alt="Zappy">
+    <h1 class="herotitle">Game on!</h1>
+    <p class="herolead">No app, no login — just you, your team, and the whole room playing together on one big screen.</p>
+    <div class="herochips">
+      <span class="herochip">⚡ Reflex races</span>
+      <span class="herochip">🎨 Team battles</span>
+      <span class="herochip">✏️ Draw &amp; guess</span>
+      <span class="herochip">🧠 Trivia &amp; word</span>
+    </div>
+    <div class="heromascots" id="heromascots"></div>
+    <div class="heroteams"><span class="ht" style="--c:#E5484D">Team Red</span><span class="ht" style="--c:#4F9CF9">Team Blue</span><span class="ht" style="--c:#3FBF7F">Team Green</span></div>
+  </aside>
+  <main class="joincard">
+  <div class="card">
   <!-- STEP 1: code -->
   <div id="stepCode">
     <div class="kick">Join A Game</div><h1>Enter Code</h1>
@@ -241,6 +289,8 @@
     <div class="plist" id="plist"></div>
     <div class="waiting" id="waiting">Waiting for the host to start…</div>
   </div>
+  </div>
+  </main>
 </div>
 
 <script type="module">
@@ -258,6 +308,7 @@ let chosenAvatar=Net.CHARACTERS[0].id, room=null, me=null, players=[], answeredR
 
 // character picker
 $('#avatars').innerHTML = Net.CHARACTERS.map((c,i)=>`<div class="char-opt ${i===0?'sel':''}" data-id="${c.id}"><div class="cimg"><img src="${c.img}" alt="${c.name}"></div><span class="cn">${c.name}</span></div>`).join('');
+$('#heromascots').innerHTML = Net.CHARACTERS.map(c=>`<img src="${c.img}" alt="" onerror="this.style.display='none'">`).join('');
 $('#avatars').addEventListener('click', e=>{ const o=e.target.closest('.char-opt'); if(!o) return; chosenAvatar=o.dataset.id; $('#avatars').querySelectorAll('.char-opt').forEach(x=>x.classList.remove('sel')); o.classList.add('sel'); });
 
 // prefill code from ?code= or a saved reconnect
