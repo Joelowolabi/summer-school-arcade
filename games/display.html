@@ -389,14 +389,18 @@ async function runMotionGame(file){
     renderArena(ctx, Arena.snapshot(game), { dark:true });
     await wait(1000); }
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode });
-  // main tick loop — snappier; maze a touch faster since it's pure navigation
+  // step + broadcast at the tick rate; render interpolated at ~60fps for smooth motion
   const TICK = game.mode==='maze' ? 95 : 105;
+  let prevSnap=Arena.snapshot(game), curSnap=prevSnap, stepT=performance.now(), raf=0, running=true;
+  const frame=()=>{ if(!running) return; const t=Math.min(1,(performance.now()-stepT)/TICK);
+    renderArena(ctx, curSnap, { dark:true, prev:prevSnap, t }); raf=requestAnimationFrame(frame); };
+  raf=requestAnimationFrame(frame);
   await new Promise(res=>{ const iv=setInterval(()=>{
-    if(drivenGame!==file){ clearInterval(iv); return res(); }
-    Arena.step(game); const snap=Arena.snapshot(game);
-    try{ arena.sendState(snap); }catch(e){}
-    renderArena(ctx, snap, { dark:true }); arenaHUD(game, snap);
-    if(game.over){ clearInterval(iv); res(); }
+    if(drivenGame!==file){ clearInterval(iv); running=false; cancelAnimationFrame(raf); return res(); }
+    Arena.step(game); prevSnap=curSnap; curSnap=Arena.snapshot(game); stepT=performance.now();
+    try{ arena.sendState(curSnap); }catch(e){}
+    arenaHUD(game, curSnap);
+    if(game.over){ clearInterval(iv); running=false; cancelAnimationFrame(raf); res(); }
   }, TICK); });
   if(drivenGame!==file) return closeArena();
   // award season points by finishing order

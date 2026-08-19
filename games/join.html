@@ -27,6 +27,8 @@
               radial-gradient(620px 480px at 88% 86%, rgba(255,217,59,.10), transparent 66%),
               radial-gradient(520px 420px at 82% 12%, rgba(242,104,60,.09), transparent 70%);}
   body.playing .card.play{position:relative;z-index:1}
+  #playswash{display:none;position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
+  body.playing #playswash{display:block}
   .card.play #stepLobby{width:100%;max-width:1160px;margin:0 auto}
   .card.play .livehead,.card.play .ready .rk{color:rgba(255,255,255,.82)}
   .card.play .qdword,.card.play .needline b{color:#fff}
@@ -128,6 +130,7 @@
   /* celebratory win / result screen */
   .winwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
   .wintrophy{font-size:clamp(78px,16vh,150px);line-height:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,.34));animation:trophyPop .5s var(--ease-pop)}
+  .wintrophy-img{height:clamp(140px,26vh,240px);width:auto;filter:drop-shadow(0 14px 30px rgba(0,0,0,.36));animation:trophyPop .55s var(--ease-pop)}
   @keyframes trophyPop{from{transform:scale(.4) rotate(-14deg);opacity:0}to{transform:none;opacity:1}}
   .winname{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(30px,6.5vh,56px);color:var(--text-strong);line-height:1.05;text-wrap:balance}
   .winsub{color:var(--text-muted);font-size:var(--fs-h3);font-weight:var(--fw-bold)}
@@ -244,6 +247,7 @@
 </head>
 <body>
 <div id="playbar"><img class="pblogo" src="../assets/logo-zappy.png" alt="Zappy"><span class="pbcode" id="pbcode"></span></div>
+<svg id="playswash" viewBox="0 0 900 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g fill="none" stroke="rgba(255,255,255,.06)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"><path d="M-60 250 C 320 140 300 490 560 420 S 980 700 700 830 S 240 980 520 1140"/><path d="M900 80 C 560 240 720 430 460 500 S 120 630 380 800"/></g></svg>
 <div class="joinshell" id="joinshell">
   <aside class="joinhero" id="joinhero">
     <img class="hlogo" src="../assets/logo-zappy.png" alt="Zappy">
@@ -424,7 +428,7 @@ function renderFinalStandings(){
     <div class="rt" style="text-align:center">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</div>
     <div class="standtitle">Final standings</div>${standingsPanel()}</div>`;
 }
-function winHTML(title, sub){ return `<div class="winwrap"><div class="wintrophy">🏆</div><div class="winname">${title}</div>${sub?`<div class="winsub">${sub}</div>`:''}<div class="winwait">Waiting for the next game…</div></div>`; }
+function winHTML(title, sub){ return `<div class="winwrap"><img class="wintrophy-img" src="assets/decor/trophy.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'wintrophy',textContent:'🏆'}))"><div class="winname">${title}</div>${sub?`<div class="winsub">${sub}</div>`:''}<div class="winwait">Waiting for the next game…</div></div>`; }
 function gameIcon(file){ const slug=(file||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
   return `<div class="gamehero"><img src="assets/games/${slug}.png" alt="" onerror="this.parentElement.style.display='none'"></div>`; }
 let liveTimerIv=null;
@@ -473,7 +477,10 @@ function renderLive(live){
   }
 }
 /* ---- real-time motion controller (player = input + renderer) ---- */
-let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null, mResendIv=null;
+let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null, mResendIv=null, mPrevSnap=null, mSnapT=0, mPrevT=0, mTickMs=110, mRaf=null;
+function motionRAF(){ if(!mArena){ mRaf=null; return; }
+  const t = mSnapT ? Math.min(1,(performance.now()-mSnapT)/(mTickMs||110)) : 1;
+  drawMotion(t); mRaf=requestAnimationFrame(motionRAF); }
 function motionKey(e){
   const k=e.key; let d=null;
   if(k==='ArrowUp'||k==='w'||k==='W') d=0; else if(k==='ArrowRight'||k==='d'||k==='D') d=1;
@@ -486,13 +493,14 @@ function openMotion(file){
   closeMotion(true);
   mFile=file;
   mArena=Net.openArena(room.id, {
-    onState:(snap)=>{ mSnap=snap; drawMotion(); },
+    onState:(snap)=>{ mPrevSnap=mSnap; mSnap=snap; const now=performance.now(); if(mPrevT) mTickMs=Math.max(60,Math.min(300,now-mPrevT)); mPrevT=now; mSnapT=now; },
     onMeta:(m)=>onMotionMeta(m),
   });
   // resend the held direction so a dropped broadcast can't leave you stuck
   clearInterval(mResendIv); mResendIv=setInterval(()=>{ if(mArena&&me&&mDir!=null){ try{ mArena.sendInput({ id:me.id, dir:mDir }); }catch(e){} } }, 300);
+  cancelAnimationFrame(mRaf); motionRAF();   // smooth ~60fps interpolated render
 }
-function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } clearInterval(mResendIv); mResendIv=null; if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mDir=null; if(!keepUi) mUiFile=null; }
+function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } clearInterval(mResendIv); mResendIv=null; cancelAnimationFrame(mRaf); mRaf=null; if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mPrevSnap=null; mSnapT=0; mPrevT=0; mDir=null; if(!keepUi) mUiFile=null; }
 function sizeMotionCanvas(cv){ const w=cv.parentElement.getBoundingClientRect().width||320; cv.width=Math.floor(w); cv.height=Math.floor(w*0.62); }
 function renderMotion(file){
   openMotion(file);
@@ -518,8 +526,8 @@ function renderMotion(file){
   if(!mKeyBound){ document.addEventListener('keydown', motionKey); mKeyBound=true; }
   if(mSnap) drawMotion();
 }
-function drawMotion(){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
-  renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id });
+function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
+  renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id, prev:mPrevSnap, t:(t!=null?t:1) });
   const meP=mSnap.players.find(p=>p.id===me.id), mh=$('#mhead');
   if(mh){ mh.textContent = !meP ? Arena.motionTitle(mSnap.file)
     : meP.alive===false ? "You're out — cheer your team on!"

@@ -57,7 +57,9 @@ export function renderArena(ctx, snap, opts={}){
     ctx.arc(ox+q.x*cs+cs/2, oy+q.y*cs+cs/2, cs*0.32, 0, 7); ctx.fill();
     ctx.strokeStyle='#F2683C'; ctx.lineWidth=2; ctx.stroke(); }
 
-  // players
+  // players (smooth motion: interpolate head position between the previous and current tick)
+  const prevById={}; if(opts.prev&&opts.prev.players) opts.prev.players.forEach(pp=>prevById[pp.id]=pp);
+  const tt = (opts.t!=null)?opts.t:1;
   for(const p of snap.players){
     const isMe = p.id===meId;
     if(mode==='snake'){
@@ -72,7 +74,9 @@ export function renderArena(ctx, snap, opts={}){
       ctx.fillStyle='#1e1b26'; ctx.beginPath(); ctx.arc(cxp-cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.arc(cxp+cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.fill();
       if(isMe) drawMeMarker(ctx, ox+hx*cs+cs/2, oy+hy*cs+cs/2, cs);
     } else {
-      const px=ox+p.x*cs, py=oy+p.y*cs;
+      let rx=p.x, ry=p.y; const pp=prevById[p.id];
+      if(pp && p.alive){ rx=pp.x+(p.x-pp.x)*tt; ry=pp.y+(p.y-pp.y)*tt; }
+      const px=ox+rx*cs, py=oy+ry*cs;
       if(!p.alive){ ctx.globalAlpha=0.5; ctx.font=`${Math.floor(cs*0.8)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText('💥',px+cs/2,py+cs*0.55); ctx.globalAlpha=1; continue; }
       ctx.fillStyle=p.color; rr(ctx,px+1,py+1,cs-2,cs-2,cs*0.4); ctx.fill();
