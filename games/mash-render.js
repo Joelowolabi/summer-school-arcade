@@ -19,13 +19,19 @@ export function renderBalloon(ctx, snap, opts={}){
   const W=ctx.canvas.width, H=ctx.canvas.height, meId=opts.meId;
   ctx.clearRect(0,0,W,H); ctx.fillStyle=opts.dark?'#241b3a':'#efeafc'; ctx.fillRect(0,0,W,H);
   const ps=snap.players, n=ps.length;
-  if(opts.solo){ // player device: one big balloon + pops
+  if(opts.solo){ // player device: one big balloon, pop count from server, fill predicted locally
     const me=ps.find(p=>p.id===meId)||ps[0]; if(!me) return;
-    const f=Math.min(1, me.fill/snap.target); const rad=Math.min(W,H)*0.16*(0.5+f*0.9);
-    balloon(ctx, W/2, H*0.5, rad, me.color, true);
+    const target=snap.target||20, fill=(opts.meFill!=null?opts.meFill:me.fill);
+    const f=Math.min(1, fill/target), cx=W/2, cy=H*0.56, ringR=Math.min(W,H)*0.36;
+    // progress ring (this balloon's fill toward a pop)
+    ctx.save(); ctx.lineCap='round'; ctx.lineWidth=Math.max(7,W*0.022);
+    ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.beginPath(); ctx.arc(cx,cy,ringR,0,7); ctx.stroke();
+    ctx.strokeStyle=me.color; ctx.beginPath(); ctx.arc(cx,cy,ringR,-Math.PI/2,-Math.PI/2+f*6.283); ctx.stroke(); ctx.restore();
+    balloon(ctx, cx, cy, Math.min(W,H)*0.2*(0.55+f*0.85), me.color, true);
     ctx.fillStyle=opts.dark?'#fff':'#1e1b26'; ctx.textAlign='center';
-    ctx.font=`700 ${Math.floor(H*0.12)}px Fredoka, sans-serif`; ctx.fillText(me.pops, W/2, H*0.2);
-    ctx.font=`600 ${Math.floor(H*0.05)}px Fredoka, sans-serif`; ctx.fillText('balloons popped', W/2, H*0.27);
+    ctx.font=`800 ${Math.floor(H*0.17)}px Fredoka, sans-serif`; ctx.fillText(me.pops, cx, H*0.2);
+    ctx.fillStyle=opts.dark?'rgba(255,255,255,.72)':'#565165'; ctx.font=`700 ${Math.floor(H*0.05)}px Fredoka, sans-serif`;
+    ctx.fillText('POPPED — keep tapping!', cx, H*0.27);
     return;
   }
   // display: grid of all balloons
@@ -45,18 +51,26 @@ export function renderTug(ctx, snap, opts={}){
   // win zones
   verts.forEach((v,t)=>{ ctx.beginPath(); ctx.arc(px(v),py(v),snap.winRadius*Math.min(W,H),0,7);
     ctx.fillStyle=shade(TC[t],0.35); ctx.globalAlpha=0.28; ctx.fill(); ctx.globalAlpha=1; });
-  // ropes knot->vertex (thickness by rate)
-  verts.forEach((v,t)=>{ const rate=(snap.rate&&snap.rate[t])||0; ctx.strokeStyle=TC[t];
-    ctx.lineWidth=4+Math.min(16,rate*3); ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(px(knot),py(knot)); ctx.lineTo(px(v),py(v)); ctx.stroke(); });
-  // team flags
-  verts.forEach((v,t)=>{ const x=px(v),y=py(v), R=Math.min(W,H)*0.075;
+  // ropes knot->vertex (thickness by rate; your team highlighted + glows on your pull)
+  verts.forEach((v,t)=>{ const rate=(snap.rate&&snap.rate[t])||0, mine=opts.myTeam===t;
+    ctx.strokeStyle=TC[t]; ctx.lineWidth=5+Math.min(16,rate*3)+(mine?4:0); ctx.lineCap='round';
+    if(mine && opts.pull){ ctx.shadowColor=TC[t]; ctx.shadowBlur=26*opts.pull; }
+    ctx.beginPath(); ctx.moveTo(px(knot),py(knot)); ctx.lineTo(px(v),py(v)); ctx.stroke(); ctx.shadowBlur=0; });
+  // arrow near the knot showing which way YOU pull (bigger as you tap)
+  if(opts.myTeam!=null && verts[opts.myTeam]){ const v=verts[opts.myTeam], kx0=px(knot),ky0=py(knot);
+    const ang=Math.atan2(py(v)-ky0,px(v)-kx0), boost=1+(opts.pull||0)*0.7, D=Math.min(W,H)*0.13*boost;
+    ctx.save(); ctx.translate(kx0+Math.cos(ang)*D, ky0+Math.sin(ang)*D); ctx.rotate(ang);
+    ctx.fillStyle='#FFD93B'; ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=1.5;
+    const s=Math.min(W,H)*0.03*boost; ctx.beginPath(); ctx.moveTo(-s,-s); ctx.lineTo(s*1.4,0); ctx.lineTo(-s,s); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  // team flags (your team bigger + gold ring)
+  verts.forEach((v,t)=>{ const x=px(v),y=py(v), mine=opts.myTeam===t, R=Math.min(W,H)*(mine?0.094:0.072);
     ctx.beginPath(); ctx.arc(x,y,R,0,7); ctx.fillStyle=TC[t]; ctx.fill();
-    if(opts.myTeam===t){ ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.stroke(); }
+    if(mine){ ctx.strokeStyle='#FFD93B'; ctx.lineWidth=6; ctx.stroke(); }
     ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.font=`700 ${Math.floor(R*0.55)}px Fredoka, sans-serif`; ctx.fillText(TN[t], x, y); });
-  // knot
-  const kx=px(knot), ky=py(knot), kr=Math.min(W,H)*0.045;
+    ctx.font=`700 ${Math.floor(R*0.5)}px Fredoka, sans-serif`; ctx.fillText(TN[t], x, y-(mine?R*0.18:0));
+    if(mine){ ctx.font=`700 ${Math.floor(R*0.34)}px Fredoka, sans-serif`; ctx.fillText('(you)', x, y+R*0.4); } });
+  // knot (bigger, clearer)
+  const kx=px(knot), ky=py(knot), kr=Math.min(W,H)*0.055;
   ctx.beginPath(); ctx.arc(kx,ky,kr,0,7); ctx.fillStyle='#FFD93B'; ctx.fill();
   ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.stroke();
   ctx.font=`${Math.floor(kr*1.1)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪢', kx, ky+1);

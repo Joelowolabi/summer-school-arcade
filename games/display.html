@@ -380,8 +380,8 @@ async function runMotionGame(file){
     renderArena(ctx, Arena.snapshot(game), { dark:true });
     await wait(1000); }
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode });
-  // main tick loop
-  const TICK=120;
+  // main tick loop — snappier; maze a touch faster since it's pure navigation
+  const TICK = game.mode==='maze' ? 95 : 105;
   await new Promise(res=>{ const iv=setInterval(()=>{
     if(drivenGame!==file){ clearInterval(iv); return res(); }
     Arena.step(game); const snap=Arena.snapshot(game);

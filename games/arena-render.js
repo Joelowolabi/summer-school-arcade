@@ -12,6 +12,19 @@ function shade(hex, f){ // lighten(+)/darken(-) a hex colour
   return `rgb(${r|0},${g|0},${b|0})`;
 }
 
+// bright pulsing marker on the local player's own character (yellow stands out from team colours)
+function drawMeMarker(ctx, cx, cy, cs){
+  const t=Date.now()/1000, pulse=1+0.15*Math.sin(t*6);
+  ctx.save();
+  ctx.strokeStyle='#FFD93B'; ctx.lineWidth=Math.max(3,cs*0.16); ctx.shadowColor='#FFD93B'; ctx.shadowBlur=cs*0.6;
+  ctx.beginPath(); ctx.arc(cx,cy,cs*0.66*pulse,0,7); ctx.stroke(); ctx.shadowBlur=0;
+  const bob=Math.abs(Math.sin(t*4))*cs*0.2, ay=cy-cs*0.9-bob;
+  ctx.fillStyle='#FFD93B'; ctx.beginPath(); ctx.moveTo(cx-cs*0.32,ay-cs*0.28); ctx.lineTo(cx+cs*0.32,ay-cs*0.28); ctx.lineTo(cx,ay+cs*0.08); ctx.closePath();
+  ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=Math.max(1.5,cs*0.05); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#FFD93B'; ctx.font=`800 ${Math.max(12,Math.floor(cs*0.6))}px Fredoka, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('YOU', cx, ay-cs*0.34);
+  ctx.restore();
+}
 export function renderArena(ctx, snap, opts={}){
   const { cols, rows, mode } = snap;
   const W=ctx.canvas.width, H=ctx.canvas.height;
@@ -57,7 +70,7 @@ export function renderArena(ctx, snap, opts={}){
       const e=cs*0.13, cxp=ox+hx*cs+cs/2, cyp=oy+hy*cs+cs/2;
       ctx.beginPath(); ctx.arc(cxp-cs*0.16,cyp-cs*0.05,e,0,7); ctx.arc(cxp+cs*0.16,cyp-cs*0.05,e,0,7); ctx.fill();
       ctx.fillStyle='#1e1b26'; ctx.beginPath(); ctx.arc(cxp-cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.arc(cxp+cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.fill();
-      if(isMe){ ctx.strokeStyle='#fff'; ctx.lineWidth=3; rr(ctx,ox+hx*cs+1,oy+hy*cs+1,cs-2,cs-2,cs*0.35); ctx.stroke(); }
+      if(isMe) drawMeMarker(ctx, ox+hx*cs+cs/2, oy+hy*cs+cs/2, cs);
     } else {
       const px=ox+p.x*cs, py=oy+p.y*cs;
       if(!p.alive){ ctx.globalAlpha=0.5; ctx.font=`${Math.floor(cs*0.8)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -65,10 +78,7 @@ export function renderArena(ctx, snap, opts={}){
       ctx.fillStyle=p.color; rr(ctx,px+1,py+1,cs-2,cs-2,cs*0.4); ctx.fill();
       ctx.fillStyle=shade(p.color,0.35); rr(ctx,px+cs*0.24,py+cs*0.18,cs*0.52,cs*0.34,cs*0.2); ctx.fill(); // glossy highlight
       if(p.finished){ ctx.font=`${Math.floor(cs*0.7)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⭐',px+cs/2,py+cs*0.55); }
-      if(isMe){ ctx.strokeStyle='#fff'; ctx.lineWidth=3; rr(ctx,px+1,py+1,cs-2,cs-2,cs*0.4); ctx.stroke();
-        // name tag over me
-        ctx.fillStyle='#fff'; ctx.font=`700 ${Math.max(11,Math.floor(cs*0.42))}px Fredoka, sans-serif`; ctx.textAlign='center';
-        ctx.fillText('you', px+cs/2, py-4); }
+      if(isMe) drawMeMarker(ctx, px+cs/2, py+cs/2, cs);
     }
   }
 }

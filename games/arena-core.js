@@ -70,7 +70,7 @@ function spawnSpots(s, n){
 
 export function createGame(file, roster, opts={}){
   const mode=motionMode(file);
-  const cols=opts.cols|| (mode==='maze'?31:40), rows=opts.rows|| (mode==='maze'?21:24);
+  const cols=opts.cols|| (mode==='maze'?21:40), rows=opts.rows|| (mode==='maze'?13:24);
   const s={ mode, file, cols, rows, tick:0, over:false, winner:null, msg:'',
     maxTicks: opts.maxTicks || (mode==='maze'?900:mode==='paint'?460:900),
     cells:new Int16Array(cols*rows), walls:new Uint8Array(cols*rows),

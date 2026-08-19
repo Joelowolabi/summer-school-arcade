@@ -389,7 +389,7 @@ function renderLive(live){
   }
 }
 /* ---- real-time motion controller (player = input + renderer) ---- */
-let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null;
+let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null, mResendIv=null;
 function motionKey(e){
   const k=e.key; let d=null;
   if(k==='ArrowUp'||k==='w'||k==='W') d=0; else if(k==='ArrowRight'||k==='d'||k==='D') d=1;
@@ -405,8 +405,10 @@ function openMotion(file){
     onState:(snap)=>{ mSnap=snap; drawMotion(); },
     onMeta:(m)=>onMotionMeta(m),
   });
+  // resend the held direction so a dropped broadcast can't leave you stuck
+  clearInterval(mResendIv); mResendIv=setInterval(()=>{ if(mArena&&me&&mDir!=null){ try{ mArena.sendInput({ id:me.id, dir:mDir }); }catch(e){} } }, 300);
 }
-function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mDir=null; if(!keepUi) mUiFile=null; }
+function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } clearInterval(mResendIv); mResendIv=null; if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mDir=null; if(!keepUi) mUiFile=null; }
 function sizeMotionCanvas(cv){ const w=cv.parentElement.getBoundingClientRect().width||320; cv.width=Math.floor(w); cv.height=Math.floor(w*0.62); }
 function renderMotion(file){
   openMotion(file);
@@ -449,9 +451,13 @@ function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':(m.msg||'Finished!')}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
 /* ---- mash controller (Balloon Pop Race, Tug of War) ---- */
-let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false;
+let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kTugPulse=0;
 function mashKeydown(e){ if(e.key===' '||e.key==='Spacebar'){ e.preventDefault(); mashTap(); } }
-function mashTap(){ kTaps++; }
+function mashTap(){ kTaps++;
+  const btn=$('#ktap'); if(btn){ btn.style.transform='scale(.93)'; setTimeout(()=>{ if($('#ktap')) $('#ktap').style.transform=''; },70); }
+  if(kKind==='balloon' && kSnap){ const target=kSnap.target||20; kLocalFill=(kLocalFill+1)%target; drawMash(); }   // instant local inflate
+  else if(kKind==='tug'){ kTugPulse=Date.now(); drawMash(); }                                                       // instant pull flash
+}
 function openMash(file){
   if(kArena && kFile===file) return;
   closeMash(true);
@@ -483,8 +489,9 @@ function renderMash(file){
 }
 function drawMash(){ const cv=$('#kcanvas'); if(!cv||!kSnap) return;
   const ctx=cv.getContext('2d');
-  if(kKind==='balloon') renderBalloon(ctx, kSnap, { dark:true, meId:me.id, solo:true });
-  else renderTug(ctx, kSnap, { dark:true, myTeam:(players.find(p=>p.id===me.id)||{}).team });
+  if(kKind==='balloon') renderBalloon(ctx, kSnap, { dark:true, meId:me.id, solo:true, meFill:kLocalFill });
+  else { const myT=(players.find(p=>p.id===me.id)||{}).team; const pull=Math.max(0,1-(Date.now()-kTugPulse)/240);
+    renderTug(ctx, kSnap, { dark:true, myTeam:myT, pull }); }
   const kh=$('#khead');
   if(kh){ if(kKind==='balloon'){ const me2=kSnap.players.find(p=>p.id===me.id);
       kh.textContent = me2 ? `You've popped ${me2.pops} · ${kSnap.remain}s left` : Mash.mashTitle(kFile); }
@@ -494,7 +501,7 @@ function drawMash(){ const cv=$('#kcanvas'); if(!cv||!kSnap) return;
 function onMashMeta(m){ const ov=$('#koverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`; }
-  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; kTaps=0; }
+  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; kTaps=0; kLocalFill=0; }
   else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':'Finished!'}</div><div class="mo-h">${m.msg||''}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
