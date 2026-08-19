@@ -32,7 +32,7 @@ export function snapshotBalloon(s){ return { kind:'balloon', target:s.target, ov
 export function createTug(roster, opts={}){
   const s={ kind:'tug', over:false, winner:null,
     knot:{ x:0.5, y:0.52 },
-    verts:[{x:0.5,y:0.13},{x:0.14,y:0.88},{x:0.86,y:0.88}],  // team 0 top, 1 lower-left, 2 lower-right
+    verts:[{x:0.5,y:0.2},{x:0.2,y:0.8},{x:0.8,y:0.8}],  // team 0 top, 1 lower-left, 2 lower-right — inset from the frame
     recent:{0:[],1:[],2:[]}, teamPlayers:[0,0,0], rate:[0,0,0], winRadius:0.13,
     dur:opts.dur||45000, startAt:0, endsAt:0,
     players:{}, ids:[], startAt:0 };

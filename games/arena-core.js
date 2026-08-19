@@ -70,19 +70,21 @@ function spawnSpots(s, n){
 
 export function createGame(file, roster, opts={}){
   const mode=motionMode(file);
-  const cols=opts.cols|| (mode==='maze'?21:40), rows=opts.rows|| (mode==='maze'?13:24);
+  const cols=opts.cols|| (mode==='maze'?31:40), rows=opts.rows|| (mode==='maze'?19:24);
   const s={ mode, file, cols, rows, tick:0, over:false, winner:null, msg:'',
-    maxTicks: opts.maxTicks || (mode==='maze'?900:mode==='paint'?460:900),
+    maxTicks: opts.maxTicks || (mode==='maze'?1400:mode==='paint'?460:900),
     cells:new Int16Array(cols*rows), walls:new Uint8Array(cols*rows),
     exit:null, pellets:[], players:{}, ids:[] };
-  if(mode==='maze'){ s.walls=buildMaze(cols,rows,opts.seed); s.exit={x:cols-2,y:rows-2}; s.walls[idx(s,s.exit.x,s.exit.y)]=0; }
+  let mazeDir=1;
+  if(mode==='maze'){ s.walls=buildMaze(cols,rows,opts.seed); s.exit={x:cols-2,y:rows-2}; s.walls[idx(s,s.exit.x,s.exit.y)]=0;
+    for(let d=0;d<4;d++){ const [dx,dy]=DIRS[d]; if(inb(s,1+dx,1+dy) && !s.walls[idx(s,1+dx,1+dy)]){ mazeDir=d; break; } } }  // face an open corridor from the mouth
   const spots=spawnSpots(s, roster.length);
   roster.forEach((p,i)=>{
     const sp=spots[i]||{x:1,y:1,dir:1};
-    let x=sp.x,y=sp.y;
-    if(mode==='maze'){ x=1; y=1; }                 // everyone starts at the maze mouth
+    let x=sp.x,y=sp.y, dir0=sp.dir;
+    if(mode==='maze'){ x=1; y=1; dir0=mazeDir; }   // everyone starts at the maze mouth, already facing an open path
     const P={ id:p.id, i:i+1, name:p.name, team:p.team, color:p.color||teamColor(p.team),
-      x, y, dir:sp.dir, ndir:sp.dir, alive:true, score:0, finished:false, rank:0, body:[], grow:0 };
+      x, y, dir:dir0, ndir:dir0, alive:true, score:0, finished:false, rank:0, body:[], grow:0 };
     if(mode==='snake'){ P.body=[{x,y}]; const [dx,dy]=DIRS[OPP(sp.dir)]; for(let b=1;b<3;b++){ const bx=x+dx*b,by=y+dy*b; if(inb(s,bx,by)) P.body.push({x:bx,y:by}); } P.score=P.body.length; }
     if(mode==='paint'||mode==='trail'){ if(inb(s,x,y)) s.cells[idx(s,x,y)]=P.i; }
     s.players[p.id]=P; s.ids.push(p.id);

@@ -53,8 +53,8 @@ export function renderTug(ctx, snap, opts={}){
     ctx.fillStyle=shade(TC[t],0.35); ctx.globalAlpha=0.28; ctx.fill(); ctx.globalAlpha=1; });
   // ropes knot->vertex (thickness by rate; your team highlighted + glows on your pull)
   verts.forEach((v,t)=>{ const rate=(snap.rate&&snap.rate[t])||0, mine=opts.myTeam===t;
-    ctx.strokeStyle=TC[t]; ctx.lineWidth=5+Math.min(16,rate*3)+(mine?4:0); ctx.lineCap='round';
-    if(mine && opts.pull){ ctx.shadowColor=TC[t]; ctx.shadowBlur=26*opts.pull; }
+    ctx.strokeStyle=TC[t]; ctx.lineWidth=3+Math.min(9,rate*2.2)+(mine?2:0); ctx.lineCap='round';
+    if(mine && opts.pull){ ctx.shadowColor=TC[t]; ctx.shadowBlur=22*opts.pull; }
     ctx.beginPath(); ctx.moveTo(px(knot),py(knot)); ctx.lineTo(px(v),py(v)); ctx.stroke(); ctx.shadowBlur=0; });
   // arrow near the knot showing which way YOU pull (bigger as you tap)
   if(opts.myTeam!=null && verts[opts.myTeam]){ const v=verts[opts.myTeam], kx0=px(knot),ky0=py(knot);

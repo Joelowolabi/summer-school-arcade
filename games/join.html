@@ -526,7 +526,7 @@ function renderLive(live){
   }
 }
 /* ---- real-time motion controller (player = input + renderer) ---- */
-let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null, mResendIv=null, mPrevSnap=null, mSnapT=0, mPrevT=0, mTickMs=110, mRaf=null;
+let mArena=null, mFile=null, mSnap=null, mDir=null, mKeyBound=false, mUiFile=null, mResendIv=null, mPrevSnap=null, mSnapT=0, mPrevT=0, mTickMs=110, mRaf=null, mOvTO=null;
 function motionRAF(){ if(!mArena){ mRaf=null; return; }
   const t = mSnapT ? Math.min(1,(performance.now()-mSnapT)/(mTickMs||110)) : 1;
   drawMotion(t); mRaf=requestAnimationFrame(motionRAF); }
@@ -585,13 +585,14 @@ function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
 function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):('you: '+p.score); }
 function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
-    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`; }
-  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; mDir=null; }
+    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`;
+    clearTimeout(mOvTO); mOvTO=setTimeout(()=>{ const o=$('#moverlay'); if(o && o.dataset.state==='count'){ o.style.display='none'; o.dataset.state=''; } }, 3000); }  // safety: never stay stuck on the countdown
+  else if(m.kind==='go'){ clearTimeout(mOvTO); ov.dataset.state=''; ov.style.display='none'; mDir=null; }
   else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':(m.msg||'Finished!')}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
 /* ---- mash controller (Balloon Pop Race, Tug of War) ---- */
-let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kTugPulse=0;
+let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kTugPulse=0, kOvTO=null;
 function mashKeydown(e){ if(e.key===' '||e.key==='Spacebar'){ e.preventDefault(); mashTap(); } }
 function mashTap(){ kTaps++;
   const btn=$('#ktap'); if(btn){ btn.style.transform='scale(.93)'; setTimeout(()=>{ if($('#ktap')) $('#ktap').style.transform=''; },70); }
@@ -641,8 +642,9 @@ function drawMash(){ const cv=$('#kcanvas'); if(!cv||!kSnap) return;
 }
 function onMashMeta(m){ const ov=$('#koverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
-    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`; }
-  else if(m.kind==='go'){ ov.dataset.state=''; ov.style.display='none'; kTaps=0; kLocalFill=0; }
+    ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`;
+    clearTimeout(kOvTO); kOvTO=setTimeout(()=>{ const o=$('#koverlay'); if(o && o.dataset.state==='count'){ o.style.display='none'; o.dataset.state=''; } }, 3000); }
+  else if(m.kind==='go'){ clearTimeout(kOvTO); ov.dataset.state=''; ov.style.display='none'; kTaps=0; kLocalFill=0; }
   else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':'Finished!'}</div><div class="mo-h">${m.msg||''}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
@@ -822,7 +824,7 @@ function renderWordChain(live){
   }
   const chain=live.chain||[]; const cm=$('#wcchain'); if(cm) cm.innerHTML=chain.map(w=>`<span>${w}</span>`).join('');
   const nl=$('#wcneed'); if(nl) nl.innerHTML=`next word starts with <b>${(live.need||'').toUpperCase()}</b>`;
-  const msg=$('#wcmsg'); if(msg && live.lastScorer) msg.textContent='✅ '+live.lastScorer+' scored "'+chain[chain.length-1]+'"';
+  const msg=$('#wcmsg'); if(msg){ if(live.note) msg.textContent=live.note; else if(live.lastScorer) msg.textContent='✅ '+live.lastScorer+' scored "'+chain[chain.length-1]+'"'; else msg.textContent='Type the fastest valid word!'; }
 }
 /* --- Copycat (player) --- */
 function padGrid(disabled){ return `<div class="socpads">${Social.COPY_COLORS.map((c,i)=>`<button class="socpad" data-i="${i}" style="background:${c}" ${disabled?'disabled':''}></button>`).join('')}</div>`; }

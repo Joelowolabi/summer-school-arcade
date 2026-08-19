@@ -166,6 +166,7 @@ const $=s=>document.querySelector(s);
 const qp=new URLSearchParams(location.search);
 let room=null, players=[], drivenGame=null;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const activeCount=()=>players.filter(p=>p.connected).length;   // players actually present (for "everyone answered" early-finish)
 
 async function boot(){
   const code=(qp.get('code')||'').toUpperCase();
@@ -334,7 +335,7 @@ async function runLiveGame(game){
       await wait(1000);
       let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).length; }catch(e){}
       dispQuestion(game, round, N, q, n, Math.max(0,Math.ceil((QT-(Date.now()-start))/1000)));
-      if(players.length>0 && n>=players.length) break;
+      if(activeCount()>0 && n>=activeCount()) break;
     }
     if(drivenGame!==game) return;
     // resolve against authoritative server-time order
@@ -398,8 +399,9 @@ async function runMotionGame(file){
     renderArena(ctx, Arena.snapshot(game), { dark:true });
     await wait(1000); }
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode });
+  try{ arena.sendState(Arena.snapshot(game)); }catch(e){}   // immediate first frame so devices leave the countdown
   // step + broadcast at the tick rate; render interpolated at ~60fps for smooth motion
-  const TICK = game.mode==='maze' ? 95 : 105;
+  const TICK = game.mode==='trail' ? 82 : game.mode==='maze' ? 90 : 100;
   let prevSnap=Arena.snapshot(game), curSnap=prevSnap, stepT=performance.now(), raf=0, running=true;
   const frame=()=>{ if(!running) return; const t=Math.min(1,(performance.now()-stepT)/TICK);
     renderArena(ctx, curSnap, { dark:true, prev:prevSnap, t }); raf=requestAnimationFrame(frame); };
@@ -445,7 +447,8 @@ async function runMashGame(file){
     draw(snap()); await wait(1000); }
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:kind });
   if(kind==='balloon') Mash.startBalloon(game); else Mash.startTug(game);
-  const TICK=110;
+  try{ arena.sendState(snap()); }catch(e){}   // immediate first frame so devices leave the countdown
+  const TICK=100;
   await new Promise(res=>{ const iv=setInterval(()=>{
     if(drivenGame!==file){ clearInterval(iv); return res(); }
     if(kind==='balloon') Mash.stepBalloon(game); else Mash.stepTug(game);
@@ -526,7 +529,7 @@ async function runStudioGame(file){
     const n=Object.keys(works).length, secs=Math.ceil((mEnd-Date.now())/1000);
     $('#ahud').innerHTML=`<span class="atitle">${Studio.studioTitle(file)}</span><span class="aspacer"></span><span class="achip"><b style="color:var(--accent-sun)">${n}</b> / ${players.length} made</span><span class="achip">⏱ ${secs}s</span>`;
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${kind==='monster'?'Build:':'Draw:'} ${prompt}</div><div class="ap">Create it on your device — hit Submit when you're happy!</div></div>`;
-    if(players.length>0 && n>=players.length) break;
+    if(activeCount()>0 && n>=activeCount()) break;
     await wait(1200);
   }
   if(drivenGame!==file) return;
@@ -631,7 +634,7 @@ async function runSpy(file){
     const n=Object.keys(works).length, secs=Math.ceil((cEnd-Date.now())/1000);
     $('#stage').innerHTML=`<div class="social"><div class="shead"><span class="stitle">🕵️ Secret Spy</span><span class="achip">Topic: ${topic.cat}</span><span class="aspacer"></span><span class="achip"><b style="color:var(--accent-sun)">${n}</b>/${players.length} clues</span><span class="achip">⏱ ${secs}s</span></div>
       <div class="acount" style="position:static;flex:1"><div class="ah">Give a one-word clue on your device</div><div class="ap">Most of you share a secret word… a few are spies trying to blend in!</div></div></div>`;
-    if(n>=players.length) break; await wait(1500);
+    if(n>=activeCount()) break; await wait(1500);
   }
   if(drivenGame!==file) return closeArena();
   const clues=await Net.readWorks(room.id, round, file);
@@ -670,20 +673,21 @@ async function runWordChain(file){
       <div class="chain">${chain.map((w,i)=>`<span class="wchip ${i===chain.length-1?'newest':''}">${w}</span>`).join('')}</div>
       <div class="acount" style="position:static;flex:0"><div class="ap">${scorer?`✅ <b>${scorer}</b> scored with "${chain[chain.length-1]}"`:'Type the fastest valid word on your device!'}</div></div></div></div>`; };
   for(let link=1; link<=LINKS; link++){ if(drivenGame!==file) return;
-    const letter=chain[chain.length-1].slice(-1); const LW=9000, lEnd=Date.now()+LW;
+    const letter=chain[chain.length-1].slice(-1); const LW=8000, lEnd=Date.now()+LW;
     await setLive({ family:'wordchain', game:file, phase:'play', chain, need:letter, link, total:LINKS, endsAt:lEnd });
     let accepted=null;
     while(Date.now()<lEnd && !accepted){ if(drivenGame!==file) return;
       let guesses=[]; try{ guesses=await Net.readGuesses(room.id, link, file); }catch(e){}
       for(const g of guesses){ if(Social.validChainWord(g.payload.text, letter, used)){ accepted={ word:Social.normWord(g.payload.text), by:g.player_id }; break; } }
-      drawChain(letter, link, Math.ceil((lEnd-Date.now())/1000), null); await wait(500);
+      drawChain(letter, link, Math.ceil((lEnd-Date.now())/1000), null); await wait(300);
     }
     if(accepted){ chain.push(accepted.word); used.add(accepted.word); try{ await Net.addPoints(accepted.by, 6); }catch(e){}
       const by=players.find(p=>p.id===accepted.by);
       await setLive({ family:'wordchain', game:file, phase:'play', chain, need:accepted.word.slice(-1), link, total:LINKS, lastScorer:by?by.name:'', endsAt:0 });
-      drawChain(accepted.word.slice(-1), link, 0, by?by.name:'someone'); await wait(1700);
-    } else { const filler=Social.CHAIN_STARTERS.find(w=>w[0]===letter&&!used.has(w))||Social.chainStart();
-      chain.push(filler); used.add(filler); drawChain(filler.slice(-1), link, 0, '—'); await wait(1300); }
+      drawChain(accepted.word.slice(-1), link, 0, by?by.name:'someone'); await wait(1200);
+    } else { const fresh=Social.chainStart(); chain.push(fresh); used.add(fresh);   // nobody got it — a clearly-labelled fresh word, not attributed to any player
+      await setLive({ family:'wordchain', game:file, phase:'play', chain, need:fresh.slice(-1), link, total:LINKS, note:'⏭ Nobody got it — fresh word!', endsAt:0 });
+      drawChain(fresh.slice(-1), link, 0, 'nobody — fresh word!'); await wait(1400); }
   }
   await setLive({ family:'wordchain', game:file, phase:'done', chain });
   players=await Net.listPlayers(room.id);
