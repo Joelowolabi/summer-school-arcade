@@ -9,7 +9,15 @@
 <link rel="stylesheet" href="arcade.css">
 <style>
   body{overflow:hidden}
-  .screen{height:100dvh;display:flex;flex-direction:column;padding:26px 34px;gap:22px}
+  /* ambient light so the projector never looks empty */
+  .screen{height:100dvh;display:flex;flex-direction:column;padding:26px 34px;gap:22px;position:relative}
+  .screen::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(720px 520px at 10% 18%, rgba(255,255,255,.12), transparent 68%),
+              radial-gradient(620px 480px at 90% 88%, rgba(255,217,59,.10), transparent 68%),
+              radial-gradient(520px 420px at 78% 12%, rgba(242,104,60,.09), transparent 70%);}
+  .topbar,.stage{position:relative;z-index:1}
+  .lrow.ghost{opacity:.5;background:rgba(255,255,255,.045)}
+  .lrow.ghost .av{background:rgba(255,255,255,.08)!important} .lrow.ghost .nm,.lrow.ghost .pt{opacity:.5}
   .topbar{display:flex;align-items:center;gap:18px;color:#fff}
   .brandlogo{height:52px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.22))}
   .topbar .grow{flex:1}
@@ -229,7 +237,7 @@ function renderGame(){
       <div class="nowcard">
         <div class="nowhead"><img class="nowicon" src="assets/games/${(room.current_game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'')}.png" alt="" onerror="this.style.display='none'"><div><div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div><h1>${Net.gameLabel(room.current_game)}</h1></div></div>
         <div class="llist">${sorted.map((p,i)=>`
-          <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}</div>
+          <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}${Array.from({length:Math.max(0,8-sorted.length)}).map((_,i)=>`<div class="lrow ghost"><span class="rk">${sorted.length+i+1}</span><span class="av"></span><span class="nm">open seat</span><span class="pt">·</span></div>`).join('')}</div>
       </div>
       <div class="teamsbig">${mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':''}${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}</div>
     </div>`;
@@ -456,17 +464,28 @@ function galleryLayout(ctx, count){ const W=ctx.canvas.width, H=ctx.canvas.heigh
 function drawGallery(ctx, entries, opts={}){
   const {W,H,cols,cw,chh}=galleryLayout(ctx, Math.max(1,entries.length));
   ctx.clearRect(0,0,W,H); ctx.fillStyle='#241b3a'; ctx.fillRect(0,0,W,H);
-  entries.forEach((e,i)=>{ const gx=(i%cols)*cw, gy=Math.floor(i/cols)*chh, pad=8;
+  entries.forEach((e,i)=>{ const gx=(i%cols)*cw, gy=Math.floor(i/cols)*chh, pad=Math.min(cw,chh)*0.07;
     const win = e.playerId===opts.winnerId;
-    ctx.fillStyle = win? 'rgba(255,217,59,.18)' : 'rgba(255,255,255,.06)';
-    ctx.strokeStyle = win? '#FFD93B' : 'rgba(255,255,255,.14)'; ctx.lineWidth=win?4:1.5;
-    const bx=gx+pad, by=gy+pad, bw=cw-pad*2, bh=chh-pad*2-18; roundRect(ctx,bx,by,bw,bh,14); ctx.fill(); ctx.stroke();
-    if(e.mon){ renderMonster(ctx, bx+bw/2, by+bh/2, Math.min(bw,bh)*0.78, e.mon); }
-    else if(e._img && e._img.complete && e._img.width){ const s=Math.min(bw/e._img.width, bh/e._img.height)*0.92;
-      const dw=e._img.width*s, dh=e._img.height*s; ctx.drawImage(e._img, bx+(bw-dw)/2, by+(bh-dh)/2, dw, dh); }
-    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.font=`700 ${Math.max(12,Math.floor(chh*0.11))}px Fredoka, sans-serif`;
-    const tag = (opts.showVotes && e.votes!=null) ? `${e.name} · ${e.votes}★` : `#${i+1} ${e.name}`;
-    ctx.fillText(tag, gx+cw/2, gy+chh-8); });
+    const bx=gx+pad, by=gy+pad, bw=cw-pad*2, bh=chh-pad*2, r=Math.min(bw,bh)*0.09;
+    // card with shadow + gradient
+    ctx.save(); ctx.shadowColor='rgba(0,0,0,.4)'; ctx.shadowBlur=20; ctx.shadowOffsetY=7;
+    const g=ctx.createLinearGradient(bx,by,bx,by+bh);
+    g.addColorStop(0, win?'rgba(255,217,59,.26)':'rgba(255,255,255,.13)'); g.addColorStop(1, win?'rgba(255,217,59,.08)':'rgba(255,255,255,.05)');
+    ctx.fillStyle=g; roundRect(ctx,bx,by,bw,bh,r); ctx.fill(); ctx.restore();
+    ctx.strokeStyle=win?'#FFD93B':'rgba(255,255,255,.2)'; ctx.lineWidth=win?6:2; roundRect(ctx,bx,by,bw,bh,r); ctx.stroke();
+    const plateH=Math.max(30,bh*0.17), artCY=by+(bh-plateH)/2+plateH*0.1, artSize=Math.min(bw*0.82,(bh-plateH)*0.86);
+    if(e.mon){ renderMonster(ctx, bx+bw/2, artCY, artSize, e.mon); }
+    else if(e._img && e._img.complete && e._img.width){ const s=Math.min(bw*0.84/e._img.width,(bh-plateH)*0.82/e._img.height);
+      const dw=e._img.width*s, dh=e._img.height*s;
+      ctx.save(); ctx.fillStyle='#fff'; roundRect(ctx,bx+(bw-dw)/2-6,artCY-dh/2-6,dw+12,dh+12,10); ctx.fill(); ctx.restore();  // white mat for doodles
+      ctx.drawImage(e._img, bx+(bw-dw)/2, artCY-dh/2, dw, dh); }
+    if(win){ ctx.font=`${Math.floor(plateH*1.15)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillText('👑', bx+bw/2, by+plateH*0.95); }
+    // name plate
+    const pw=bw*0.88, pxx=bx+(bw-pw)/2, pyy=by+bh-plateH-8;
+    ctx.fillStyle='rgba(30,27,38,.55)'; roundRect(ctx,pxx,pyy,pw,plateH,plateH/2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`700 ${Math.max(13,Math.floor(plateH*0.42))}px Fredoka, sans-serif`;
+    const tag = (opts.showVotes && e.votes!=null) ? `${e.name}  ·  ${e.votes}★` : e.name;
+    ctx.fillText(tag, bx+bw/2, pyy+plateH/2+1); ctx.textBaseline='alphabetic'; });
 }
 function roundRect(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
