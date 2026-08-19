@@ -109,8 +109,11 @@ export async function submitAnswer(roomId, playerId, game, round, choice){
   await sb.from('events').insert({ room_id:roomId, player_id:playerId, game, kind:'answer', payload:{ round, choice } });
 }
 // display reads all answers for a round, ordered by authoritative server time (= speed order)
-export async function readAnswers(roomId, round){
-  const { data } = await sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','answer').order('server_ts',{ascending:true});
+// `game` scopes reads to the current game so round numbers don't collide across a session
+export async function readAnswers(roomId, round, game){
+  let q = sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','answer');
+  if(game) q = q.eq('game', game);
+  const { data } = await q.order('server_ts',{ascending:true});
   const seen=new Set(); const out=[];
   (data||[]).forEach(e=>{ if(!e.payload || e.payload.round!==round) return; if(seen.has(e.player_id)) return; seen.add(e.player_id); out.push(e); });
   return out;   // first (earliest) answer per player, in speed order
@@ -120,22 +123,28 @@ export async function readAnswers(roomId, round){
 export async function submitWork(roomId, playerId, game, round, data){
   await sb.from('events').insert({ room_id:roomId, player_id:playerId, game, kind:'work', payload:{ round, data } });
 }
-export async function readWorks(roomId, round){
-  const { data } = await sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','work').order('server_ts',{ascending:true});
+export async function readWorks(roomId, round, game){
+  let q = sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','work');
+  if(game) q = q.eq('game', game);
+  const { data } = await q.order('server_ts',{ascending:true});
   const latest={}; (data||[]).forEach(e=>{ if(!e.payload||e.payload.round!==round) return; latest[e.player_id]=e.payload.data; });
   return latest;   // { playerId: data }
 }
 export async function castVote(roomId, playerId, game, round, target){
   await sb.from('events').insert({ room_id:roomId, player_id:playerId, game, kind:'studiovote', payload:{ round, target } });
 }
-export async function readVotes(roomId, round){
-  const { data } = await sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','studiovote').order('server_ts',{ascending:true});
+export async function readVotes(roomId, round, game){
+  let q = sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','studiovote');
+  if(game) q = q.eq('game', game);
+  const { data } = await q.order('server_ts',{ascending:true});
   const byVoter={}; (data||[]).forEach(e=>{ if(!e.payload||e.payload.round!==round) return; byVoter[e.player_id]=e.payload.target; }); // last vote per voter
   const tally={}; Object.values(byVoter).forEach(t=>{ if(t) tally[t]=(tally[t]||0)+1; });
   return tally;   // { targetPlayerId: voteCount }
 }
-export async function readVoteChoices(roomId, round){
-  const { data } = await sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','studiovote').order('server_ts',{ascending:true});
+export async function readVoteChoices(roomId, round, game){
+  let q = sb.from('events').select('player_id,payload,server_ts').eq('room_id',roomId).eq('kind','studiovote');
+  if(game) q = q.eq('game', game);
+  const { data } = await q.order('server_ts',{ascending:true});
   const byVoter={}; (data||[]).forEach(e=>{ if(!e.payload||e.payload.round!==round) return; byVoter[e.player_id]=e.payload.target; });
   return byVoter;   // { voterId: targetId } (last vote per voter)
 }

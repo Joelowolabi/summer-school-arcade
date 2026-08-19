@@ -11,8 +11,7 @@
   body{overflow:hidden}
   .screen{height:100dvh;display:flex;flex-direction:column;padding:26px 34px;gap:22px}
   .topbar{display:flex;align-items:center;gap:18px;color:#fff}
-  .topbar .brand{display:flex;align-items:center;gap:12px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2)}
-  .topbar .brand .spark{width:40px;height:40px;border-radius:99px;background:var(--accent-sun);display:flex;align-items:center;justify-content:center;color:var(--ink-900)}
+  .brandlogo{height:52px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.22))}
   .topbar .grow{flex:1}
   .codechip{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-pill);padding:10px 22px;font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:var(--fs-h2);letter-spacing:.1em;color:#fff}
   .codechip small{font-family:var(--font-core);font-size:var(--fs-body-s);letter-spacing:0;opacity:.75;font-weight:var(--fw-medium)}
@@ -126,7 +125,7 @@
 <body>
 <div class="screen">
   <div class="topbar">
-    <div class="brand"><span class="spark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span> Summer School Arcade</div>
+    <img class="brandlogo" src="../assets/logo-zappy.png" alt="Zappy">
     <div class="grow"></div>
     <div class="codechip" id="codechip"><small>Room</small> <span id="codeText">—</span></div>
   </div>
@@ -315,13 +314,13 @@ async function runLiveGame(game){
     while(Date.now()-start < QT){
       if(drivenGame!==game) return;
       await wait(1000);
-      let n=0; try{ n=(await Net.readAnswers(room.id, round)).length; }catch(e){}
+      let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).length; }catch(e){}
       dispQuestion(game, round, N, q, n, Math.max(0,Math.ceil((QT-(Date.now()-start))/1000)));
       if(players.length>0 && n>=players.length) break;
     }
     if(drivenGame!==game) return;
     // resolve against authoritative server-time order
-    const answers=await Net.readAnswers(room.id, round);
+    const answers=await Net.readAnswers(room.id, round, game);
     let note='';
     if(q.type==='vote'){
       const tally=[0,0]; answers.forEach(a=>{ const c=a.payload&&a.payload.choice; if(c===0||c===1) tally[c]++; });
@@ -480,7 +479,7 @@ async function runStudioGame(file){
   const MAKE=45000, mEnd=Date.now()+MAKE;
   await setLive({ family:'studio', kind, game:file, phase:'make', round, prompt, total:players.length, endsAt:mEnd });
   while(Date.now()<mEnd){ if(drivenGame!==file) return;
-    let works={}; try{ works=await Net.readWorks(room.id, round); }catch(e){}
+    let works={}; try{ works=await Net.readWorks(room.id, round, file); }catch(e){}
     const n=Object.keys(works).length, secs=Math.ceil((mEnd-Date.now())/1000);
     $('#ahud').innerHTML=`<span class="atitle">${Studio.studioTitle(file)}</span><span class="aspacer"></span><span class="achip"><b style="color:var(--accent-sun)">${n}</b> / ${players.length} made</span><span class="achip">⏱ ${secs}s</span>`;
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${kind==='monster'?'Build:':'Draw:'} ${prompt}</div><div class="ap">Create it on your device — hit Submit when you're happy!</div></div>`;
@@ -489,7 +488,7 @@ async function runStudioGame(file){
   }
   if(drivenGame!==file) return;
   // ---- VOTE ----
-  const works=await Net.readWorks(room.id, round);
+  const works=await Net.readWorks(room.id, round, file);
   const entries=players.filter(p=>works[p.id]!==undefined).map(p=>({ playerId:p.id, name:p.name,
     ...(kind==='monster'?{mon:works[p.id]}:{data:works[p.id]}) }));
   if(entries.length===0){ $('#acount').innerHTML=`<div class="acount"><div class="ah">No creations this time!</div><div class="ap">Waiting for the host…</div></div>`; driving=false; return; }
@@ -499,7 +498,7 @@ async function runStudioGame(file){
     entries: entries.map((e,i)=>({ n:i+1, playerId:e.playerId, name:e.name, ...(e.mon?{mon:e.mon}:{}) })), endsAt:vEnd });
   $('#acount').innerHTML='';
   while(Date.now()<vEnd){ if(drivenGame!==file) return;
-    let tally={}; try{ tally=await Net.readVotes(room.id, round); }catch(e){}
+    let tally={}; try{ tally=await Net.readVotes(room.id, round, file); }catch(e){}
     const cast=Object.values(tally).reduce((a,b)=>a+b,0), secs=Math.ceil((vEnd-Date.now())/1000);
     $('#ahud').innerHTML=`<span class="atitle">${Studio.studioTitle(file)} — Vote!</span><span class="aspacer"></span><span class="achip">🗳 ${cast} votes</span><span class="achip">⏱ ${secs}s</span>`;
     drawGallery(ctx, entries);
@@ -507,7 +506,7 @@ async function runStudioGame(file){
   }
   if(drivenGame!==file) return;
   // ---- RESULT ----
-  const tally=await Net.readVotes(room.id, round);
+  const tally=await Net.readVotes(room.id, round, file);
   entries.forEach(e=>e.votes=tally[e.playerId]||0);
   entries.sort((a,b)=>b.votes-a.votes);
   for(const e of entries){ try{ await Net.addPoints(e.playerId, 3 + e.votes*2); }catch(err){} }
@@ -549,7 +548,7 @@ async function runQuickDraw(file){
     const dEnd=Date.now()+DRAW; let solved=null, seen=new Set();
     while(Date.now()<dEnd && !solved){ if(drivenGame!==file) return closeArena();
       drawBoard(word, drawerP.name, Math.ceil((dEnd-Date.now())/1000));
-      let guesses=[]; try{ guesses=await Net.readGuesses(room.id, round); }catch(e){}
+      let guesses=[]; try{ guesses=await Net.readGuesses(room.id, round, file); }catch(e){}
       for(const g of guesses){ if(seen.has(g.player_id+g.server_ts)) continue; seen.add(g.player_id+g.server_ts);
         if(g.player_id!==curDrawer && norm(g.payload.text)===norm(word)){ solved=g.player_id; break; } }
       await wait(500);
@@ -584,26 +583,26 @@ async function runSpy(file){
   await setLive({ family:'spy', game:file, phase:'clue', category:topic.cat, round, total:players.length, endsAt:cEnd });
   while(Date.now()<cEnd){ if(drivenGame!==file) return closeArena();
     try{ arena.sendMeta(roleMsg); }catch(e){}
-    let works={}; try{ works=await Net.readWorks(room.id, round); }catch(e){}
+    let works={}; try{ works=await Net.readWorks(room.id, round, file); }catch(e){}
     const n=Object.keys(works).length, secs=Math.ceil((cEnd-Date.now())/1000);
     $('#stage').innerHTML=`<div class="social"><div class="shead"><span class="stitle">🕵️ Secret Spy</span><span class="achip">Topic: ${topic.cat}</span><span class="aspacer"></span><span class="achip"><b style="color:var(--accent-sun)">${n}</b>/${players.length} clues</span><span class="achip">⏱ ${secs}s</span></div>
       <div class="acount" style="position:static;flex:1"><div class="ah">Give a one-word clue on your device</div><div class="ap">Most of you share a secret word… a few are spies trying to blend in!</div></div></div>`;
     if(n>=players.length) break; await wait(1500);
   }
   if(drivenGame!==file) return closeArena();
-  const clues=await Net.readWorks(room.id, round);
+  const clues=await Net.readWorks(room.id, round, file);
   const entries=players.filter(p=>clues[p.id]!==undefined).map(p=>({ playerId:p.id, name:p.name, clue:clues[p.id], spy:spies.has(p.id) }));
   const VOTE=26000, vEnd=Date.now()+VOTE;
   await setLive({ family:'spy', game:file, phase:'vote', round, category:topic.cat, entries: entries.map(e=>({ playerId:e.playerId, name:e.name, clue:e.clue })), endsAt:vEnd });
   while(Date.now()<vEnd){ if(drivenGame!==file) return closeArena();
-    let tally={}; try{ tally=await Net.readVotes(room.id, round); }catch(e){}
+    let tally={}; try{ tally=await Net.readVotes(room.id, round, file); }catch(e){}
     const cast=Object.values(tally).reduce((a,b)=>a+b,0), secs=Math.ceil((vEnd-Date.now())/1000);
     $('#stage').innerHTML=`<div class="social"><div class="shead"><span class="stitle">🕵️ Who's the spy?</span><span class="aspacer"></span><span class="achip">🗳 ${cast} votes</span><span class="achip">⏱ ${secs}s</span></div>
       <div class="cluegrid">${entries.map(e=>`<div class="cluecard"><span class="cn">${e.name}</span><span class="cw">"${e.clue}"</span><span class="cn">${tally[e.playerId]||0} votes</span></div>`).join('')}</div></div>`;
     await wait(1200);
   }
   if(drivenGame!==file) return closeArena();
-  const tally=await Net.readVotes(room.id, round), choices=await Net.readVoteChoices(room.id, round);
+  const tally=await Net.readVotes(room.id, round, file), choices=await Net.readVoteChoices(room.id, round, file);
   let accused=null, mx=-1; entries.forEach(e=>{ const v=tally[e.playerId]||0; if(v>mx){ mx=v; accused=e; } });
   for(const voter in choices){ const t=choices[voter]; if(spies.has(t) && !spies.has(voter)){ try{ await Net.addPoints(voter, 8); }catch(e){} } }
   for(const sid of spies){ if(!accused || sid!==accused.playerId){ try{ await Net.addPoints(sid, 10); }catch(e){} } }
@@ -630,7 +629,7 @@ async function runWordChain(file){
     await setLive({ family:'wordchain', game:file, phase:'play', chain, need:letter, link, total:LINKS, endsAt:lEnd });
     let accepted=null;
     while(Date.now()<lEnd && !accepted){ if(drivenGame!==file) return;
-      let guesses=[]; try{ guesses=await Net.readGuesses(room.id, link); }catch(e){}
+      let guesses=[]; try{ guesses=await Net.readGuesses(room.id, link, file); }catch(e){}
       for(const g of guesses){ if(Social.validChainWord(g.payload.text, letter, used)){ accepted={ word:Social.normWord(g.payload.text), by:g.player_id }; break; } }
       drawChain(letter, link, Math.ceil((lEnd-Date.now())/1000), null); await wait(500);
     }
@@ -665,12 +664,12 @@ async function runCopycat(file){
     const IN=Math.max(6000, seq.length*1400), iEnd=Date.now()+IN;
     await setLive({ family:'copycat', game:file, phase:'input', round, len:seq.length, alive:alive.length, endsAt:iEnd });
     while(Date.now()<iEnd){ if(drivenGame!==file) return closeArena();
-      let works={}; try{ works=await Net.readWorks(room.id, round); }catch(e){}
+      let works={}; try{ works=await Net.readWorks(room.id, round, file); }catch(e){}
       const sub=alive.filter(id=>works[id]!==undefined).length;
       $('#stage').innerHTML=`<div class="social"><div class="shead"><span class="stitle">🎯 Copy it back!</span><span class="aspacer"></span><span class="achip"><b style="color:var(--accent-sun)">${sub}</b>/${alive.length} done</span><span class="achip">⏱ ${Math.ceil((iEnd-Date.now())/1000)}s</span></div>${padHTML(-1)}</div>`;
       if(sub>=alive.length) break; await wait(700);
     }
-    const works=await Net.readWorks(room.id, round);
+    const works=await Net.readWorks(room.id, round, file);
     const survivors=alive.filter(id=>Social.seqEqual(works[id], seq));
     for(const id of survivors){ try{ await Net.addPoints(id, 4); }catch(e){} }
     const out=alive.filter(id=>!survivors.includes(id));
