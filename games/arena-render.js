@@ -1,18 +1,33 @@
 /* Shared canvas renderer for the real-time arena (display + players).
-   Draws a snapshot() from arena-core onto a 2D context. */
+   Clay-styled, juicy, and interpolated for smooth 30–60fps motion. */
 import { decodeCells } from './arena-core.js';
 
 function rr(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-
-function shade(hex, f){ // lighten(+)/darken(-) a hex colour
-  const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+function shade(hex, f){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
   if(f>=0){ r+=(255-r)*f; g+=(255-g)*f; b+=(255-b)*f; } else { r*=(1+f); g*=(1+f); b*=(1+f); }
-  return `rgb(${r|0},${g|0},${b|0})`;
-}
+  return `rgb(${r|0},${g|0},${b|0})`; }
 
-// bright pulsing marker on the local player's own character (yellow stands out from team colours)
+// a soft clay ball with drop shadow, radial shading and a gloss highlight
+function clayBlob(ctx, cx, cy, r, color){
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,.26)'; ctx.beginPath(); ctx.ellipse(cx, cy+r*0.6, r*0.82, r*0.36, 0, 0, 7); ctx.fill();
+  const g=ctx.createRadialGradient(cx-r*0.32, cy-r*0.38, r*0.12, cx, cy, r*1.15);
+  g.addColorStop(0, shade(color,0.42)); g.addColorStop(0.52, color); g.addColorStop(1, shade(color,-0.30));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(cx-r*0.30, cy-r*0.36, r*0.30, r*0.17, -0.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+// crash burst — a ring + sparks that plays out over one tick (t: 0→1)
+function drawBurst(ctx, cx, cy, cs, color, t){
+  ctx.save(); ctx.globalAlpha=Math.max(0,1-t*0.85);
+  ctx.strokeStyle=color; ctx.lineWidth=Math.max(1,cs*0.2*(1-t)); ctx.beginPath(); ctx.arc(cx,cy,cs*(0.4+t*1.5),0,7); ctx.stroke();
+  for(let i=0;i<8;i++){ const a=i/8*6.283, d=cs*(0.5+t*1.7); ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(cx+Math.cos(a)*d, cy+Math.sin(a)*d, Math.max(0.5,cs*0.13*(1-t)), 0,7); ctx.fill(); }
+  ctx.restore();
+}
+// bright pulsing marker on the local player's own character
 function drawMeMarker(ctx, cx, cy, cs){
   const t=Date.now()/1000, pulse=1+0.15*Math.sin(t*6);
   ctx.save();
@@ -25,64 +40,79 @@ function drawMeMarker(ctx, cx, cy, cs){
   ctx.fillText('YOU', cx, ay-cs*0.34);
   ctx.restore();
 }
+
 export function renderArena(ctx, snap, opts={}){
   const { cols, rows, mode } = snap;
-  const W=ctx.canvas.width, H=ctx.canvas.height;
-  const pad=10, cs=Math.floor(Math.min((W-pad*2)/cols,(H-pad*2)/rows));
+  const W=ctx.canvas.width, H=ctx.canvas.height, dark=opts.dark!==false, meId=opts.meId;
+  const pad=12, cs=Math.floor(Math.min((W-pad*2)/cols,(H-pad*2)/rows));
   const gw=cs*cols, gh=cs*rows, ox=Math.floor((W-gw)/2), oy=Math.floor((H-gh)/2);
-  const meId=opts.meId;
   ctx.clearRect(0,0,W,H);
-  // board
-  ctx.fillStyle = opts.dark ? '#241b3a' : '#efeafc';
-  rr(ctx,ox-6,oy-6,gw+12,gh+12,18); ctx.fill();
+  ctx.textBaseline='alphabetic';
+  // board — rounded panel with a soft top-to-bottom gradient
+  const bg=ctx.createLinearGradient(0,oy-8,0,oy+gh+8);
+  bg.addColorStop(0, dark?'#2c2149':'#efeafc'); bg.addColorStop(1, dark?'#1a1330':'#e4ddfa');
+  ctx.fillStyle=bg; rr(ctx, ox-8, oy-8, gw+16, gh+16, 22); ctx.fill();
   const colorByI={}; snap.players.forEach(p=>colorByI[p.i]=p.color);
 
-  if(mode==='maze'){
-    const walls=decodeCells(snap.walls);
-    ctx.fillStyle = opts.dark ? '#0f0a1e' : '#dcd3f7';
-    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++) if(walls[y*cols+x]){ ctx.fillRect(ox+x*cs,oy+y*cs,cs,cs); }
-  }
-  if(mode==='paint'||mode==='trail'){
-    const cells=decodeCells(snap.cells);
-    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){ const v=cells[y*cols+x];
-      if(v && colorByI[v]){ ctx.fillStyle=mode==='paint'?colorByI[v]:shade(colorByI[v],-0.15);
-        if(mode==='trail'){ ctx.globalAlpha=0.85; ctx.fillRect(ox+x*cs,oy+y*cs,cs,cs); ctx.globalAlpha=1; }
-        else ctx.fillRect(ox+x*cs,oy+y*cs,cs,cs); } }
-  }
-  // exit flag (maze)
-  if(snap.exit){ const {x,y}=snap.exit; ctx.font=`${Math.floor(cs*0.9)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('🏁', ox+x*cs+cs/2, oy+y*cs+cs*0.55); }
-  // pellets (snake)
-  if(snap.pellets) for(const q of snap.pellets){ ctx.beginPath(); ctx.fillStyle='#FFD93B';
-    ctx.arc(ox+q.x*cs+cs/2, oy+q.y*cs+cs/2, cs*0.32, 0, 7); ctx.fill();
-    ctx.strokeStyle='#F2683C'; ctx.lineWidth=2; ctx.stroke(); }
+  // maze walls — rounded clay blocks with a top sheen
+  if(mode==='maze'){ const walls=decodeCells(snap.walls);
+    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){ if(!walls[y*cols+x]) continue;
+      const wx=ox+x*cs, wy=oy+y*cs;
+      ctx.fillStyle=dark?'#0e0a20':'#c9baf0'; rr(ctx,wx+0.5,wy+0.5,cs-1,cs-1,cs*0.26); ctx.fill();
+      ctx.fillStyle=dark?'rgba(255,255,255,.05)':'rgba(255,255,255,.45)'; rr(ctx,wx+cs*0.18,wy+cs*0.14,cs*0.64,cs*0.26,cs*0.12); ctx.fill(); } }
 
-  // players (smooth motion: interpolate head position between the previous and current tick)
+  // paint / trail cells
+  if(mode==='paint'||mode==='trail'){ const cells=decodeCells(snap.cells);
+    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){ const v=cells[y*cols+x]; if(!v||!colorByI[v]) continue;
+      const col=colorByI[v], cx0=ox+x*cs, cy0=oy+y*cs;
+      if(mode==='trail'){ ctx.fillStyle=col; rr(ctx,cx0+0.5,cy0+0.5,cs-1,cs-1,cs*0.24); ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.14)'; ctx.fillRect(cx0+cs*0.16,cy0+cs*0.12,cs*0.68,cs*0.24); }
+      else { ctx.fillStyle=col; ctx.fillRect(cx0,cy0,cs,cs); } }
+    // depth vignette
+    const vg=ctx.createRadialGradient(ox+gw/2,oy+gh/2,gh*0.22,ox+gw/2,oy+gh/2,gh*0.8);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1, dark?'rgba(0,0,0,.30)':'rgba(62,44,107,.12)');
+    ctx.fillStyle=vg; ctx.fillRect(ox,oy,gw,gh); }
+
+  // exit flag (maze) — glowing
+  if(snap.exit){ const ex=ox+snap.exit.x*cs+cs/2, ey=oy+snap.exit.y*cs+cs/2;
+    ctx.save(); ctx.shadowColor='#FFD93B'; ctx.shadowBlur=cs*0.9; ctx.fillStyle='rgba(255,217,59,.85)';
+    ctx.beginPath(); ctx.arc(ex,ey,cs*0.44,0,7); ctx.fill(); ctx.restore();
+    ctx.font=`${Math.floor(cs*0.82)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🏁', ex, ey+1); ctx.textBaseline='alphabetic'; }
+
+  // pellets (snake)
+  if(snap.pellets) for(const q of snap.pellets){ const gx=ox+q.x*cs+cs/2, gy=oy+q.y*cs+cs/2;
+    ctx.save(); ctx.shadowColor='#FFD93B'; ctx.shadowBlur=cs*0.5; ctx.fillStyle='#FFD93B';
+    ctx.beginPath(); ctx.arc(gx,gy,cs*0.3,0,7); ctx.fill(); ctx.restore();
+    ctx.strokeStyle='#F2683C'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(gx,gy,cs*0.3,0,7); ctx.stroke(); }
+
+  // players — interpolated between the previous and current tick
   const prevById={}; if(opts.prev&&opts.prev.players) opts.prev.players.forEach(pp=>prevById[pp.id]=pp);
-  const tt = (opts.t!=null)?opts.t:1;
+  const tt=(opts.t!=null)?opts.t:1;
   for(const p of snap.players){
-    const isMe = p.id===meId;
+    const isMe=p.id===meId;
     if(mode==='snake'){
-      if(!p.alive){ continue; }
+      if(!p.alive) continue;
       for(let b=p.body.length-1;b>=0;b--){ const [bx,by]=p.body[b];
-        ctx.fillStyle = b===0 ? shade(p.color,0.12) : shade(p.color,-0.05*Math.min(3,b));
-        rr(ctx,ox+bx*cs+1,oy+by*cs+1,cs-2,cs-2,cs*0.35); ctx.fill(); }
-      // eyes on head
-      const [hx,hy]=p.body[0]; ctx.fillStyle='#fff';
-      const e=cs*0.13, cxp=ox+hx*cs+cs/2, cyp=oy+hy*cs+cs/2;
-      ctx.beginPath(); ctx.arc(cxp-cs*0.16,cyp-cs*0.05,e,0,7); ctx.arc(cxp+cs*0.16,cyp-cs*0.05,e,0,7); ctx.fill();
-      ctx.fillStyle='#1e1b26'; ctx.beginPath(); ctx.arc(cxp-cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.arc(cxp+cs*0.16,cyp-cs*0.05,e*0.5,0,7); ctx.fill();
-      if(isMe) drawMeMarker(ctx, ox+hx*cs+cs/2, oy+hy*cs+cs/2, cs);
-    } else {
-      let rx=p.x, ry=p.y; const pp=prevById[p.id];
-      if(pp && p.alive){ rx=pp.x+(p.x-pp.x)*tt; ry=pp.y+(p.y-pp.y)*tt; }
-      const px=ox+rx*cs, py=oy+ry*cs;
-      if(!p.alive){ ctx.globalAlpha=0.5; ctx.font=`${Math.floor(cs*0.8)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('💥',px+cs/2,py+cs*0.55); ctx.globalAlpha=1; continue; }
-      ctx.fillStyle=p.color; rr(ctx,px+1,py+1,cs-2,cs-2,cs*0.4); ctx.fill();
-      ctx.fillStyle=shade(p.color,0.35); rr(ctx,px+cs*0.24,py+cs*0.18,cs*0.52,cs*0.34,cs*0.2); ctx.fill(); // glossy highlight
-      if(p.finished){ ctx.font=`${Math.floor(cs*0.7)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⭐',px+cs/2,py+cs*0.55); }
-      if(isMe) drawMeMarker(ctx, px+cs/2, py+cs/2, cs);
+        clayBlob(ctx, ox+bx*cs+cs/2, oy+by*cs+cs/2, cs*0.46, b===0?shade(p.color,0.08):p.color); }
+      const [hx,hy]=p.body[0], cxp=ox+hx*cs+cs/2, cyp=oy+hy*cs+cs/2, e=cs*0.12;
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cxp-cs*0.15,cyp-cs*0.06,e,0,7); ctx.arc(cxp+cs*0.15,cyp-cs*0.06,e,0,7); ctx.fill();
+      ctx.fillStyle='#1e1b26'; ctx.beginPath(); ctx.arc(cxp-cs*0.15,cyp-cs*0.06,e*0.5,0,7); ctx.arc(cxp+cs*0.15,cyp-cs*0.06,e*0.5,0,7); ctx.fill();
+      if(isMe) drawMeMarker(ctx, cxp, cyp, cs);
+      continue;
     }
+    // paint / trail / maze
+    const pp=prevById[p.id];
+    if(!p.alive){ // crash: animate a burst on the tick it dies, then a faint mark
+      const cxp=ox+p.x*cs+cs/2, cyp=oy+p.y*cs+cs/2;
+      if(pp && pp.alive) drawBurst(ctx, ox+pp.x*cs+cs/2, oy+pp.y*cs+cs/2, cs, p.color, tt);
+      else { ctx.globalAlpha=0.45; ctx.font=`${Math.floor(cs*0.8)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('💥',cxp,cyp+cs*0.05); ctx.globalAlpha=1; ctx.textBaseline='alphabetic'; }
+      continue;
+    }
+    let rx=p.x, ry=p.y; if(pp && pp.alive){ rx=pp.x+(p.x-pp.x)*tt; ry=pp.y+(p.y-pp.y)*tt; }
+    const cxp=ox+rx*cs+cs/2, cyp=oy+ry*cs+cs/2;
+    clayBlob(ctx, cxp, cyp, cs*0.46, p.color);
+    if(p.finished){ ctx.font=`${Math.floor(cs*0.7)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⭐',cxp,cyp); ctx.textBaseline='alphabetic'; }
+    if(isMe) drawMeMarker(ctx, cxp, cyp, cs);
   }
 }
