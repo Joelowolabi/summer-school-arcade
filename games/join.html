@@ -21,7 +21,13 @@
     --border-soft:rgba(255,255,255,.26); --border-hairline:rgba(255,255,255,.18);
     --purple-50:rgba(255,255,255,.16); --purple-100:rgba(255,255,255,.28); --purple-200:rgba(255,255,255,.42);
   }
-  .card.play #stepLobby{width:100%;max-width:1040px;margin:0 auto}
+  /* ambient light so the player screen never looks empty */
+  body.playing::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(680px 520px at 12% 16%, rgba(255,255,255,.11), transparent 66%),
+              radial-gradient(620px 480px at 88% 86%, rgba(255,217,59,.10), transparent 66%),
+              radial-gradient(520px 420px at 82% 12%, rgba(242,104,60,.09), transparent 70%);}
+  body.playing .card.play{position:relative;z-index:1}
+  .card.play #stepLobby{width:100%;max-width:1160px;margin:0 auto}
   .card.play .livehead,.card.play .ready .rk{color:rgba(255,255,255,.82)}
   .card.play .qdword,.card.play .needline b{color:#fff}
   .card.play .chainmini span:last-child{color:#fff;background:rgba(255,255,255,.28)}
@@ -36,17 +42,29 @@
   #playbar .pbcode{color:rgba(255,255,255,.92);font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:var(--fs-body-s);letter-spacing:.08em;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:7px 16px}
   .gamehero{display:flex;justify-content:center;margin-bottom:12px}
   .gamehero img{height:clamp(64px,11vh,104px);width:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))}
-  /* PC-first size bumps */
+  /* PC-first: big, screen-filling content + prominent headings */
   @media (min-width:680px){
-    .card.play{padding:40px clamp(24px,5vw,80px)}
-    .card.play .liveopt{font-size:var(--fs-h3);padding:22px 20px}
-    .card.play .liveopt span{width:38px;height:38px}
-    .card.play .livevcard{font-size:var(--fs-h2);padding:40px 18px}
-    .card.play .livetile{width:min(16vw,132px)}
-    .card.play .socpads{max-width:520px;margin-left:auto;margin-right:auto}
-    .card.play .tapbtn{max-width:560px;margin-left:auto;margin-right:auto;display:block;font-size:var(--fs-h1)}
-    .card.play .liveq{font-size:var(--fs-h1)}
-    .card.play .sprompt{font-size:var(--fs-h1)}
+    .card.play{padding:34px clamp(24px,5vw,80px);gap:8px}
+    .card.play .livetop{margin-bottom:22px}
+    .card.play .livehead{font-size:var(--fs-h2);color:#fff;opacity:1;font-weight:var(--fw-bold);letter-spacing:.01em}
+    .card.play .livetimer{font-size:var(--fs-display-m);min-width:96px;padding:6px 24px}
+    .card.play .gamehero{margin-bottom:18px} .card.play .gamehero img{height:clamp(104px,18vh,176px)}
+    .card.play .liveq{font-size:var(--fs-display-m);margin-bottom:26px}
+    .card.play .liveopts{gap:18px} .card.play .liveopt{font-size:var(--fs-h1);padding:34px 30px;min-height:110px}
+    .card.play .liveopt span{width:54px;height:54px;font-size:var(--fs-h3)}
+    .card.play .livevote{gap:18px} .card.play .livevcard{font-size:var(--fs-display-m);padding:60px 20px}
+    .card.play .livegrid{gap:16px} .card.play .livetile{width:min(18vw,160px)}
+    .card.play .livenote{font-size:var(--fs-h4);margin-top:22px}
+    .card.play .socpads{max-width:580px;margin:16px auto} .card.play .socpad{border-radius:var(--radius-2xl)}
+    .card.play .tapbtn{max-width:620px;margin:18px auto 0;display:block;font-size:clamp(30px,5.5vh,48px);padding:36px}
+    .card.play .sprompt{font-size:var(--fs-display-m)}
+    /* standings — bigger, wider, more readable */
+    .card.play .ready{gap:18px} .card.play .ready .rt{font-size:var(--fs-display-m)} .card.play .ready .rk{font-size:var(--fs-body)}
+    .card.play .readyimg{width:92px;height:92px} .card.play .standtitle{font-size:var(--fs-h4)}
+    .card.play .steams{gap:16px} .card.play .steam{padding:20px} .card.play .steam span{font-size:var(--fs-h4)} .card.play .steam b{font-size:var(--fs-display-m)}
+    .card.play .srows{gap:10px} .card.play .srow{padding:15px 24px}
+    .card.play .srow .sr{font-size:var(--fs-h4);width:30px} .card.play .srow .sav{width:44px;height:44px} .card.play .srow .sn{font-size:var(--fs-h3)} .card.play .srow .sp{font-size:var(--fs-h2)}
+    .card.play .srow .sn em{font-size:13px}
   }
   .card .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px}
   .card h1{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);color:var(--text-strong);margin:0 0 4px}
