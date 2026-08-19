@@ -112,6 +112,14 @@
   .acount .an{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:220px;line-height:1;text-shadow:0 8px 40px rgba(0,0,0,.4)}
   .acount .ah{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h1)}
   .acount .ap{font-size:var(--fs-h4);opacity:.9;max-width:640px}
+  /* how-to-play intro (5s before each game) */
+  .intro{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;color:#fff}
+  .intro-ic{height:clamp(120px,20vh,220px);width:auto;filter:drop-shadow(0 12px 26px rgba(0,0,0,.34));animation:introPop .5s var(--ease-pop)}
+  @keyframes introPop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+  .intro-k{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.82;font-weight:var(--fw-bold)}
+  .intro-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);margin:0}
+  .intro-how{font-size:var(--fs-h3);opacity:.92;max-width:28ch;line-height:1.35}
+  .intro-n{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(64px,12vh,120px);line-height:1;color:var(--accent-sun)}
   /* social games */
   .social{flex:1;display:flex;flex-direction:column;min-height:0;gap:18px;color:#fff}
   .social .shead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -310,6 +318,7 @@ function dispReveal(game, round, N, q, note){
 
 async function runLiveGame(game){
   driving=true;
+  if(!await showIntro(game, Bank.gameTitle(game), Bank.howto(game))) return;
   const N=8, QT=20000, RT=4500;   // 20s to answer, then reveal
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
@@ -383,7 +392,7 @@ async function runMotionGame(file){
   arena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.id!=null&&m.dir!=null) Arena.applyInput(game, m.id, +m.dir); } });
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
   // countdown / how-to
-  for(let n=3;n>=1;n--){ if(drivenGame!==file) return closeArena();
+  for(let n=5;n>=1;n--){ if(drivenGame!==file) return closeArena();
     arena.sendMeta({ kind:'countdown', n, file, mode:game.mode, title:Arena.motionTitle(file), howto:Arena.motionHowto(file) });
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${Arena.motionTitle(file)}</div><div class="ap">${Arena.motionHowto(file)}</div><div class="an">${n}</div></div>`;
     renderArena(ctx, Arena.snapshot(game), { dark:true });
@@ -430,7 +439,7 @@ async function runMashGame(file){
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
   const draw = kind==='balloon' ? (s)=>renderBalloon(ctx,s,{dark:true}) : (s)=>renderTug(ctx,s,{dark:true});
   const snap = ()=> kind==='balloon' ? Mash.snapshotBalloon(game) : Mash.snapshotTug(game);
-  for(let n=3;n>=1;n--){ if(drivenGame!==file) return closeArena();
+  for(let n=5;n>=1;n--){ if(drivenGame!==file) return closeArena();
     arena.sendMeta({ kind:'countdown', n, file, mode:kind, title:Mash.mashTitle(file), howto:Mash.mashHowto(file) });
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${Mash.mashTitle(file)}</div><div class="ap">${Mash.mashHowto(file)}</div><div class="an">${n}</div></div>`;
     draw(snap()); await wait(1000); }
@@ -461,6 +470,15 @@ async function runMashGame(file){
 }
 /* ---- studio games (Doodle Duel / Build-a-Monster): make -> vote -> result ---- */
 function setLive(live){ const st=Object.assign({}, room.state, { live }); room.state=st; return Net.setRoom(room.id,{state:st}); }
+// 5-second "how to play" intro shown on the projector + every device before a game starts
+async function showIntro(file, title, howto){
+  const N=5, endsAt=Date.now()+N*1000, slug=file.replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  await setLive({ game:file, phase:'intro', title, howto, endsAt });
+  for(let n=N;n>=1;n--){ if(drivenGame!==file) return false;
+    $('#stage').innerHTML=`<div class="intro"><img class="intro-ic" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div class="intro-k">Get Ready</div><h1 class="intro-t">${title}</h1><div class="intro-how">${howto}</div><div class="intro-n">${n}</div></div>`;
+    await wait(1000); }
+  return true;
+}
 function preloadImages(entries){ return Promise.all(entries.filter(e=>e.data).map(e=>new Promise(r=>{ const im=new Image(); im.onload=()=>r(); im.onerror=()=>r(); im.src=e.data; e._img=im; }))).then(()=>{}); }
 function galleryLayout(ctx, count){ const W=ctx.canvas.width, H=ctx.canvas.height;
   const cols=Math.ceil(Math.sqrt(count*W/H))||1, rows=Math.ceil(count/cols)||1;
@@ -496,6 +514,7 @@ function roundRect(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.m
 
 async function runStudioGame(file){
   driving=true;
+  if(!await showIntro(file, Studio.studioTitle(file), Studio.studioHowto(file))) return;
   const kind=Studio.studioKind(file), round=1, prompt=Studio.makePrompt(kind, round);
   players=await Net.listPlayers(room.id);
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
@@ -598,6 +617,7 @@ function runSocialGame(file){ const k=Social.socialKind(file);
 /* ---- Secret Spy ---- */
 async function runSpy(file){
   driving=true; closeArena();
+  if(!await showIntro(file, 'Secret Spy', Social.socialHowto(file))) return;
   players=await Net.listPlayers(room.id);
   const topic=Social.pickTopic(), spies=Social.assignSpies(players.map(p=>p.id)), round=1;
   const roles={}; players.forEach(p=> roles[p.id]= spies.has(p.id)?'__SPY__':topic.word);
@@ -642,6 +662,7 @@ async function runSpy(file){
 /* ---- Word Chain Blitz ---- */
 async function runWordChain(file){
   driving=true; closeArena();
+  if(!await showIntro(file, 'Word Chain Blitz', Social.socialHowto(file))) return;
   players=await Net.listPlayers(room.id);
   let chain=[Social.chainStart()], used=new Set(chain); const LINKS=12;
   const drawChain=(need, link, secs, scorer)=>{ $('#stage').innerHTML=`<div class="social"><div class="shead"><span class="stitle">🔗 Word Chain</span><span class="aspacer"></span><span class="achip">Link ${link}/${LINKS}</span>${secs?`<span class="achip">⏱ ${secs}s</span>`:''}</div>
@@ -673,6 +694,7 @@ async function runWordChain(file){
 /* ---- Copycat (Simon) ---- */
 async function runCopycat(file){
   driving=true; closeArena();
+  if(!await showIntro(file, 'Copycat', Social.socialHowto(file))) return;
   players=await Net.listPlayers(room.id);
   let alive=players.map(p=>p.id); arena=Net.openArena(room.id, {});
   let seq=[]; const MAX=9;

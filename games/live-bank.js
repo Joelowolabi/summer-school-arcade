@@ -92,5 +92,12 @@ export function makeQuestion(game, round){
   return { type:'mcq', prompt:t.q, hint:'', options:t.a, correct:t.c };
 }
 
+export function howto(game){
+  if(/number-ninjas/.test(game)) return 'Solve the maths and tap the right answer — the faster you\'re correct, the more points you grab!';
+  if(/this-or-that/.test(game))  return 'Two choices, no wrong answer — pick your side fast. Go with the majority to score!';
+  if(/odd-one-out/.test(game))   return 'One tile is a slightly different shade. Spot it and tap it — fastest eyes win!';
+  if(/click-rush/.test(game))    return 'It names a shape and colour — find that tile and tap it before anyone else!';
+  return 'Read the question and tap your answer fast — the quicker you\'re right, the more you score!';
+}
 export function speedPoints(rank){ return Math.max(5, 15-rank); }   // 1st correct = 15 … floor 5
 export function votePoints(){ return 8; }                            // majority side (This or That)

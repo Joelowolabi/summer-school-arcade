@@ -63,6 +63,14 @@
   .fhead-ic{height:clamp(48px,8vh,78px);width:auto;flex:0 0 auto;filter:drop-shadow(0 5px 12px rgba(0,0,0,.26))}
   .fhead-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);color:var(--text-strong);line-height:1}
   .fhead-s{color:var(--text-muted);font-size:var(--fs-body-s);font-weight:var(--fw-semibold);margin-top:2px}
+  /* how-to-play intro (5s before each game) */
+  .intro{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;flex:1}
+  .intro-ic{height:clamp(96px,18vh,180px);width:auto;filter:drop-shadow(0 10px 22px rgba(0,0,0,.3));animation:introPop .5s var(--ease-pop)}
+  @keyframes introPop{from{transform:scale(.5);opacity:0}to{transform:none;opacity:1}}
+  .intro-k{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:rgba(255,255,255,.82);font-weight:var(--fw-bold)}
+  .intro-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(30px,5vh,52px);color:var(--text-strong);line-height:1.05}
+  .intro-how{font-size:var(--fs-h4);color:var(--text-muted);max-width:34ch;line-height:1.4}
+  .intro-n{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(56px,11vh,110px);line-height:1;color:var(--accent-sun)}
   /* PC-first: big, screen-filling content + prominent headings */
   @media (min-width:680px){
     .card.play #stepLobby{padding:34px clamp(24px,4vw,64px)}
@@ -415,6 +423,8 @@ function renderRoomState(){
   const w=$('#waiting');
   const live = room.state && room.state.live;
   const g = room.current_game;
+  if(!(live && live.phase==='intro')) introKey=null;
+  if(room.status==='in_game' && live && live.phase==='intro'){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial(); return renderIntro(live); }
   if(room.status==='in_game' && g){
     // route EVERY game by filename — never launch a standalone (simulated) page
     if(Bank.isLive(g)){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial();
@@ -444,6 +454,14 @@ function standingsPanel(){
 }
 function renderScorebar(){ const sb=$('#scorebar'); if(!sb || !document.body.classList.contains('playing') || !me) return;
   sb.innerHTML = `<div class="sb-title">🏆 Live Scores</div>${standingsPanel()}`; }
+let introKey=null, introIv=null;
+function startIntroTimer(endsAt){ clearInterval(introIv); const tick=()=>{ const el=$('#intron'); if(!el){clearInterval(introIv);return;} el.textContent=Math.max(0,Math.ceil((endsAt-Date.now())/1000)); }; tick(); introIv=setInterval(tick,250); }
+function renderIntro(live){
+  if(introKey===live.game && $('#intron')) return;   // already showing this game's intro
+  introKey=live.game; const slug=(live.game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  $('#waiting').innerHTML=`<div class="intro"><img class="intro-ic" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div class="intro-k">Get Ready · How to play</div><div class="intro-t">${live.title||Net.gameLabel(live.game)}</div><div class="intro-how">${live.howto||''}</div><div class="intro-n" id="intron">${Math.max(0,Math.ceil(((live.endsAt||0)-Date.now())/1000))}</div></div>`;
+  startIntroTimer(live.endsAt);
+}
 function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,'');
   $('#waiting').innerHTML=`<div class="ready" style="flex:1;justify-content:center">
     <div class="readyhead"><img class="readyimg" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div><div class="rk">Get ready…</div><div class="rt">${Net.gameLabel(g)}</div></div></div>
