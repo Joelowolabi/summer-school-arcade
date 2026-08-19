@@ -15,7 +15,7 @@
   body.playing{padding:0}
   .card.play{
     max-width:none;width:100%;min-height:100dvh;margin:0;border-radius:0;box-shadow:none;background:transparent;
-    padding:26px clamp(16px,4vw,64px);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;
+    padding:0;display:flex;flex-direction:row;align-items:stretch;
     --text-strong:#fff; --text-body:rgba(255,255,255,.92); --text-muted:rgba(255,255,255,.72);
     --surface-sunken:rgba(255,255,255,.12); --surface-card:rgba(255,255,255,.16); --surface-page:transparent;
     --border-soft:rgba(255,255,255,.26); --border-hairline:rgba(255,255,255,.18);
@@ -29,7 +29,22 @@
   body.playing .card.play{position:relative;z-index:1}
   #playswash{display:none;position:fixed;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
   body.playing #playswash{display:block}
-  .card.play #stepLobby{width:100%;max-width:1160px;margin:0 auto}
+  .card.play #stepLobby{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;align-items:center;max-width:none;margin:0;padding:26px clamp(20px,4vw,56px);overflow-y:auto}
+  .card.play #stepLobby>*{width:100%;max-width:1000px}
+  /* live scoreboard sidebar (individual + team), during play */
+  #scorebar{display:none}
+  body.playing #scorebar{display:flex;flex-direction:column;flex:0 0 auto;width:clamp(280px,24vw,360px);background:rgba(0,0,0,.2);border-left:1px solid rgba(255,255,255,.14);padding:74px 18px 22px;gap:12px;overflow-y:auto;color:#fff;z-index:2}
+  #scorebar .sb-title{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);font-weight:var(--fw-bold);opacity:.82;text-align:center}
+  #scorebar .steams{grid-template-columns:repeat(3,1fr);gap:8px} #scorebar .steam{padding:9px 6px} #scorebar .steam span{font-size:var(--fs-caption)} #scorebar .steam b{font-size:var(--fs-h4)}
+  #scorebar .srows{gap:5px;flex:1;min-height:0} #scorebar .srow{padding:7px 12px}
+  #scorebar .srow .sr{font-size:var(--fs-caption);width:18px} #scorebar .srow .sav{width:26px;height:26px} #scorebar .srow .sn{font-size:var(--fs-body-s)} #scorebar .srow .sp{font-size:var(--fs-body-s)} #scorebar .srow .sn em{font-size:10px;padding:1px 4px}
+  /* phone: sidebar collapses to a compact team-score strip on top */
+  @media (max-width:760px){
+    body.playing .card.play{flex-direction:column}
+    body.playing #scorebar{order:-1;width:auto;flex-direction:row;align-items:center;justify-content:center;border-left:0;border-bottom:1px solid rgba(255,255,255,.14);padding:66px 12px 10px;gap:8px;overflow-x:auto}
+    #scorebar .sb-title,#scorebar .srows{display:none}
+    #scorebar .steams{display:flex;gap:8px} #scorebar .steam{flex:0 0 auto;flex-direction:row;gap:7px;padding:7px 14px}
+  }
   .card.play .livehead,.card.play .ready .rk{color:rgba(255,255,255,.82)}
   .card.play .qdword,.card.play .needline b{color:#fff}
   .card.play .chainmini span:last-child{color:#fff;background:rgba(255,255,255,.28)}
@@ -46,7 +61,7 @@
   .gamehero img{height:clamp(64px,11vh,104px);width:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))}
   /* PC-first: big, screen-filling content + prominent headings */
   @media (min-width:680px){
-    .card.play{padding:34px clamp(24px,5vw,80px);gap:8px}
+    .card.play #stepLobby{padding:34px clamp(24px,4vw,64px)}
     .card.play .livetop{margin-bottom:22px}
     .card.play .livehead{font-size:var(--fs-h2);color:#fff;opacity:1;font-weight:var(--fw-bold);letter-spacing:.01em}
     .card.play .livetimer{font-size:var(--fs-display-m);min-width:96px;padding:6px 24px}
@@ -299,6 +314,7 @@
     <div class="plist" id="plist"></div>
     <div class="waiting" id="waiting">Waiting for the host to start…</div>
   </div>
+  <aside id="scorebar" aria-label="Live scores"></aside>
   </div>
   </main>
 </div>
@@ -380,7 +396,7 @@ async function enterLobby(){
   $('#yourteam').style.background=Net.TEAM_COLORS[me.team];
   const myImg=Net.charImg(me.avatar);
   $('#yourteam').innerHTML=`${myImg?`<span class="avwrap" style="width:26px;height:26px;display:inline-flex">`+`<img src="${myImg}" alt=""></span>`:''}<span>You're on Team ${Net.TEAM_NAMES[me.team]}</span>`;
-  Net.onPlayers(room.id, async ()=>{ players=await Net.listPlayers(room.id); renderLobby();
+  Net.onPlayers(room.id, async ()=>{ players=await Net.listPlayers(room.id); renderLobby(); renderScorebar();   // live sidebar always updates
     const live=room.state&&room.state.live; const inQ = room.status==='in_game' && Bank.isLive(room.current_game) && live && live.phase==='question';
     if(!inQ) renderRoomState();   // refresh standings/reveal, but don't rebuild an active question
   });
@@ -389,7 +405,8 @@ async function enterLobby(){
 }
 function roster(show){ const p=$('#plist'), y=$('#yourteam'), h=$('#lobbyHead');
   if(p) p.style.display=show?'flex':'none'; if(y) y.style.display=show?'inline-flex':'none'; if(h) h.style.display=show?'block':'none';
-  const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); document.body.classList.toggle('playing', !show); }
+  const c=document.querySelector('.card'); if(c) c.classList.toggle('play', !show); document.body.classList.toggle('playing', !show);
+  if(!show) renderScorebar(); }
 function renderRoomState(){
   const w=$('#waiting');
   const live = room.state && room.state.live;
@@ -421,11 +438,12 @@ function standingsPanel(){
   return `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>
     <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''}"><span class="sr">${i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
 }
+function renderScorebar(){ const sb=$('#scorebar'); if(!sb || !document.body.classList.contains('playing') || !me) return;
+  sb.innerHTML = `<div class="sb-title">🏆 Live Scores</div>${standingsPanel()}`; }
 function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,'');
-  $('#waiting').innerHTML=`<div class="ready">
+  $('#waiting').innerHTML=`<div class="ready" style="flex:1;justify-content:center">
     <div class="readyhead"><img class="readyimg" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div><div class="rk">Get ready…</div><div class="rt">${Net.gameLabel(g)}</div></div></div>
-    <div class="standtitle">Standings so far</div>${standingsPanel()}
-    <div class="readywait">The host will start the next game shortly.</div></div>`;
+    <div class="readywait">The host will start the next game shortly — live scores are on the right ✨</div></div>`;
 }
 function renderFinalStandings(){
   const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
