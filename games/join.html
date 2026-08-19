@@ -59,6 +59,10 @@
   #playbar .pbcode{color:rgba(255,255,255,.92);font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:var(--fs-body-s);letter-spacing:.08em;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.22);border-radius:99px;padding:7px 16px}
   .gamehero{display:flex;justify-content:center;margin-bottom:12px}
   .gamehero img{height:clamp(64px,11vh,104px);width:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))}
+  .fhead{display:flex;align-items:center;gap:13px;justify-content:center;margin-bottom:14px}
+  .fhead-ic{height:clamp(48px,8vh,78px);width:auto;flex:0 0 auto;filter:drop-shadow(0 5px 12px rgba(0,0,0,.26))}
+  .fhead-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);color:var(--text-strong);line-height:1}
+  .fhead-s{color:var(--text-muted);font-size:var(--fs-body-s);font-weight:var(--fw-semibold);margin-top:2px}
   /* PC-first: big, screen-filling content + prominent headings */
   @media (min-width:680px){
     .card.play #stepLobby{padding:34px clamp(24px,4vw,64px)}
@@ -455,6 +459,9 @@ function renderFinalStandings(){
 function winHTML(title, sub){ return `<div class="winwrap"><img class="wintrophy-img" src="assets/decor/trophy.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'wintrophy',textContent:'🏆'}))"><div class="winname">${title}</div>${sub?`<div class="winsub">${sub}</div>`:''}<div class="winwait">Waiting for the next game…</div></div>`; }
 function gameIcon(file){ const slug=(file||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
   return `<div class="gamehero"><img src="assets/games/${slug}.png" alt="" onerror="this.parentElement.style.display='none'"></div>`; }
+// compact icon + title header for the canvas-based families (motion / mash / drawing)
+function familyHeader(file, sub){ const slug=(file||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  return `<div class="fhead"><img class="fhead-ic" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div><div class="fhead-t">${Net.gameLabel(file)}</div>${sub?`<div class="fhead-s">${sub}</div>`:''}</div></div>`; }
 let liveTimerIv=null;
 function startLiveTimer(endsAt){ clearInterval(liveTimerIv); if(!endsAt){ const t=$('#livetimer'); if(t) t.textContent=''; return; }
   const tick=()=>{ const t=$('#livetimer'); if(!t){ clearInterval(liveTimerIv); return; } const s=Math.max(0,Math.ceil((endsAt-Date.now())/1000)); t.textContent=s+'s'; t.classList.toggle('low', s<=5); };
@@ -532,7 +539,8 @@ function renderMotion(file){
   mUiFile=file;
   const w=$('#waiting');
   w.innerHTML=`<div class="motionwrap">
-      <div class="motionhead" id="mhead">${Arena.motionTitle(file)}</div>
+      ${familyHeader(file)}
+      <div class="motionhead" id="mhead"></div>
       <canvas id="mcanvas"></canvas>
       <div class="moverlay" id="moverlay"><div class="mo-in"><div class="mo-t">${Arena.motionTitle(file)}</div><div class="mo-h">${Arena.motionHowto(file)}</div><div class="mo-wait">Get ready…</div></div></div>
       <div class="dpad">
@@ -553,9 +561,7 @@ function renderMotion(file){
 function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
   renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id, prev:mPrevSnap, t:(t!=null?t:1) });
   const meP=mSnap.players.find(p=>p.id===me.id), mh=$('#mhead');
-  if(mh){ mh.textContent = !meP ? Arena.motionTitle(mSnap.file)
-    : meP.alive===false ? "You're out — cheer your team on!"
-    : Arena.motionTitle(mSnap.file)+' · '+scoreLabel(mSnap.mode, meP); }
+  if(mh){ mh.textContent = !meP ? '' : meP.alive===false ? "💥 You're out — cheer your team on!" : scoreLabel(mSnap.mode, meP); }
   if(!mSnap.over){ const ov=$('#moverlay'); if(ov && ov.dataset.state!=='over'){ ov.style.display='none'; ov.dataset.state=''; } }  // live snapshot = game started, clear countdown even if 'go' was dropped
 }
 function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):('you: '+p.score); }
@@ -590,7 +596,8 @@ function renderMash(file){
   const label = kind==='balloon' ? 'PUMP! 🎈' : 'PULL! 🪢';
   const w=$('#waiting');
   w.innerHTML=`<div class="motionwrap">
-      <div class="motionhead" id="khead">${Mash.mashTitle(file)}</div>
+      ${familyHeader(file)}
+      <div class="motionhead" id="khead"></div>
       <canvas id="kcanvas"></canvas>
       <div class="moverlay" id="koverlay"><div class="mo-in"><div class="mo-t">${Mash.mashTitle(file)}</div><div class="mo-h">${Mash.mashHowto(file)}</div><div class="mo-wait">Get ready…</div></div></div>
       <button class="tapbtn ${kind==='tug'?'tug':''}" id="ktap">${label}</button>
@@ -640,7 +647,7 @@ function buildMonsterUI(live){
   if(!sMon) sMon=randomMonster(); sSubmitted=false;
   const rows=PART_KEYS.map(k=>`<div class="partrow"><span class="plabel">${k}</span><div class="pbtns">${
     PARTS[k].map((opt,i)=>`<button class="pchip ${sMon[k]===i?'sel':''}" data-k="${k}" data-i="${i}">${chipInner(k,opt,i)}</button>`).join('')}</div></div>`).join('');
-  $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Build your monster!</div><div class="ssub">Pick parts, then Submit before time's up</div>
+  $('#waiting').innerHTML=`<div id="studioroot">${familyHeader(live.game)}<div class="sprompt">Build your monster!</div><div class="ssub">Pick parts, then Submit before time's up</div>
     <canvas id="buildcv" height="190"></canvas>${rows}
     <div class="studiobtns"><button class="submitb" id="subm">Submit my monster ✓</button><button class="ghostb" id="rnd">🎲</button></div></div>`;
   const cv=$('#buildcv'); const bw=Math.round(cv.getBoundingClientRect().width||320); cv.width=bw; cv.height=Math.round(bw*0.62); drawBuild();
@@ -651,7 +658,7 @@ function buildMonsterUI(live){
     try{ await Net.submitWork(room.id, me.id, live.game, live.round, clampMonster(sMon)); }catch(e){} });
 }
 function buildDoodleUI(live){ sSubmitted=false;
-  $('#waiting').innerHTML=`<div id="studioroot"><div class="sprompt">Draw: ${live.prompt}</div><div class="ssub">Finger or mouse — then Submit</div>
+  $('#waiting').innerHTML=`<div id="studioroot">${familyHeader(live.game)}<div class="sprompt">Draw: ${live.prompt}</div><div class="ssub">Finger or mouse — then Submit</div>
     <canvas id="drawcv" height="240"></canvas>
     <div class="studiobtns"><button class="submitb" id="subm">Submit my drawing ✓</button><button class="ghostb" id="clr">Clear</button></div></div>`;
   const cv=$('#drawcv'); const bw=Math.round(cv.getBoundingClientRect().width||320); cv.width=bw; cv.height=Math.round(bw*0.72); const ctx=cv.getContext('2d');
@@ -691,7 +698,7 @@ function renderQuickDraw(file){
   if(!qdArena){ qdArena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.stroke&&m.drawer===qdDrawer){ qdStrokes.push(m.stroke); drawQD(); } }, onMeta:(m)=>onQDMeta(m,file) }); }
   if(qdUiKey) return;   // a round/waiting screen is already up
   qdUiKey='waiting';
-  $('#waiting').innerHTML=`<div id="qdroot"><div class="sprompt">Quick Draw Guess</div><div class="ssub">Get ready — first to guess wins!</div><canvas id="qdcv" height="220"></canvas></div>`;
+  $('#waiting').innerHTML=`<div id="qdroot">${familyHeader('quick-draw-guess.html')}<div class="ssub">Get ready — first to guess wins!</div><canvas id="qdcv" height="220"></canvas></div>`;
   const cv=$('#qdcv'); cv.width=Math.round(cv.getBoundingClientRect().width||320); cv.height=Math.round(cv.width*0.66); drawQD();
 }
 function onQDMeta(m,file){
