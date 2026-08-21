@@ -120,6 +120,18 @@
   .intro-t{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);margin:0}
   .intro-how{font-size:var(--fs-h3);opacity:.92;max-width:28ch;line-height:1.35}
   .intro-n{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:clamp(64px,12vh,120px);line-height:1;color:var(--accent-sun)}
+  /* green light */
+  .glscreen{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;border-radius:var(--radius-2xl);color:#fff;overflow:hidden}
+  .gllight{font-size:clamp(130px,28vh,280px);line-height:1;filter:drop-shadow(0 14px 44px rgba(0,0,0,.4))}
+  .gllight.go{animation:glpop .22s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes glpop{from{transform:scale(.55)}to{transform:scale(1)}}
+  .glword{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);text-shadow:0 6px 30px rgba(0,0,0,.4);text-align:center}
+  .glsub{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);opacity:.92;text-align:center}
+  .glscreen .lboard{display:flex;flex-direction:column;gap:8px;margin-top:8px;width:min(560px,88%)}
+  .glscreen .lrow{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.15);border-radius:var(--radius-pill);padding:10px 24px}
+  .glscreen .lrow .rk{width:30px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);opacity:.85;text-align:center}
+  .glscreen .lrow .nm{flex:1;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3)}
+  .glscreen .lrow .pt{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);font-variant-numeric:tabular-nums}
   /* social games */
   .social{flex:1;display:flex;flex-direction:column;min-height:0;gap:18px;color:#fff}
   .social .shead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
@@ -158,7 +170,7 @@ import * as Bank from './live-bank.js';
 import * as Arena from './arena-core.js';
 import { renderArena } from './arena-render.js';
 import * as Mash from './mash-core.js';
-import { renderBalloon, renderTug } from './mash-render.js';
+import { renderBalloon, renderTug, renderRocket, renderRope } from './mash-render.js';
 import * as Studio from './studio-core.js';
 import { renderMonster } from './monster.js';
 import * as Social from './social-core.js';
@@ -184,6 +196,10 @@ function onRoomUpdate(){
   if(room.status==='in_game' && Bank.isLive(room.current_game)){
     if(drivenGame!==room.current_game){ closeArena(); drivenGame=room.current_game; runLiveGame(room.current_game); }
     return;  // the live quiz driver owns the screen
+  }
+  if(room.status==='in_game' && /green-light/.test(room.current_game||'')){
+    if(drivenGame!==room.current_game){ closeArena(); drivenGame=room.current_game; runGreenLight(room.current_game); }
+    return;  // the reflex driver owns the screen
   }
   if(room.status==='in_game' && Arena.isMotion(room.current_game)){
     if(drivenGame!==room.current_game){ drivenGame=room.current_game; runMotionGame(room.current_game); }
@@ -364,6 +380,68 @@ async function runLiveGame(game){
   driving=false; players=await Net.listPlayers(room.id); renderGame();
 }
 
+/* ---- Green Light (reflex): wait for green, tap fast; tapping on red = out that round ---- */
+function glStage(light, round, N, n){
+  const green = light==='green';
+  const bg = green ? 'radial-gradient(circle at 50% 38%, #46e37e, #1f9d52)' : 'radial-gradient(circle at 50% 38%, #ff6060, #c62828)';
+  const word = green ? 'GREEN — TAP!' : 'WAIT…';
+  const sub  = green ? (n!=null ? `${n} tapped` : 'React now!') : 'Get ready — tap the moment it turns green';
+  $('#stage').innerHTML=`<div class="glscreen" style="background:${bg}">
+    <div class="qtop" style="position:absolute;top:0;left:0;right:0"><span class="qk">Green Light · Round ${round}/${N}</span></div>
+    <div class="gllight ${green?'go':''}">${green?'🟢':'🔴'}</div>
+    <div class="glword">${word}</div><div class="glsub">${sub}</div></div>`;
+}
+function glResult(round, N, results){
+  const clean=results.filter(r=>!r.jumped).slice(0,6), jumped=results.filter(r=>r.jumped);
+  const rows=clean.length ? clean.map((r,i)=>`<div class="lrow"><span class="rk">${i+1}</span><span class="nm">${r.name}</span><span class="pt">+${r.pts}</span></div>`).join('')
+                          : '<div class="glsub">Nobody tapped in time!</div>';
+  const jr=jumped.length ? `<div class="glsub" style="margin-top:16px">⚡ Jumped early: ${jumped.map(j=>j.name).join(', ')}</div>` : '';
+  $('#stage').innerHTML=`<div class="glscreen" style="background:radial-gradient(circle at 50% 30%, #3a2c66, #241b3a)">
+    <div class="qtop" style="position:absolute;top:0;left:0;right:0"><span class="qk">Green Light · Round ${round}/${N}</span></div>
+    <div class="glword" style="font-size:var(--fs-h1)">Fastest fingers ⚡</div>
+    <div class="lboard">${rows}</div>${jr}</div>`;
+}
+async function runGreenLight(game){
+  driving=true; closeArena();
+  const N=6;
+  if(!await showIntro(game, 'Green Light', "Wait for the light to turn GREEN, then tap as fast as you can. Tap while it's RED and you're out for that round!")) return;
+  for(let round=1; round<=N; round++){
+    if(drivenGame!==game || room.status!=='in_game') return;
+    await Net.markRoundStart(room.id, game, round);
+    // RED — random hold so nobody can time it
+    await setLive({ family:'greenlight', game, phase:'red', round, total:N });
+    glStage('red', round, N);
+    const hold = 1600 + Math.floor(Math.random()*2700);
+    { const t0=Date.now(); while(Date.now()-t0<hold){ if(drivenGame!==game) return; await wait(120); } }
+    if(drivenGame!==game) return;
+    // GREEN — react!
+    const greenAt=Date.now();
+    await setLive({ family:'greenlight', game, phase:'green', round, total:N, greenAt });
+    glStage('green', round, N);
+    const WIN=4000, start=Date.now();
+    while(Date.now()-start < WIN){ if(drivenGame!==game) return; await wait(400);
+      let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).filter(a=>a.payload&&a.payload.choice===1).length; }catch(e){}
+      glStage('green', round, N, n);
+      if(activeCount()>0 && n>=activeCount()) break;
+    }
+    if(drivenGame!==game) return;
+    // score: valid green taps in server-time order earn speed points; false starts earn nothing
+    const answers=await Net.readAnswers(room.id, round, game);
+    let rank=0; const results=[];
+    for(const a of answers){ const c=a.payload&&a.payload.choice; const pl=players.find(p=>p.id===a.player_id);
+      if(c===1){ const pts=Bank.speedPoints(rank); try{ await Net.addPoints(a.player_id, pts); }catch(e){} results.push({ name:pl?pl.name:'?', pts, jumped:false }); rank++; }
+      else if(c===0){ results.push({ name:pl?pl.name:'?', pts:0, jumped:true }); }
+    }
+    await setLive({ family:'greenlight', game, phase:'result', round, total:N, results:results.slice(0,10) });
+    players=await Net.listPlayers(room.id);
+    glResult(round, N, results);
+    await wait(3200);
+  }
+  const done=Object.assign({}, room.state, { live:{ game, phase:'done' } });
+  room.state=done; await Net.setRoom(room.id,{state:done});
+  driving=false; players=await Net.listPlayers(room.id); renderGame();
+}
+
 /* ---- real-time motion arena (display is the authoritative simulator) ---- */
 function setupArenaCanvas(){
   $('#stage').innerHTML=`<div class="arenawrap" style="position:relative"><div class="arenahud" id="ahud"></div><canvas id="acv"></canvas><div id="acount"></div></div>`;
@@ -380,7 +458,10 @@ function arenaHUD(game, snap){
     const top=[...snap.players].sort((a,b)=>b.score-a.score)[0];
     right=`<span class="achip">🟢 ${alive} still ${game.mode==='snake'?'slithering':'riding'}</span>`+(top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.score}${game.mode==='snake'?' long':''}</span>`:'');
   } else if(game.mode==='maze'){ const done=snap.players.filter(p=>p.finished).length;
-    right=`<span class="achip">🏁 ${done}/${snap.players.length} finished</span>`; }
+    right=`<span class="achip">🏁 ${done}/${snap.players.length} finished</span>`;
+  } else if(game.mode==='hill'||game.mode==='stars'){ const top=[...snap.players].sort((a,b)=>b.score-a.score)[0], icon=game.mode==='hill'?'👑':'⭐';
+    right=(top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.score} ${icon}</span>`:'');
+    right+=`<span class="achip">⏱ ${Math.max(0,Math.ceil((game.maxTicks-game.tick)*0.1))}s</span>`; }
   $('#ahud').innerHTML=`<span class="atitle">${t}</span><span class="aspacer"></span>${right}`;
 }
 async function runMotionGame(file){
@@ -435,34 +516,43 @@ async function runMashGame(file){
   players=await Net.listPlayers(room.id);
   const roster=players.map(p=>({ id:p.id, name:p.name, team:p.team, color:Net.TEAM_COLORS[p.team] }));
   if(roster.length===0){ driving=false; return; }
-  const game = kind==='balloon' ? Mash.createBalloon(roster,{}) : Mash.createTug(roster,{});
-  const apply = kind==='balloon' ? (id,n)=>Mash.pumpBalloon(game,id,n) : (id,n)=>Mash.pullTug(game,id,n);
+  const create={balloon:Mash.createBalloon,tug:Mash.createTug,rocket:Mash.createRocket,rope:Mash.createRope}[kind];
+  const applyFn={balloon:Mash.pumpBalloon,tug:Mash.pullTug,rocket:Mash.pumpRocket,rope:Mash.pullRope}[kind];
+  const startFn={balloon:Mash.startBalloon,tug:Mash.startTug,rocket:Mash.startRocket,rope:Mash.startRope}[kind];
+  const stepFn={balloon:Mash.stepBalloon,tug:Mash.stepTug,rocket:Mash.stepRocket,rope:Mash.stepRope}[kind];
+  const snapFn={balloon:Mash.snapshotBalloon,tug:Mash.snapshotTug,rocket:Mash.snapshotRocket,rope:Mash.snapshotRope}[kind];
+  const rankFn={balloon:Mash.balloonRanking,tug:Mash.tugRanking,rocket:Mash.rocketRanking,rope:Mash.ropeRanking}[kind];
+  const renderFn={balloon:renderBalloon,tug:renderTug,rocket:renderRocket,rope:renderRope}[kind];
+  const game=create(roster,{});
+  const apply=(id,n)=>applyFn(game,id,n);
   arena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.id!=null) apply(m.id, Math.min(20, +m.taps||1)); } });
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
-  const draw = kind==='balloon' ? (s)=>renderBalloon(ctx,s,{dark:true}) : (s)=>renderTug(ctx,s,{dark:true});
-  const snap = ()=> kind==='balloon' ? Mash.snapshotBalloon(game) : Mash.snapshotTug(game);
+  const draw=(s)=>renderFn(ctx,s,{dark:true});
+  const snap=()=>snapFn(game);
   for(let n=5;n>=1;n--){ if(drivenGame!==file) return closeArena();
     arena.sendMeta({ kind:'countdown', n, file, mode:kind, title:Mash.mashTitle(file), howto:Mash.mashHowto(file) });
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${Mash.mashTitle(file)}</div><div class="ap">${Mash.mashHowto(file)}</div><div class="an">${n}</div></div>`;
     draw(snap()); await wait(1000); }
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:kind });
-  if(kind==='balloon') Mash.startBalloon(game); else Mash.startTug(game);
+  startFn(game);
   try{ arena.sendState(snap()); }catch(e){}   // immediate first frame so devices leave the countdown
   const TICK=100;
   await new Promise(res=>{ const iv=setInterval(()=>{
     if(drivenGame!==file){ clearInterval(iv); return res(); }
-    if(kind==='balloon') Mash.stepBalloon(game); else Mash.stepTug(game);
+    stepFn(game);
     const s=snap(); try{ arena.sendState(s); }catch(e){}
     draw(s); mashHUD(kind, game, s);
     if(game.over){ clearInterval(iv); res(); }
   }, TICK); });
   if(drivenGame!==file) return closeArena();
-  const rank = kind==='balloon' ? Mash.balloonRanking(game) : Mash.tugRanking(game);
+  const rank = rankFn(game);
   const curve=[12,10,8,7,6,5];
   for(let i=0;i<rank.length;i++){ try{ await Net.addPoints(rank[i], i<curve.length?curve[i]:3); }catch(e){} }
   const fs=snap(); fs.over=true; try{ arena.sendState(fs); }catch(e){}
   let winName='', winMsg='';
   if(kind==='balloon'){ const w=game.players[rank[0]]; winName=w?w.name:''; winMsg=w?`popped ${w.pops} balloons!`:''; }
+  else if(kind==='rocket'){ const w=game.players[rank[0]]; winName=w?w.name:''; winMsg = w&&w.launched?'launched first! 🚀':'fuelled the most!'; }
+  else if(kind==='rope'){ winName = game.winner!=null ? Net.TEAM_NAMES[game.winner]+' team' : ''; winMsg='climbed to the top! 🧗'; }
   else { winName = game.winner!=null ? Net.TEAM_NAMES[game.winner]+' team' : ''; winMsg='pulled the knot home!'; }
   arena.sendMeta({ kind:'over', file, winner:winName, msg:winMsg });
   players=await Net.listPlayers(room.id);
@@ -740,12 +830,21 @@ async function runCopycat(file){
 }
 
 function mashHUD(kind, game, snap){
+  const TN=['Red','Blue','Green'], title=Mash.mashTitle(game.file||'');
   if(kind==='balloon'){ const top=[...snap.players].sort((a,b)=>b.pops-a.pops)[0];
     $('#ahud').innerHTML=`<span class="atitle">Balloon Pop Race</span><span class="aspacer"></span>`+
       (top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.pops}</span>`:'')+
       `<span class="achip">⏱ ${snap.remain}s</span>`;
-  } else { const TN=['Red','Blue','Green'];
-    $('#ahud').innerHTML=`<span class="atitle">Tug of War</span><span class="aspacer"></span>`+
+  } else if(kind==='rocket'){ const launched=snap.players.filter(p=>p.launched).length;
+    const lead=[...snap.players].sort((a,b)=>(b.launched?1e6-b.rank:b.fuel)-(a.launched?1e6-a.rank:a.fuel))[0];
+    $('#ahud').innerHTML=`<span class="atitle">Rocket Fuel</span><span class="aspacer"></span>`+
+      `<span class="achip">🚀 ${launched} launched</span>`+(lead?`<span class="achip"><span class="adot" style="background:${lead.color}"></span>${lead.name}${lead.launched?' 🎉':' '+Math.round(lead.fuel/snap.target*100)+'%'}</span>`:'')+
+      `<span class="achip">⏱ ${snap.remain}s</span>`;
+  } else if(kind==='rope'){ const pr=snap.progress||[0,0,0];
+    $('#ahud').innerHTML=`<span class="atitle">Rope Climb</span><span class="aspacer"></span>`+
+      TN.map((n,t)=>`<span class="achip"><span class="adot" style="background:${Net.TEAM_COLORS[t]}"></span>${n} ${Math.round(pr[t]*100)}%</span>`).join('')+
+      (snap.remain!=null?`<span class="achip">⏱ ${snap.remain}s</span>`:'');
+  } else { $('#ahud').innerHTML=`<span class="atitle">Tug of War</span><span class="aspacer"></span>`+
       TN.map((n,t)=>`<span class="achip"><span class="adot" style="background:${Net.TEAM_COLORS[t]}"></span>${n} ${(snap.rate&&snap.rate[t]||0).toFixed(1)}</span>`).join('')+
       (snap.remain!=null?`<span class="achip">⏱ ${snap.remain}s</span>`:''); }
 }

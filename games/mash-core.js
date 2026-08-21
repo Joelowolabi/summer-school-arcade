@@ -4,14 +4,16 @@
      tug     — Team Tug of War : 3-way triangular tug, teams pull the knot
    Players batch their taps (~8/s) and send {id, taps:n}; the display applies.
 ============================================================ */
-const KINDS = { 'balloon-pop-race':'balloon', 'team-tug-of-war':'tug' };
+const KINDS = { 'balloon-pop-race':'balloon', 'team-tug-of-war':'tug', 'rocket-fuel':'rocket', 'rope-climb':'rope' };
 function slug(file){ return (file||'').replace(/-3d\.html$/,'').replace(/\.html$/,''); }
 export function mashKind(file){ return KINDS[slug(file)] || null; }
 export function isMash(file){ return !!mashKind(file); }
-export function mashTitle(file){ return { balloon:'Balloon Pop Race', tug:'Team Tug of War' }[mashKind(file)] || ''; }
+export function mashTitle(file){ return { balloon:'Balloon Pop Race', tug:'Team Tug of War', rocket:'Rocket Fuel', rope:'Rope Climb' }[mashKind(file)] || ''; }
 export function mashHowto(file){
   return { balloon:'Tap SPACE or the PUMP button as fast as you can — pop as many balloons as you can before time runs out!',
-           tug:'Tap SPACE or PULL as fast as you can — help your team drag the knot to your flag!' }[mashKind(file)] || '';
+           tug:'Tap SPACE or PULL as fast as you can — help your team drag the knot to your flag!',
+           rocket:'Tap SPACE or the button as fast as you can to fuel your rocket — first to launch wins!',
+           rope:'Tap fast to help your team climb — first team to reach the top of the rope wins!' }[mashKind(file)] || '';
 }
 
 /* ---------- Balloon Pop Race ---------- */
@@ -61,6 +63,42 @@ export function stepTug(s){ if(s.over) return;
 export function snapshotTug(s){ return { kind:'tug', over:s.over, winner:s.winner, knot:s.knot, verts:s.verts,
   winRadius:s.winRadius, teamPlayers:s.teamPlayers, rate:s.rate,
   remain: s.endsAt ? Math.max(0, Math.ceil((s.endsAt-Date.now())/1000)) : null }; }
+
+/* ---------- Rocket Fuel (individual: first to launch) ---------- */
+export function createRocket(roster, opts={}){
+  const s={ kind:'rocket', target:opts.target||55, dur:opts.dur||35000, startAt:0, endsAt:0, over:false, finishN:0, players:{}, ids:[] };
+  roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, fuel:0, launched:false, rank:0 }; s.ids.push(p.id); });
+  return s;
+}
+export function startRocket(s){ s.startAt=Date.now(); s.endsAt=s.startAt+s.dur; }
+export function pumpRocket(s,id,n=1){ const p=s.players[id]; if(!p||s.over||p.launched) return;
+  p.fuel=Math.min(s.target, p.fuel+n); if(p.fuel>=s.target){ p.launched=true; s.finishN++; p.rank=s.finishN; } }
+export function stepRocket(s){ if(s.over) return;
+  if(s.ids.every(id=>s.players[id].launched) || (s.endsAt && Date.now()>=s.endsAt)) s.over=true; }
+export function snapshotRocket(s){ return { kind:'rocket', target:s.target, over:s.over,
+  remain: Math.max(0, Math.ceil((s.endsAt-Date.now())/1000)),
+  players: s.ids.map(id=>{ const p=s.players[id]; return { id:p.id, name:p.name, team:p.team, color:p.color, fuel:p.fuel, launched:p.launched, rank:p.rank }; }) }; }
+export function rocketRanking(s){ return [...s.ids].sort((a,b)=>{ const A=s.players[a],B=s.players[b];
+  if(A.launched!==B.launched) return A.launched?-1:1; if(A.launched&&B.launched) return A.rank-B.rank; return B.fuel-A.fuel; }); }
+
+/* ---------- Rope Climb (team: first team to the top) ---------- */
+export function createRope(roster, opts={}){
+  const s={ kind:'rope', over:false, winner:null, threshold:opts.threshold||65, dur:opts.dur||40000, startAt:0, endsAt:0,
+    teamTaps:[0,0,0], teamPlayers:[0,0,0], players:{}, ids:[] };
+  roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, pulls:0 }; s.ids.push(p.id);
+    s.teamPlayers[p.team]=(s.teamPlayers[p.team]||0)+1; });
+  return s;
+}
+export function startRope(s){ s.startAt=Date.now(); s.endsAt=s.startAt+s.dur; }
+export function pullRope(s,id,n=1){ const p=s.players[id]; if(!p||s.over) return; p.pulls+=n; s.teamTaps[p.team]+=n; }
+function ropeProgress(s,t){ return Math.min(1, s.teamTaps[t]/(Math.max(1,s.teamPlayers[t])*s.threshold)); }
+export function stepRope(s){ if(s.over) return;
+  for(let t=0;t<3;t++){ if(ropeProgress(s,t)>=1){ s.over=true; s.winner=t; break; } }
+  if(!s.over && s.endsAt && Date.now()>=s.endsAt){ let best=0,bp=-1; for(let t=0;t<3;t++){ const pr=ropeProgress(s,t); if(pr>bp){bp=pr;best=t;} } s.over=true; s.winner=best; s.timeout=true; } }
+export function snapshotRope(s){ return { kind:'rope', over:s.over, winner:s.winner, teamPlayers:s.teamPlayers,
+  progress:[0,1,2].map(t=>ropeProgress(s,t)), remain: s.endsAt?Math.max(0,Math.ceil((s.endsAt-Date.now())/1000)):null }; }
+export function ropeRanking(s){ const wt=s.winner; return [...s.ids].sort((a,b)=>{ const A=s.players[a],B=s.players[b];
+  const aw=A.team===wt?1:0,bw=B.team===wt?1:0; if(aw!==bw) return bw-aw; return B.pulls-A.pulls; }); }
 
 /* ---------- rankings (best first) ---------- */
 export function balloonRanking(s){ return [...s.ids].sort((a,b)=> s.players[b].pops-s.players[a].pops || s.players[b].fill-s.players[a].fill); }

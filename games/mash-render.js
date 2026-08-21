@@ -75,3 +75,43 @@ export function renderTug(ctx, snap, opts={}){
   ctx.strokeStyle='#3E2C6B'; ctx.lineWidth=3; ctx.stroke();
   ctx.font=`${Math.floor(kr*1.1)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🪢', kx, ky+1);
 }
+
+export function renderRocket(ctx, snap, opts={}){
+  const W=ctx.canvas.width, H=ctx.canvas.height; ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=opts.dark?'#241b3a':'#efeafc'; ctx.fillRect(0,0,W,H);
+  const ps=snap.players, target=snap.target||55;
+  if(opts.solo){ const me=ps.find(p=>p.id===opts.meId)||ps[0]; if(!me) return;
+    const fuel=(opts.meFuel!=null?opts.meFuel:me.fuel), f=Math.min(1,fuel/target);
+    const padY=H*0.86, topY=H*0.16, cx=W/2, ry=padY-(padY-topY)*f;
+    ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=Math.max(8,W*0.03); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx,padY); ctx.lineTo(cx,topY); ctx.stroke();
+    ctx.strokeStyle=me.color; ctx.beginPath(); ctx.moveTo(cx,padY); ctx.lineTo(cx,ry); ctx.stroke();
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.floor(H*0.16)}px serif`; ctx.fillText('🚀', cx, ry);
+    ctx.fillStyle=opts.dark?'#fff':'#1e1b26'; ctx.font=`800 ${Math.floor(H*0.15)}px Fredoka, sans-serif`;
+    ctx.fillText(me.launched?'LAUNCHED! 🎉':Math.round(f*100)+'%', cx, H*0.11);
+    ctx.textBaseline='alphabetic'; return; }
+  const n=ps.length, cols=Math.ceil(Math.sqrt(n*W/H))||1, rows=Math.ceil(n/cols), cw=W/cols, chh=H/rows;
+  ps.forEach((p,i)=>{ const gx=(i%cols)*cw+cw/2, gy0=Math.floor(i/cols)*chh, f=Math.min(1,p.fuel/target);
+    const padY=gy0+chh*0.8, topY=gy0+chh*0.2, ry=padY-(padY-topY)*f;
+    ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(gx,padY); ctx.lineTo(gx,topY); ctx.stroke();
+    ctx.strokeStyle=p.color; ctx.beginPath(); ctx.moveTo(gx,padY); ctx.lineTo(gx,ry); ctx.stroke();
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.floor(chh*0.24)}px serif`; ctx.fillText('🚀', gx, ry);
+    ctx.fillStyle='#fff'; ctx.font=`700 ${Math.max(10,Math.floor(chh*0.11))}px Fredoka, sans-serif`; ctx.fillText(p.name+(p.launched?' 🎉':''), gx, padY+chh*0.12); });
+  ctx.textBaseline='alphabetic';
+}
+export function renderRope(ctx, snap, opts={}){
+  const W=ctx.canvas.width, H=ctx.canvas.height, TC=['#E5484D','#4F9CF9','#3FBF7F'], TN=['Red','Blue','Green'];
+  ctx.clearRect(0,0,W,H); ctx.fillStyle=opts.dark?'#241b3a':'#efeafc'; ctx.fillRect(0,0,W,H);
+  const prog=snap.progress||[0,0,0], padY=H*0.86, topY=H*0.14;
+  for(let t=0;t<3;t++){ const cx=W*(0.25+t*0.25), mine=opts.myTeam===t;
+    ctx.strokeStyle=mine?shade(TC[t],0.2):'rgba(255,255,255,.28)'; ctx.lineWidth=mine?9:5; ctx.lineCap='round';
+    ctx.setLineDash([12,9]); ctx.beginPath(); ctx.moveTo(cx,topY); ctx.lineTo(cx,padY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.floor(H*0.07)}px serif`; ctx.fillText('🏁', cx, topY-H*0.04);
+    const cy=padY-(padY-topY)*prog[t], R=Math.min(W,H)*0.055;
+    ctx.save(); if(mine){ ctx.shadowColor='#FFD93B'; ctx.shadowBlur=22; } ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fillStyle=TC[t]; ctx.fill();
+    if(mine){ ctx.strokeStyle='#FFD93B'; ctx.lineWidth=4; ctx.stroke(); } ctx.restore();
+    ctx.fillStyle='#fff'; ctx.font=`700 ${Math.floor(R*0.7)}px Fredoka, sans-serif`; ctx.fillText(Math.round(prog[t]*100)+'%', cx, cy+1);
+    ctx.fillStyle=mine?'#FFD93B':'#fff'; ctx.font=`700 ${Math.floor(H*0.055)}px Fredoka, sans-serif`; ctx.fillText(mine?TN[t]+' (you)':TN[t], cx, padY+H*0.07);
+  }
+  ctx.textBaseline='alphabetic';
+}

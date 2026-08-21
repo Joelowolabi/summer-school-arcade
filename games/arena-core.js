@@ -21,13 +21,14 @@ const b64dec = (typeof atob!=='undefined')
 
 const MODES = {
   'color-wars':'paint', 'trail-blazer':'trail', 'snake-royale':'snake', 'maze-dash':'maze',
+  'king-of-the-hill':'hill', 'star-catcher':'stars',
 };
 function slug(file){ return (file||'').replace(/-3d\.html$/,'').replace(/\.html$/,''); }
 export function motionMode(file){ return MODES[slug(file)] || null; }
 export function isMotion(file){ return !!motionMode(file); }
 export function motionTitle(file){
   const m=motionMode(file);
-  return { paint:'Color Wars', trail:'Trail Blazer', snake:'Snake Royale', maze:'Maze Dash' }[m] || '';
+  return { paint:'Color Wars', trail:'Trail Blazer', snake:'Snake Royale', maze:'Maze Dash', hill:'King of the Hill', stars:'Star Catcher' }[m] || '';
 }
 export function motionHowto(file){
   return {
@@ -35,6 +36,8 @@ export function motionHowto(file){
     trail:'Steer with the arrow keys. You leave a glowing trail — don\'t hit anyone\'s trail or the wall. Last one riding wins!',
     snake:'Steer with the arrow keys. Eat the glowing pellets to grow. Don\'t crash into a snake or the wall!',
     maze:'Steer with the arrow keys. Race through the maze — first one to reach the exit flag wins!',
+    hill:'Steer onto the glowing 👑 hill and hold it — every moment on the hill scores. Most time on top wins!',
+    stars:'Steer around and scoop up the ⭐ stars as they pop up. Grab the most to win!',
   }[motionMode(file)] || '';
 }
 
@@ -72,12 +75,14 @@ export function createGame(file, roster, opts={}){
   const mode=motionMode(file);
   const cols=opts.cols|| (mode==='maze'?31:40), rows=opts.rows|| (mode==='maze'?19:24);
   const s={ mode, file, cols, rows, tick:0, over:false, winner:null, msg:'',
-    maxTicks: opts.maxTicks || (mode==='maze'?1400:mode==='paint'?460:900),
+    maxTicks: opts.maxTicks || (mode==='maze'?1400:(mode==='paint'||mode==='hill'||mode==='stars')?520:900),
     cells:new Int16Array(cols*rows), walls:new Uint8Array(cols*rows),
-    exit:null, pellets:[], players:{}, ids:[] };
+    exit:null, pellets:[], stars:[], hill:null, players:{}, ids:[] };
   let mazeDir=1;
   if(mode==='maze'){ s.walls=buildMaze(cols,rows,opts.seed); s.exit={x:cols-2,y:rows-2}; s.walls[idx(s,s.exit.x,s.exit.y)]=0;
     for(let d=0;d<4;d++){ const [dx,dy]=DIRS[d]; if(inb(s,1+dx,1+dy) && !s.walls[idx(s,1+dx,1+dy)]){ mazeDir=d; break; } } }  // face an open corridor from the mouth
+  if(mode==='hill'){ s.hill={ cx:Math.floor((cols-1)/2), cy:Math.floor((rows-1)/2), rx:3, ry:2 }; }
+  if(mode==='stars'){ s.starTarget=Math.max(8, Math.ceil(roster.length*0.8)); }
   const spots=spawnSpots(s, roster.length);
   roster.forEach((p,i)=>{
     const sp=spots[i]||{x:1,y:1,dir:1};
@@ -90,9 +95,19 @@ export function createGame(file, roster, opts={}){
     s.players[p.id]=P; s.ids.push(p.id);
   });
   if(mode==='snake') for(let i=0;i<Math.max(6,roster.length);i++) spawnPellet(s);
+  if(mode==='stars') while(s.stars.length<s.starTarget) spawnStar(s);
   s.aliveStart = s.ids.length;
   return s;
 }
+function spawnStar(s){ for(let t=0;t<60;t++){ const x=1+Math.floor(Math.random()*(s.cols-2)), y=1+Math.floor(Math.random()*(s.rows-2));
+  if(!s.stars.some(q=>q.x===x&&q.y===y)){ s.stars.push({x,y}); return; } } }
+function inHill(s,x,y){ const h=s.hill; return h && Math.abs(x-h.cx)<=h.rx && Math.abs(y-h.cy)<=h.ry; }
+function moveFree(s, alive){ for(const p of alive){ p.dir=p.ndir; const [dx,dy]=DIRS[p.dir]; let nx=p.x+dx, ny=p.y+dy;
+  if(!inb(s,nx,ny)){ nx=p.x; ny=p.y; } p.x=nx; p.y=ny; } }
+function stepHill(s, alive){ moveFree(s, alive); for(const p of alive){ if(inHill(s,p.x,p.y)) p.score++; } }
+function stepStars(s, alive){ moveFree(s, alive);
+  for(const p of alive){ const i=s.stars.findIndex(q=>q.x===p.x&&q.y===p.y); if(i>=0){ s.stars.splice(i,1); p.score++; spawnStar(s); } }
+  while(s.stars.length<s.starTarget) spawnStar(s); }
 const TEAMCOLORS=['#E5484D','#4F9CF9','#3FBF7F'];
 function teamColor(t){ return TEAMCOLORS[t] || '#7B5BE8'; }
 
@@ -117,6 +132,8 @@ export function step(s){
   else if(s.mode==='trail') stepTrail(s, alive);
   else if(s.mode==='snake') stepSnake(s, alive);
   else if(s.mode==='maze') stepMaze(s, alive);
+  else if(s.mode==='hill') stepHill(s, alive);
+  else if(s.mode==='stars') stepStars(s, alive);
   checkEnd(s);
   return s;
 }
@@ -180,6 +197,10 @@ function checkEnd(s){
     if(allDone || s.tick>=s.maxTicks){ s.over=true; s.winner=ranking(s)[0]; if(s.winner) s.msg=s.players[s.winner].name+' reached the exit first!'; }
   } else if(s.mode==='paint'){
     if(s.tick>=s.maxTicks){ s.over=true; s.winner=ranking(s)[0]; s.msg='Time! Territory locked in.'; }
+  } else if(s.mode==='hill'){
+    if(s.tick>=s.maxTicks){ s.over=true; s.winner=ranking(s)[0]; if(s.winner) s.msg=s.players[s.winner].name+' ruled the hill!'; }
+  } else if(s.mode==='stars'){
+    if(s.tick>=s.maxTicks){ s.over=true; s.winner=ranking(s)[0]; if(s.winner) s.msg=s.players[s.winner].name+' caught the most stars!'; }
   }
 }
 
@@ -208,6 +229,8 @@ export function snapshot(s){
       if(s.mode==='snake') o.body=p.body.map(b=>[b.x,b.y]); return o; }) };
   if(s.mode==='paint'||s.mode==='trail') snap.cells=b64enc(s.cells);
   if(s.mode==='maze') snap.walls=b64enc(s.walls);
+  if(s.mode==='hill') snap.hill=s.hill;
+  if(s.mode==='stars') snap.stars=s.stars;
   return snap;
 }
 export function decodeCells(str){ return b64dec(str); }

@@ -85,6 +85,19 @@ export function renderArena(ctx, snap, opts={}){
     ctx.beginPath(); ctx.arc(gx,gy,cs*0.3,0,7); ctx.fill(); ctx.restore();
     ctx.strokeStyle='#F2683C'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(gx,gy,cs*0.3,0,7); ctx.stroke(); }
 
+  // king-of-the-hill glowing zone
+  if(mode==='hill' && snap.hill){ const h=snap.hill;
+    const x0=ox+(h.cx-h.rx)*cs, y0=oy+(h.cy-h.ry)*cs, w=(h.rx*2+1)*cs, ht=(h.ry*2+1)*cs;
+    ctx.save(); ctx.fillStyle='rgba(255,217,59,.16)'; rr(ctx,x0,y0,w,ht,16); ctx.fill();
+    ctx.strokeStyle='#FFD93B'; ctx.lineWidth=Math.max(3,cs*0.12); ctx.setLineDash([cs*0.55,cs*0.35]);
+    rr(ctx,x0,y0,w,ht,16); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalAlpha=0.5; ctx.font=`${Math.floor(cs*1.5)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('👑', ox+h.cx*cs+cs/2, oy+h.cy*cs+cs/2); ctx.globalAlpha=1; ctx.textBaseline='alphabetic'; ctx.restore(); }
+  // star-catcher stars
+  if(mode==='stars' && snap.stars){ ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font=`${Math.floor(cs*0.9)}px serif`;
+    for(const q of snap.stars){ ctx.save(); ctx.shadowColor='#FFD93B'; ctx.shadowBlur=cs*0.55;
+      ctx.fillText('⭐', ox+q.x*cs+cs/2, oy+q.y*cs+cs/2); ctx.restore(); } ctx.textBaseline='alphabetic'; }
+
   // players — interpolated between the previous and current tick
   const prevById={}; if(opts.prev&&opts.prev.players) opts.prev.players.forEach(pp=>prevById[pp.id]=pp);
   const tt=(opts.t!=null)?opts.t:1;

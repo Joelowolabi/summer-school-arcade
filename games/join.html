@@ -154,6 +154,13 @@
   .srow .sn{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)} .srow .sn em{font-style:normal;font-size:10px;background:var(--accent-play);color:#fff;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
   .srow .sp{font-family:var(--font-heading);font-weight:var(--fw-bold);color:var(--text-strong);font-variant-numeric:tabular-nums}
   .readywait{text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);margin-top:4px}
+  /* green light (reflex) */
+  .glplay{flex:1;display:flex;flex-direction:column;min-height:0}
+  .glpanel{flex:1;min-height:220px;border-radius:var(--radius-2xl);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;box-shadow:var(--shadow-l);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;text-align:center;padding:20px}
+  .glbig{font-size:clamp(90px,20vh,160px);line-height:1;filter:drop-shadow(0 8px 22px rgba(0,0,0,.32))}
+  .glword2{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);letter-spacing:.01em;text-shadow:0 4px 18px rgba(0,0,0,.32)}
+  .glhead{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);text-align:center}
+  .glresultmsg{text-align:center;font-weight:var(--fw-bold);color:var(--accent-play);margin:6px 0 12px}
   /* celebratory win / result screen */
   .winwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
   .wintrophy{font-size:clamp(78px,16vh,150px);line-height:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,.34));animation:trophyPop .5s var(--ease-pop)}
@@ -337,7 +344,7 @@ import * as Bank from './live-bank.js';
 import * as Arena from './arena-core.js';
 import { renderArena } from './arena-render.js';
 import * as Mash from './mash-core.js';
-import { renderBalloon, renderTug } from './mash-render.js';
+import { renderBalloon, renderTug, renderRocket, renderRope } from './mash-render.js';
 import * as Studio from './studio-core.js';
 import { PARTS, PART_KEYS, randomMonster, clampMonster, renderMonster } from './monster.js';
 import * as Social from './social-core.js';
@@ -436,6 +443,8 @@ function renderRoomState(){
     if(Studio.isQuickDraw(g)){ roster(false); closeMotion();closeMash();closeStudio();closeSocial(); return renderQuickDraw(g); }
     if(Social.isSocial(g)){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();
       return (live && (live.family==='spy'||live.family==='wordchain'||live.family==='copycat')) ? renderSocial(live) : getReady(g); }
+    if(/green-light/.test(g)){ roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial();
+      return (live && live.family==='greenlight') ? renderGreenLight(live) : getReady(g); }
     roster(false); closeMotion();closeMash();closeStudio();closeQuickDraw();closeSocial(); return getReady(g);
   }
   closeMotion(); closeMash(); closeStudio(); closeQuickDraw(); closeSocial();
@@ -461,6 +470,47 @@ function renderIntro(live){
   introKey=live.game; const slug=(live.game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'');
   $('#waiting').innerHTML=`<div class="intro"><img class="intro-ic" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div class="intro-k">Get Ready · How to play</div><div class="intro-t">${live.title||Net.gameLabel(live.game)}</div><div class="intro-how">${live.howto||''}</div><div class="intro-n" id="intron">${Math.max(0,Math.ceil(((live.endsAt||0)-Date.now())/1000))}</div></div>`;
   startIntroTimer(live.endsAt);
+}
+/* ---- Green Light (reflex) — player taps a big panel ---- */
+let glKey=null, glState='waiting', glReact=0;
+function glTap(live){
+  if(glState!=='waiting') return;
+  if(live.phase==='red'){ glState='jumped';
+    Net.submitAnswer(room.id, me.id, live.game, live.round, 0).catch(()=>{}); paintGL(live); }
+  else if(live.phase==='green'){ glState='tapped'; glReact=Math.max(0, Date.now()-(live.greenAt||Date.now()));
+    Net.submitAnswer(room.id, me.id, live.game, live.round, 1).catch(()=>{}); paintGL(live); }
+}
+function paintGL(live){ const panel=$('#glpanel'); if(!panel) return;
+  let bg, big, txt;
+  if(live.phase==='red'){
+    if(glState==='jumped'){ bg='#7a1f1f'; big='🚫'; txt='Too early! Wait for green'; }
+    else { bg='linear-gradient(160deg,#ff6060,#c62828)'; big='🔴'; txt='WAIT…'; }
+  } else {
+    if(glState==='tapped'){ bg='linear-gradient(160deg,#46e37e,#1f9d52)'; big='⚡'; txt=glReact+'ms — nice!'; }
+    else if(glState==='jumped'){ bg='#7a1f1f'; big='🚫'; txt='You jumped — sit this one out'; }
+    else { bg='linear-gradient(160deg,#46e37e,#1f9d52)'; big='🟢'; txt='TAP!'; }
+  }
+  panel.style.background=bg;
+  panel.innerHTML=`<div class="glbig">${big}</div><div class="glword2">${txt}</div>`;
+}
+function renderGreenLight(live){
+  const w=$('#waiting');
+  if(live.phase==='result' || live.phase==='done'){
+    const head = live.phase==='done' ? '🏁 Green Light complete!' : `Round ${live.round}/${live.total} done`;
+    const msg = glState==='tapped' ? `⚡ You tapped in ${glReact}ms` : glState==='jumped' ? '🚫 You jumped early' : '😴 Missed that one';
+    w.innerHTML=`<div class="glplay"><div class="glhead">${head}</div><div class="glresultmsg">${msg}</div>
+      <div class="glstand">${standingsPanel()}</div></div>`;
+    glKey=live.round+':'+live.phase; return;
+  }
+  const key=live.round+':'+live.phase;
+  if(key===glKey && $('#glpanel')){ paintGL(live); return; }
+  if(live.phase==='red' && glKey!==live.round+':red'){ glState='waiting'; glReact=0; }
+  glKey=key;
+  w.innerHTML=`<div class="glplay">${familyHeader(live.game, live.phase==='green'?'GREEN — tap!':'Wait for green…')}
+    <div id="glpanel" class="glpanel"></div></div>`;
+  const panel=$('#glpanel');
+  panel.addEventListener('pointerdown', e=>{ e.preventDefault(); glTap(live); });
+  paintGL(live);
 }
 function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,'');
   $('#waiting').innerHTML=`<div class="ready" style="flex:1;justify-content:center">
@@ -582,7 +632,7 @@ function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
   if(mh){ mh.textContent = !meP ? '' : meP.alive===false ? "💥 You're out — cheer your team on!" : scoreLabel(mSnap.mode, meP); }
   if(!mSnap.over){ const ov=$('#moverlay'); if(ov && ov.dataset.state!=='over'){ ov.style.display='none'; ov.dataset.state=''; } }  // live snapshot = game started, clear countdown even if 'go' was dropped
 }
-function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):('you: '+p.score); }
+function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):mode==='hill'?('👑 '+p.score+' on the hill'):mode==='stars'?('⭐ '+p.score+' caught'):('you: '+p.score); }
 function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`;
@@ -592,12 +642,13 @@ function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':(m.msg||'Finished!')}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
 /* ---- mash controller (Balloon Pop Race, Tug of War) ---- */
-let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kTugPulse=0, kOvTO=null;
+let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kLocalFuel=0, kTugPulse=0, kOvTO=null;
 function mashKeydown(e){ if(e.key===' '||e.key==='Spacebar'){ e.preventDefault(); mashTap(); } }
 function mashTap(){ kTaps++;
   const btn=$('#ktap'); if(btn){ btn.style.transform='scale(.93)'; setTimeout(()=>{ if($('#ktap')) $('#ktap').style.transform=''; },70); }
   if(kKind==='balloon' && kSnap){ const target=kSnap.target||20; kLocalFill=(kLocalFill+1)%target; drawMash(); }   // instant local inflate
-  else if(kKind==='tug'){ kTugPulse=Date.now(); drawMash(); }                                                       // instant pull flash
+  else if(kKind==='rocket' && kSnap){ const target=kSnap.target||55; kLocalFuel=Math.min(target, kLocalFuel+1); drawMash(); }  // instant local fuel
+  else if(kKind==='tug'||kKind==='rope'){ kTugPulse=Date.now(); drawMash(); }                                       // instant pull/climb flash
 }
 function openMash(file){
   if(kArena && kFile===file) return;
@@ -612,7 +663,7 @@ function renderMash(file){
   openMash(file);
   if(kUiFile===file && document.getElementById('kcanvas')) return;
   kUiFile=file; const kind=Mash.mashKind(file);
-  const label = kind==='balloon' ? 'PUMP! 🎈' : 'PULL! 🪢';
+  const label = {balloon:'PUMP! 🎈', tug:'PULL! 🪢', rocket:'FUEL! 🚀', rope:'CLIMB! 🧗'}[kind] || 'TAP!';
   const w=$('#waiting');
   w.innerHTML=`<div class="motionwrap">
       ${familyHeader(file)}
@@ -630,21 +681,25 @@ function renderMash(file){
   if(kSnap) drawMash();
 }
 function drawMash(){ const cv=$('#kcanvas'); if(!cv||!kSnap) return;
-  const ctx=cv.getContext('2d');
+  const ctx=cv.getContext('2d'); const myT=(players.find(p=>p.id===me.id)||{}).team;
   if(kKind==='balloon') renderBalloon(ctx, kSnap, { dark:true, meId:me.id, solo:true, meFill:kLocalFill });
-  else { const myT=(players.find(p=>p.id===me.id)||{}).team; const pull=Math.max(0,1-(Date.now()-kTugPulse)/240);
-    renderTug(ctx, kSnap, { dark:true, myTeam:myT, pull }); }
-  const kh=$('#khead');
+  else if(kKind==='rocket') renderRocket(ctx, kSnap, { dark:true, meId:me.id, solo:true, meFuel:kLocalFuel });
+  else if(kKind==='rope') renderRope(ctx, kSnap, { dark:true, myTeam:myT });
+  else { const pull=Math.max(0,1-(Date.now()-kTugPulse)/240); renderTug(ctx, kSnap, { dark:true, myTeam:myT, pull }); }
+  const kh=$('#khead'), TN=['Red','Blue','Green'];
   if(kh){ if(kKind==='balloon'){ const me2=kSnap.players.find(p=>p.id===me.id);
       kh.textContent = me2 ? `You've popped ${me2.pops} · ${kSnap.remain}s left` : Mash.mashTitle(kFile); }
-    else { const myT=(players.find(p=>p.id===me.id)||{}).team; kh.textContent = `Pull for ${['Red','Blue','Green'][myT]||'your'} team!`; } }
+    else if(kKind==='rocket'){ const me2=kSnap.players.find(p=>p.id===me.id);
+      kh.textContent = me2 ? (me2.launched?'🚀 Launched — nice one!':'Fuel '+Math.round(Math.min(kSnap.target,Math.max(kLocalFuel,me2.fuel))/(kSnap.target||55)*100)+'% · '+kSnap.remain+'s') : 'Fuel your rocket!'; }
+    else if(kKind==='rope'){ kh.textContent = `Climb for ${TN[myT]||'your'} team! 🧗`; }
+    else { kh.textContent = `Pull for ${TN[myT]||'your'} team!`; } }
   if(!kSnap.over){ const ov=$('#koverlay'); if(ov && ov.dataset.state!=='over'){ ov.style.display='none'; ov.dataset.state=''; } }  // live snapshot = game started, clear countdown even if 'go' was dropped
 }
 function onMashMeta(m){ const ov=$('#koverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`;
     clearTimeout(kOvTO); kOvTO=setTimeout(()=>{ const o=$('#koverlay'); if(o && o.dataset.state==='count'){ o.style.display='none'; o.dataset.state=''; } }, 3000); }
-  else if(m.kind==='go'){ clearTimeout(kOvTO); ov.dataset.state=''; ov.style.display='none'; kTaps=0; kLocalFill=0; }
+  else if(m.kind==='go'){ clearTimeout(kOvTO); ov.dataset.state=''; ov.style.display='none'; kTaps=0; kLocalFill=0; kLocalFuel=0; }
   else if(m.kind==='over'){ ov.dataset.state='over'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-n">🏆</div><div class="mo-t">${m.winner?m.winner+' wins!':'Finished!'}</div><div class="mo-h">${m.msg||''}</div><div class="mo-wait">Waiting for the next game…</div></div>`; }
 }
