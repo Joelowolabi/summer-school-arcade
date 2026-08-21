@@ -39,6 +39,44 @@ const PALETTE = [[242,104,60],[123,91,232],[63,191,127],[79,156,249],[245,200,31
 const CR_COLORS = [{n:'Orange',h:'#F2683C'},{n:'Purple',h:'#7B5BE8'},{n:'Yellow',h:'#FFD93B'},{n:'Green',h:'#3FBF7F'},{n:'Blue',h:'#4F9CF9'}];
 const SHAPES = ['star','circle','heart','square','triangle','flash'];
 
+const TF = [
+  ['A group of lions is called a pride',true],['The Sun is a planet',false],['Spiders have eight legs',true],
+  ['Bats are completely blind',false],['Honey never goes bad',true],['A tomato is a vegetable',false],
+  ['Sharks are mammals',false],['Octopuses have three hearts',true],['Penguins can fly',false],
+  ['Water is made of hydrogen and oxygen',true],['Goldfish only remember things for 3 seconds',false],
+  ['Some frogs can freeze solid and come back to life',true],['Chocolate is safe for dogs to eat',false],
+  ['The human body has more than 200 bones',true],['A caterpillar turns into a butterfly',true],
+  ['The Great Wall of China is visible from the Moon',false],['Bananas grow on trees',false],['Lightning is hotter than the surface of the Sun',true],
+];
+const HL = [
+  ['🕐 Hours in a week — more than 100?',true],['⚽ Players on a soccer team on the field — more than 15?',false],
+  ['🌈 Colours in a rainbow — more than 5?',true],['🕷️ Legs on a spider — more than 6?',true],
+  ['📅 Days in a year — more than 400?',false],['🎹 Keys on a piano — more than 50?',true],
+  ['🐙 Arms on an octopus — more than 6?',true],['🔺 Sides on a triangle — more than 4?',false],
+  ['⏱️ Seconds in a minute — more than 100?',false],['💯 Years in a century — more than 50?',true],
+  ['🐜 Legs on an ant — more than 4?',true],['🎸 Strings on a guitar — more than 10?',false],
+  ['🌍 Continents on Earth — more than 5?',true],['✋ Fingers on one hand — more than 5?',false],
+];
+const FLAGS = [
+  ['🇫🇷','France'],['🇯🇵','Japan'],['🇧🇷','Brazil'],['🇨🇦','Canada'],['🇮🇹','Italy'],['🇩🇪','Germany'],
+  ['🇬🇧','United Kingdom'],['🇲🇽','Mexico'],['🇮🇳','India'],['🇪🇬','Egypt'],['🇰🇪','Kenya'],['🇳🇬','Nigeria'],
+  ['🇿🇦','South Africa'],['🇦🇺','Australia'],['🇨🇳','China'],['🇺🇸','United States'],['🇪🇸','Spain'],['🇰🇷','South Korea'],['🇬🇷','Greece'],['🇸🇪','Sweden'],
+];
+const WDB = [
+  ['Dog','Cat','Rabbit','Apple'],['Red','Blue','Green','Circle'],['Rose','Tulip','Daisy','Oak'],
+  ['Car','Bus','Bike','Banana'],['Sun','Moon','Star','Chair'],['Guitar','Drum','Piano','Pencil'],
+  ['Apple','Banana','Grape','Carrot'],['Snake','Lizard','Frog','Table'],['Rain','Snow','Wind','Book'],
+  ['Nose','Ear','Eye','Shoe'],['Circle','Square','Triangle','Blue'],['Milk','Water','Juice','Bread'],
+];  // last item is always the odd one (shuffled at question time)
+const CAT = [
+  ['animal',['Table','Tiger','Spoon','Cloud'],1],['fruit',['Carrot','Potato','Mango','Onion'],2],
+  ['colour',['Chair','Purple','River','Music'],1],['vehicle',['Apple','Banana','Truck','Table'],2],
+  ['planet',['Mars','Cheese','Cookie','Sock'],0],['vegetable',['Grape','Cherry','Broccoli','Peach'],2],
+  ['instrument',['Violin','Pillow','Bottle','Ladder'],0],['shape',['Yellow','Square','Loud','Fast'],1],
+  ['bird',['Shark','Eagle','Frog','Snake'],1],['insect',['Ant','Dog','Fish','Horse'],0],
+  ['drink',['Bread','Rice','Juice','Cheese'],2],['body part',['Elbow','Chair','Cloud','Spoon'],0],
+];
+
 const SHAPE_PATH = {
   star:'M40 6l9.5 22.5L74 31 55 47l6 25-21-13-21 13 6-25L6 31l24.5-2.5z',
   circle:'M40 10a30 30 0 1 0 0 60 30 30 0 0 0 0-60z',
@@ -48,12 +86,17 @@ const SHAPE_PATH = {
 export function shapeSVG(shape, hex, size){ size=size||64;
   return `<svg width="${size}" height="${size}" viewBox="0 0 80 80" fill="${hex}" stroke="rgba(30,27,38,.14)" stroke-width="1.5" stroke-linejoin="round"><path d="${SHAPE_PATH[shape]||SHAPE_PATH.star}"/></svg>`; }
 
-export function isLive(game){ return /trivia-sprint|number-ninjas|this-or-that|odd-one-out|click-rush/.test(game||''); }
+export function isLive(game){ return /trivia-sprint|number-ninjas|this-or-that|odd-one-out|click-rush|true-or-false|higher-or-lower|flag-frenzy|which-doesnt-belong|category-tap/.test(game||''); }
 export function gameTitle(game){
   if(/number-ninjas/.test(game)) return 'Number Ninjas';
   if(/this-or-that/.test(game))  return 'This or That';
   if(/odd-one-out/.test(game))   return 'Odd One Out';
   if(/click-rush/.test(game))    return 'Click Rush';
+  if(/true-or-false/.test(game)) return 'True or False Blitz';
+  if(/higher-or-lower/.test(game)) return 'Higher or Lower';
+  if(/flag-frenzy/.test(game))   return 'Flag Frenzy';
+  if(/which-doesnt-belong/.test(game)) return "Which Doesn't Belong";
+  if(/category-tap/.test(game))  return 'Category Tap';
   return 'Trivia Sprint';
 }
 
@@ -88,6 +131,19 @@ export function makeQuestion(game, round){
       let c,s,k; do{ c=rnd(CR_COLORS); s=rnd(SHAPES); k=c.h+s; }while(used.has(k)); used.add(k); tiles.push({c:c.h,s}); }
     return { type:'grid', variant:'shape', prompt:`Find the ${target.color.n} ${cap(target.shape)}`, tiles, cols:3, correct:slot };
   }
+  if(/true-or-false/.test(game)){ const [s,tf]=rnd(TF);
+    return { type:'mcq', prompt:s, hint:'True or false?', options:['✅ True','❌ False'], correct: tf?0:1 }; }
+  if(/higher-or-lower/.test(game)){ const [s,hi]=rnd(HL);
+    return { type:'mcq', prompt:s, hint:'Higher or lower?', options:['⬆️ Higher','⬇️ Lower'], correct: hi?0:1 }; }
+  if(/flag-frenzy/.test(game)){ const [flag,name]=rnd(FLAGS); const opts=new Set([name]);
+    while(opts.size<4) opts.add(rnd(FLAGS)[1]); const arr=[...opts].sort(()=>Math.random()-.5);
+    return { type:'mcq', prompt:flag, hint:'Which country?', options:arr, correct:arr.indexOf(name) }; }
+  if(/which-doesnt-belong/.test(game)){ const it=rnd(WDB), oddItem=it[3];
+    const arr=it.slice().sort(()=>Math.random()-.5);
+    return { type:'mcq', prompt:'Which does NOT belong?', options:arr, correct:arr.indexOf(oddItem) }; }
+  if(/category-tap/.test(game)){ const [cat,opts,ci]=rnd(CAT), correctItem=opts[ci];
+    const arr=opts.slice().sort(()=>Math.random()-.5);
+    return { type:'mcq', prompt:`Tap the ${cat}`, options:arr, correct:arr.indexOf(correctItem) }; }
   const t=rnd(TRIVIA);
   return { type:'mcq', prompt:t.q, hint:'', options:t.a, correct:t.c };
 }
@@ -97,6 +153,11 @@ export function howto(game){
   if(/this-or-that/.test(game))  return 'Two choices, no wrong answer — pick your side fast. Go with the majority to score!';
   if(/odd-one-out/.test(game))   return 'One tile is a slightly different shade. Spot it and tap it — fastest eyes win!';
   if(/click-rush/.test(game))    return 'It names a shape and colour — find that tile and tap it before anyone else!';
+  if(/true-or-false/.test(game)) return 'Is it true or false? Tap fast — quicker correct answers score more!';
+  if(/higher-or-lower/.test(game)) return 'Is the real number higher or lower than shown? Tap your guess fast!';
+  if(/flag-frenzy/.test(game))   return 'A flag appears — tap the country it belongs to, as fast as you can!';
+  if(/which-doesnt-belong/.test(game)) return 'Three of the four go together — tap the odd one out!';
+  if(/category-tap/.test(game))  return 'Tap the item that fits the category — fastest correct wins!';
   return 'Read the question and tap your answer fast — the quicker you\'re right, the more you score!';
 }
 export function speedPoints(rank){ return Math.max(5, 15-rank); }   // 1st correct = 15 … floor 5
