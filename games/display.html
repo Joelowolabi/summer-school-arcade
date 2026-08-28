@@ -88,8 +88,8 @@
   /* finale podium */
   .finale{position:relative;flex:1;display:flex;flex-direction:column;min-height:0;gap:16px;color:#fff;align-items:center;justify-content:center}
   .finale .ftitle{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);text-align:center}
-  .podium{display:flex;justify-content:center;align-items:flex-end;gap:22px}
-  .podcol{display:flex;flex-direction:column;align-items:center;gap:7px;width:210px;animation:podrise .6s var(--ease-pop) both}
+  .podium{display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,2vw,22px);max-width:100%}
+  .podcol{display:flex;flex-direction:column;align-items:center;gap:7px;width:clamp(120px,22vw,210px);animation:podrise .6s var(--ease-pop) both}
   .pod1{animation-delay:.5s} .pod2{animation-delay:.15s} .pod3{animation-delay:.32s}
   @keyframes podrise{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}
   .podmedal{font-size:46px;line-height:1}
