@@ -12,7 +12,7 @@ const SUPABASE_URL = 'https://zbnpyjllbtktmbkqxilq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_G5d5Ncj4X0X2EyBjOmGxjg_KcJ_Fk7B';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  realtime: { params: { eventsPerSecond: 25 } },
+  realtime: { params: { eventsPerSecond: 40 } },   // higher rate = lower input/broadcast buffering latency
   auth: { persistSession: false },
 });
 
