@@ -376,7 +376,7 @@ async function runLiveGame(game){
   Bank.resetUsed(game);                                            // fresh no-repeat pool each play
   const diff=(room.state&&room.state.difficulty)||'med';
   if(!await showIntro(game, Bank.gameTitle(game), Bank.howto(game))) return;
-  const N=8, QT = diff==='easy' ? 24000 : diff==='hard' ? 13000 : 18000, RT=4500;   // harder = less time
+  const N=8, QT = diff==='easy' ? 16000 : diff==='hard' ? 10000 : 13000, RT=4500;   // snappier clock; harder = less time
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
     const q=Bank.makeQuestion(game, round, { difficulty:diff });
