@@ -85,6 +85,28 @@
   .lead.em-team .tbig{padding:32px 32px} .lead.em-team .tbig .tv{font-size:var(--fs-display-l)}
   .lead.em-team .nowcard{padding:22px} .lead.em-team .nowcard h1{font-size:var(--fs-h1)} .lead.em-team .lrow{padding:8px 14px} .lead.em-team .lrow .nm,.lead.em-team .lrow .pt{font-size:var(--fs-body)}
   .emlabel{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);font-weight:var(--fw-bold);color:#fff;opacity:.9;margin-bottom:10px}
+  /* finale podium */
+  .finale{position:relative;flex:1;display:flex;flex-direction:column;min-height:0;gap:16px;color:#fff;align-items:center;justify-content:center}
+  .finale .ftitle{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);letter-spacing:var(--ls-display);text-align:center}
+  .podium{display:flex;justify-content:center;align-items:flex-end;gap:22px}
+  .podcol{display:flex;flex-direction:column;align-items:center;gap:7px;width:210px;animation:podrise .6s var(--ease-pop) both}
+  .pod1{animation-delay:.5s} .pod2{animation-delay:.15s} .pod3{animation-delay:.32s}
+  @keyframes podrise{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .podmedal{font-size:46px;line-height:1}
+  .podav{width:104px;height:104px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.38);font-family:var(--font-display);font-weight:var(--fw-bold);font-size:44px}
+  .podav img{width:100%;height:100%;object-fit:contain}
+  .pod1 .podav{width:140px;height:140px;outline:5px solid var(--accent-sun);outline-offset:4px}
+  .podname{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);text-align:center;text-wrap:balance;line-height:1.1}
+  .podpts{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--accent-sun)}
+  .podest{width:100%;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:60px;color:rgba(0,0,0,.32);box-shadow:inset 0 6px 22px rgba(255,255,255,.22)}
+  .pod1 .podest{height:150px;background:linear-gradient(#FFE072,#F2B23C)}
+  .pod2 .podest{height:112px;background:linear-gradient(#E8ECF5,#AEB4C4)}
+  .pod3 .podest{height:82px;background:linear-gradient(#EBAE79,#B9713C)}
+  .frest{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;max-width:900px}
+  .frest .frow{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.13);border-radius:var(--radius-pill);padding:7px 16px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-body)}
+  .frest .frow .av{width:28px;height:28px}
+  .fteam{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);text-wrap:balance}
+  #confetti{position:absolute;inset:0;pointer-events:none;z-index:6}
   .teamsbig{display:flex;flex-direction:column;gap:16px}
   .tbig{border-radius:var(--radius-2xl);padding:22px 26px;color:#fff;display:flex;align-items:center;justify-content:space-between}
   .tbig .tn{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2)}
@@ -306,23 +328,37 @@ function renderGame(){
 
 function renderSummary(){
   const totals=teamTotals();
-  const sorted=[...players].sort((a,b)=>b.points-a.points);
+  const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
   const winTeam=totals.indexOf(Math.max(...totals));
-  const top=sorted.slice(0,10);
-  const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
+  const top3=sorted.slice(0,3), rest=sorted.slice(3,11);
+  const order=[1,0,2];   // 2nd on the left, 1st raised in the middle, 3rd on the right
+  const podium=order.filter(idx=>top3[idx]).map(idx=>{ const p=top3[idx];
+    return `<div class="podcol pod${idx+1}"><div class="podmedal">${MEDALS[idx]}</div>${avatar(p,'podav')}<div class="podname">${p.name}${idx===0?' 👑':''}</div><div class="podpts">${p.points}</div><div class="podest">${idx+1}</div></div>`;
+  }).join('');
+  const restRows=rest.map((p,i)=>`<div class="frow"><span style="opacity:.8">${i+4}</span>${avatar(p,'av')}${p.name} · ${p.points}</div>`).join('');
+  const teamHasPts=totals.some(t=>t>0);
   $('#stage').innerHTML=`
-    <div class="lead ${cls}">
-      <div class="nowcard">
-        <div class="k">Session Summary</div>
-        <h1>Final Standings</h1>
-        <div class="llist">${top.map((p,i)=>`
-          <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}</div>
-      </div>
-      <div class="teamsbig">
-        ${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]};${i===winTeam?'outline:4px solid var(--accent-sun);outline-offset:-4px':''}"><span class="tn">${n}${i===winTeam?' 🏆'.replace('🏆',''):''}</span><span class="tv">${totals[i]}</span></div>`).join('')}
-        <div class="center-msg" style="flex:0"><p style="color:#fff;font-weight:var(--fw-bold)">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</p></div>
-      </div>
+    <div class="finale"><canvas id="confetti"></canvas>
+      <div class="ftitle">🏆 Final Results</div>
+      <div class="podium">${podium || '<div class="podname">No scores yet</div>'}</div>
+      ${restRows?`<div class="frest">${restRows}</div>`:''}
+      ${teamHasPts?`<div class="fteam">Team <span style="color:${Net.TEAM_COLORS[winTeam]}">${Net.TEAM_NAMES[winTeam]}</span> takes the day! <span style="opacity:.8">· ${totals[winTeam]} pts</span></div>`:''}
     </div>`;
+  launchConfetti();
+}
+let confettiRAF=0;
+function launchConfetti(){
+  const cv=$('#confetti'), host=$('.finale'); if(!cv||!host) return;
+  const size=()=>{ cv.width=host.clientWidth; cv.height=host.clientHeight; }; size();
+  const ctx=cv.getContext('2d'), cols=['#7B5BE8','#F2683C','#FFD93B','#3FBF7F','#4F9CF9','#E5484D'];
+  const P=[]; for(let i=0;i<170;i++) P.push({x:Math.random()*cv.width,y:-20-Math.random()*cv.height,vy:2+Math.random()*3.5,vx:-1.2+Math.random()*2.4,s:5+Math.random()*8,rot:Math.random()*6.28,vr:-.22+Math.random()*.44,c:cols[i%cols.length]});
+  const t0=Date.now(); cancelAnimationFrame(confettiRAF);
+  const frame=()=>{ if(!document.body.contains(cv)){ cancelAnimationFrame(confettiRAF); return; }
+    ctx.clearRect(0,0,cv.width,cv.height);
+    P.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; if(p.y>cv.height+24){ p.y=-20; p.x=Math.random()*cv.width; }
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore(); });
+    if(Date.now()-t0<9000) confettiRAF=requestAnimationFrame(frame); else ctx.clearRect(0,0,cv.width,cv.height);
+  }; confettiRAF=requestAnimationFrame(frame);
 }
 
 /* ---- live quiz driver (display is the authority) — handles mcq / vote / grid ---- */

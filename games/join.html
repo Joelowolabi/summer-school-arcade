@@ -158,6 +158,13 @@
   .srow .sav img{width:100%;height:100%;object-fit:contain}
   .srow .sn{flex:1;font-weight:var(--fw-semibold);color:var(--text-strong)} .srow .sn em{font-style:normal;font-size:10px;background:var(--accent-play);color:#fff;border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle}
   .srow .sp{font-family:var(--font-heading);font-weight:var(--fw-bold);color:var(--text-strong);font-variant-numeric:tabular-nums}
+  .srow.me{outline:2px solid var(--accent-play);outline-offset:-2px}
+  .srow.medaled{background:linear-gradient(90deg,var(--purple-50),var(--surface-sunken))}
+  .srow.medaled .sr{font-size:1.25em}
+  .finaleme{display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);text-align:center;background:var(--purple-50);border-radius:var(--radius-xl);padding:14px 20px;margin:6px auto;text-wrap:balance}
+  .finaleme.win{background:linear-gradient(135deg,#FFE59A,#FFD056);color:var(--ink-900,#2b1a55);box-shadow:0 8px 24px rgba(242,178,60,.4);animation:winpop .5s var(--ease-pop)}
+  @keyframes winpop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  .finalepts{font-family:var(--font-heading);font-size:var(--fs-h4);opacity:.85}
   .readywait{text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);margin-top:4px}
   /* green light (reflex) */
   .glplay{flex:1;display:flex;flex-direction:column;min-height:0}
@@ -464,7 +471,7 @@ function standingsPanel(){
   const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
   const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
   return `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>
-    <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''}"><span class="sr">${i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
+    <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''} ${i<3?'medaled':''}"><span class="sr">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${i===0?' 👑':''}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
 }
 function renderScorebar(){ const sb=$('#scorebar'); if(!sb || !document.body.classList.contains('playing') || !me) return;
   sb.innerHTML = `<div class="sb-title">🏆 Live Scores</div>${standingsPanel()}`; }
@@ -525,8 +532,13 @@ function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,''
 function renderFinalStandings(){
   const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
   const winTeam=totals.indexOf(Math.max(...totals));
+  const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
+  const myRank=Math.max(1, sorted.findIndex(p=>p.id===me.id)+1), myPts=(sorted[myRank-1]||{}).points||0;
+  const medal = myRank===1?'🥇':myRank===2?'🥈':myRank===3?'🥉':'';
+  const placeMsg = myRank===1?'🎉 You won — Champion!':myRank<=3?`${medal} You finished #${myRank}!`:`You finished #${myRank} of ${sorted.length}`;
   $('#waiting').innerHTML=`<div class="ready"><div class="rk" style="text-align:center">🏆 Session Complete</div>
-    <div class="rt" style="text-align:center">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</div>
+    <div class="finaleme ${myRank===1?'win':''}">${placeMsg}<span class="finalepts">${myPts} pts</span></div>
+    <div class="rt" style="text-align:center;font-size:var(--fs-h3)">Team ${Net.TEAM_NAMES[winTeam]} takes the day!</div>
     <div class="standtitle">Final standings</div>${standingsPanel()}</div>`;
 }
 function winHTML(title, sub){ return `<div class="winwrap"><img class="wintrophy-img" src="assets/decor/trophy.png" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'wintrophy',textContent:'🏆'}))"><div class="winname">${title}</div>${sub?`<div class="winsub">${sub}</div>`:''}<div class="winwait">Waiting for the next game…</div></div>`; }
