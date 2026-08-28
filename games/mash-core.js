@@ -16,9 +16,13 @@ export function mashHowto(file){
            rope:'Tap fast to help your team climb — first team to reach the top of the rope wins!' }[mashKind(file)] || '';
 }
 
+/* difficulty: easy = lower goal + more time, hard = higher goal + less time */
+function mdf(opts){ const d=(opts&&opts.difficulty)||'med'; return d==='easy'?{chal:0.75,time:1.15}:d==='hard'?{chal:1.3,time:0.85}:{chal:1,time:1}; }
+
 /* ---------- Balloon Pop Race ---------- */
 export function createBalloon(roster, opts={}){
-  const s={ kind:'balloon', target:opts.target||20, dur:opts.dur||30000, startAt:0, endsAt:0, over:false, players:{}, ids:[] };
+  const D=mdf(opts);
+  const s={ kind:'balloon', target:opts.target||Math.round(20*D.chal), dur:opts.dur||Math.round(30000*D.time), startAt:0, endsAt:0, over:false, players:{}, ids:[] };
   roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, fill:0, pops:0 }; s.ids.push(p.id); });
   return s;
 }
@@ -36,7 +40,7 @@ export function createTug(roster, opts={}){
     knot:{ x:0.5, y:0.52 },
     verts:[{x:0.5,y:0.2},{x:0.2,y:0.8},{x:0.8,y:0.8}],  // team 0 top, 1 lower-left, 2 lower-right — inset from the frame
     recent:{0:[],1:[],2:[]}, teamPlayers:[0,0,0], rate:[0,0,0], winRadius:0.13,
-    dur:opts.dur||45000, startAt:0, endsAt:0,
+    dur:opts.dur||Math.round(45000*mdf(opts).time), startAt:0, endsAt:0,
     players:{}, ids:[], startAt:0 };
   roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, pulls:0 }; s.ids.push(p.id);
     s.teamPlayers[p.team]=(s.teamPlayers[p.team]||0)+1; });
@@ -66,7 +70,8 @@ export function snapshotTug(s){ return { kind:'tug', over:s.over, winner:s.winne
 
 /* ---------- Rocket Fuel (individual: first to launch) ---------- */
 export function createRocket(roster, opts={}){
-  const s={ kind:'rocket', target:opts.target||55, dur:opts.dur||35000, startAt:0, endsAt:0, over:false, finishN:0, players:{}, ids:[] };
+  const D=mdf(opts);
+  const s={ kind:'rocket', target:opts.target||Math.round(55*D.chal), dur:opts.dur||Math.round(35000*D.time), startAt:0, endsAt:0, over:false, finishN:0, players:{}, ids:[] };
   roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, fuel:0, launched:false, rank:0 }; s.ids.push(p.id); });
   return s;
 }
@@ -83,7 +88,8 @@ export function rocketRanking(s){ return [...s.ids].sort((a,b)=>{ const A=s.play
 
 /* ---------- Rope Climb (team: first team to the top) ---------- */
 export function createRope(roster, opts={}){
-  const s={ kind:'rope', over:false, winner:null, threshold:opts.threshold||65, dur:opts.dur||40000, startAt:0, endsAt:0,
+  const D=mdf(opts);
+  const s={ kind:'rope', over:false, winner:null, threshold:opts.threshold||Math.round(65*D.chal), dur:opts.dur||Math.round(40000*D.time), startAt:0, endsAt:0,
     teamTaps:[0,0,0], teamPlayers:[0,0,0], players:{}, ids:[] };
   roster.forEach(p=>{ s.players[p.id]={ id:p.id, name:p.name, team:p.team, color:p.color, pulls:0 }; s.ids.push(p.id);
     s.teamPlayers[p.team]=(s.teamPlayers[p.team]||0)+1; });

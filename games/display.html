@@ -95,7 +95,7 @@
   /* live quiz */
   .qwrap{flex:1;display:flex;flex-direction:column;color:#fff;gap:22px;min-height:0}
   .qtop{display:flex;justify-content:space-between;align-items:center}
-  .qk{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.85;font-weight:var(--fw-bold)}
+  .qk{font-family:var(--font-display);font-size:var(--fs-body);text-transform:uppercase;letter-spacing:.08em;opacity:.9;font-weight:var(--fw-bold)}
   .qtimer{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);background:rgba(255,255,255,.16);border-radius:var(--radius-pill);min-width:80px;text-align:center;padding:2px 20px}
   .qprompt{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);text-align:center;line-height:1.08;margin:auto 0;text-wrap:balance}
   .qprompt .qhint{display:block;font-family:var(--font-body);font-weight:var(--fw-regular);font-size:var(--fs-h4);opacity:.8;margin-top:12px}
@@ -443,7 +443,10 @@ function glResult(round, N, results){
 }
 async function runGreenLight(game){
   driving=true; closeArena();
-  const N=6;
+  const gdiff=(room.state&&room.state.difficulty)||'med';                 // easy = more forgiving window; hard = shorter window, longer teasing waits
+  const N = gdiff==='easy'?5 : gdiff==='hard'?7 : 6;
+  const WIN = gdiff==='easy'?5000 : gdiff==='hard'?2800 : 4000;
+  const holdBase = gdiff==='hard'?1800:1500, holdRand = gdiff==='hard'?3600:2700;
   if(!await showIntro(game, 'Green Light', "Wait for the light to turn GREEN, then tap as fast as you can. Tap while it's RED and you're out for that round!")) return;
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
@@ -451,14 +454,14 @@ async function runGreenLight(game){
     // RED — random hold so nobody can time it
     await setLive({ family:'greenlight', game, phase:'red', round, total:N });
     glStage('red', round, N);
-    const hold = 1600 + Math.floor(Math.random()*2700);
+    const hold = holdBase + Math.floor(Math.random()*holdRand);
     { const t0=Date.now(); while(Date.now()-t0<hold){ if(drivenGame!==game) return; await wait(120); } }
     if(drivenGame!==game) return;
     // GREEN — react!
     const greenAt=Date.now();
     await setLive({ family:'greenlight', game, phase:'green', round, total:N, greenAt });
     glStage('green', round, N);
-    const WIN=4000, start=Date.now();
+    const start=Date.now();
     while(Date.now()-start < WIN){ if(drivenGame!==game) return; await wait(400);
       let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).filter(a=>a.payload&&a.payload.choice===1).length; }catch(e){}
       glStage('green', round, N, n);
@@ -510,7 +513,7 @@ async function runMotionGame(file){
   players=await Net.listPlayers(room.id);
   const roster=players.map(p=>({ id:p.id, name:p.name, team:p.team, color:Net.TEAM_COLORS[p.team] }));
   if(roster.length===0){ driving=false; return; }
-  const game=Arena.createGame(file, roster, {});
+  const game=Arena.createGame(file, roster, { difficulty:(room.state&&room.state.difficulty)||'med' });
   arena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.id!=null&&m.dir!=null) Arena.applyInput(game, m.id, +m.dir); } });
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
   // countdown / how-to
@@ -563,7 +566,7 @@ async function runMashGame(file){
   const snapFn={balloon:Mash.snapshotBalloon,tug:Mash.snapshotTug,rocket:Mash.snapshotRocket,rope:Mash.snapshotRope}[kind];
   const rankFn={balloon:Mash.balloonRanking,tug:Mash.tugRanking,rocket:Mash.rocketRanking,rope:Mash.ropeRanking}[kind];
   const renderFn={balloon:renderBalloon,tug:renderTug,rocket:renderRocket,rope:renderRope}[kind];
-  const game=create(roster,{});
+  const game=create(roster,{ difficulty:(room.state&&room.state.difficulty)||'med' });
   const apply=(id,n)=>applyFn(game,id,n);
   arena=Net.openArena(room.id, { onInput:(m)=>{ if(m&&m.id!=null) apply(m.id, Math.min(20, +m.taps||1)); } });
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');

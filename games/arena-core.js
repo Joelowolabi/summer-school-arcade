@@ -73,16 +73,19 @@ function spawnSpots(s, n){
 
 export function createGame(file, roster, opts={}){
   const mode=motionMode(file);
+  const diff=opts.difficulty||'med';                                     // easy = longer + gentler, hard = shorter + tougher
+  const DF = diff==='easy' ? {time:1.3, chal:0.7} : diff==='hard' ? {time:0.78, chal:1.35} : {time:1, chal:1};
   const cols=opts.cols|| (mode==='maze'?31:40), rows=opts.rows|| (mode==='maze'?19:24);
-  const s={ mode, file, cols, rows, tick:0, over:false, winner:null, msg:'',
-    maxTicks: opts.maxTicks || (mode==='maze'?1400:(mode==='paint'||mode==='hill'||mode==='stars')?520:900),
+  const s={ mode, file, cols, rows, tick:0, over:false, winner:null, msg:'', difficulty:diff,
+    maxTicks: opts.maxTicks || Math.round((mode==='maze'?1400:(mode==='paint'||mode==='hill'||mode==='stars')?520:900) * DF.time),
     cells:new Int16Array(cols*rows), walls:new Uint8Array(cols*rows),
     exit:null, pellets:[], stars:[], hill:null, players:{}, ids:[] };
   let mazeDir=1;
   if(mode==='maze'){ s.walls=buildMaze(cols,rows,opts.seed); s.exit={x:cols-2,y:rows-2}; s.walls[idx(s,s.exit.x,s.exit.y)]=0;
     for(let d=0;d<4;d++){ const [dx,dy]=DIRS[d]; if(inb(s,1+dx,1+dy) && !s.walls[idx(s,1+dx,1+dy)]){ mazeDir=d; break; } } }  // face an open corridor from the mouth
-  if(mode==='hill'){ s.hill={ cx:Math.floor((cols-1)/2), cy:Math.floor((rows-1)/2), rx:3, ry:2 }; }
-  if(mode==='stars'){ s.starTarget=Math.max(8, Math.ceil(roster.length*0.8)); }
+  if(mode==='hill'){ const rx=diff==='hard'?2:diff==='easy'?4:3, ry=diff==='hard'?1:diff==='easy'?3:2;   // smaller crown = harder
+    s.hill={ cx:Math.floor((cols-1)/2), cy:Math.floor((rows-1)/2), rx, ry }; }
+  if(mode==='stars'){ s.starTarget=Math.max(6, Math.ceil(roster.length*0.8*DF.chal)); }
   const spots=spawnSpots(s, roster.length);
   roster.forEach((p,i)=>{
     const sp=spots[i]||{x:1,y:1,dir:1};
