@@ -123,6 +123,7 @@ export function renderArena(ctx, snap, opts={}){
       continue;
     }
     let rx=p.x, ry=p.y; if(pp && pp.alive){ rx=pp.x+(p.x-pp.x)*tt; ry=pp.y+(p.y-pp.y)*tt; }
+    if(isMe && opts.meLead){ rx+=opts.meLead.dx*opts.meLead.amt; ry+=opts.meLead.dy*opts.meLead.amt; }  // bounded local input-lead (masks round-trip latency)
     const cxp=ox+rx*cs+cs/2, cyp=oy+ry*cs+cs/2;
     clayBlob(ctx, cxp, cyp, cs*0.46, p.color);
     if(p.finished){ ctx.font=`${Math.floor(cs*0.7)}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('⭐',cxp,cyp); ctx.textBaseline='alphabetic'; }

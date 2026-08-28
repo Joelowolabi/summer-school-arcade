@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Join — Summer School Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="../styles.css">
 <link rel="stylesheet" href="arcade.css">
 <style>
@@ -46,6 +49,8 @@
     #scorebar .steams{display:flex;gap:8px} #scorebar .steam{flex:0 0 auto;flex-direction:row;gap:7px;padding:7px 14px}
   }
   .card.play .livehead,.card.play .ready .rk{color:rgba(255,255,255,.82)}
+  .card.play .liveq{color:#fff;text-shadow:0 2px 16px rgba(18,10,44,.42);letter-spacing:.005em}
+  .card.play .liveq .livehint{color:rgba(255,255,255,.82);text-shadow:none}
   .card.play .qdword,.card.play .needline b{color:#fff}
   .card.play .chainmini span:last-child{color:#fff;background:rgba(255,255,255,.28)}
   .card.play .livetimer{color:#fff;background:rgba(255,255,255,.18)}
@@ -626,9 +631,20 @@ function renderMotion(file){
   if(!mKeyBound){ document.addEventListener('keydown', motionKey); mKeyBound=true; }
   if(mSnap) drawMotion();
 }
+const DIRS4=[[0,-1],[1,0],[0,1],[-1,0]];
+function moveValid(snap, x, y, dir){ const D=DIRS4[dir]; const nx=x+D[0], ny=y+D[1];
+  if(nx<0||ny<0||nx>=snap.cols||ny>=snap.rows) return false;
+  if(snap.mode==='maze'){ const w=snap._walls||(snap._walls=Arena.decodeCells(snap.walls)); if(w[ny*snap.cols+nx]) return false; }
+  return true; }
+let mLeadAmt=0;
 function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
-  renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id, prev:mPrevSnap, t:(t!=null?t:1) });
-  const meP=mSnap.players.find(p=>p.id===me.id), mh=$('#mhead');
+  // bounded input-lead: nudge YOU up to ~0.7 cell toward the pressed direction so turns feel instant (re-anchored to the server each snapshot ⇒ no drift)
+  const meP=mSnap.players.find(p=>p.id===me.id);
+  const canLead = meP && meP.alive!==false && !mSnap.over && mDir!=null && moveValid(mSnap, Math.round(meP.x), Math.round(meP.y), mDir);
+  mLeadAmt = canLead ? Math.min(0.72, mLeadAmt+0.16) : Math.max(0, mLeadAmt-0.22);
+  const lead = (mLeadAmt>0.01 && mDir!=null) ? { dx:DIRS4[mDir][0], dy:DIRS4[mDir][1], amt:mLeadAmt } : null;
+  renderArena(cv.getContext('2d'), mSnap, { dark:true, meId:me.id, prev:mPrevSnap, t:(t!=null?t:1), meLead:lead });
+  const mh=$('#mhead');
   if(mh){ mh.textContent = !meP ? '' : meP.alive===false ? "💥 You're out — cheer your team on!" : scoreLabel(mSnap.mode, meP); }
   if(!mSnap.over){ const ov=$('#moverlay'); if(ov && ov.dataset.state!=='over'){ ov.style.display='none'; ov.dataset.state=''; } }  // live snapshot = game started, clear countdown even if 'go' was dropped
 }

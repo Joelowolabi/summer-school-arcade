@@ -121,6 +121,12 @@
       <button data-m="team">👥 Group</button>
     </div>
     <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0" id="modeHint">Every game — individual play and team games mixed together.</p>
+    <div class="modeseg" id="diffSeg" style="margin-top:12px">
+      <button data-d="easy">🟢 Easy</button>
+      <button data-d="med" class="on">🟡 Medium</button>
+      <button data-d="hard">🔴 Hard</button>
+    </div>
+    <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0" id="diffHint">Balanced questions with a fair timer.</p>
     <div class="gchips" id="gchips"></div>
   </div>
 </div>
@@ -214,6 +220,10 @@ function renderPicker(){
   chips.querySelectorAll('.gchip').forEach(ch=>ch.addEventListener('click',()=>{ const f=ch.dataset.f; selected.has(f)?selected.delete(f):selected.add(f); renderPicker(); render(); }));
   $('#gcount').textContent = selectedGames().length;
 }
+let difficulty='med';
+const DIFF_HINT={ easy:'Simpler questions and a generous timer — great for younger players.', med:'Balanced questions with a fair timer.', hard:'Trickier questions and a tighter clock — for the pros.' };
+function setDiff(d){ difficulty=d; document.querySelectorAll('#diffSeg button').forEach(b=>b.classList.toggle('on', b.dataset.d===d)); $('#diffHint').textContent=DIFF_HINT[d]; }
+document.querySelectorAll('#diffSeg button').forEach(b=>b.addEventListener('click', ()=>setDiff(b.dataset.d)));
 document.querySelectorAll('#modeSeg button').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.m)));
 $('#selAll').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.add(g.f)); renderPicker(); render(); });
 $('#selNone').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.delete(g.f)); renderPicker(); render(); });
@@ -224,8 +234,8 @@ $('#startBtn').addEventListener('click', async ()=>{
   if(games.length===0) return;
   $('#pickerCard').style.display='none';
   $('#startBtn').style.display='none'; $('#minNote').style.display='none';
-  await Net.startSession(room.id, games, { mode });  // broadcasts to display + players
-  room.state = { games, index:0, mode }; room.current_game = games[0]; room.status='in_game';
+  await Net.startSession(room.id, games, { mode, difficulty });  // broadcasts to display + players
+  room.state = { games, index:0, mode, difficulty }; room.current_game = games[0]; room.status='in_game';
   $('#sessionCtrl').style.display='block';
   updateCtrl();
 });

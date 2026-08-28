@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shared Display — Summer School Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="../styles.css">
 <link rel="stylesheet" href="arcade.css">
 <style>
@@ -60,7 +63,21 @@
   .lrow .av img{width:100%;height:100%;object-fit:contain}
   .lrow .nm{flex:1;font-weight:var(--fw-bold);font-size:var(--fs-h4)}
   .lrow .pt{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h3);font-variant-numeric:tabular-nums}
-  .lrow.top1{background:rgba(255,217,59,.22)} .lrow.top2{background:rgba(255,255,255,.16)} .lrow.top3{background:rgba(247,144,110,.2)}
+  .lrow.top2{background:rgba(255,255,255,.16)} .lrow.top3{background:rgba(247,144,110,.2)}
+  /* fun / competitive leaderboard extras */
+  .lrow .rk .medal{font-size:var(--fs-h2);line-height:1}
+  .lrow.top1{background:linear-gradient(90deg,rgba(255,217,59,.36),rgba(255,217,59,.12));box-shadow:0 0 0 2px rgba(255,217,59,.55) inset;animation:leadPulse 2.4s ease-in-out infinite}
+  @keyframes leadPulse{0%,100%{box-shadow:0 0 0 2px rgba(255,217,59,.5) inset}50%{box-shadow:0 0 26px rgba(255,217,59,.38),0 0 0 2px rgba(255,217,59,.9) inset}}
+  .lcrown{margin-left:8px;font-size:var(--fs-h4)}
+  .lfire{margin-left:6px;font-size:var(--fs-h4);display:inline-block;animation:fireWobble .6s ease-in-out infinite}
+  @keyframes fireWobble{0%,100%{transform:rotate(-9deg) scale(1)}50%{transform:rotate(9deg) scale(1.14)}}
+  .lmove{font-family:var(--font-heading);font-size:var(--fs-caption);font-weight:var(--fw-bold);min-width:38px;text-align:center;border-radius:99px;padding:3px 8px;flex:0 0 auto}
+  .lmove.up{color:#0c9457;background:rgba(63,191,127,.28)} .lmove.down{color:#ff8f8f;background:rgba(229,72,77,.22)} .lmove.new{color:#3e2c6b;background:rgba(255,217,59,.85)} .lmove.same{opacity:.35}
+  .lgain{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:#fff;background:var(--accent-sun,#FFD93B);color:#3e2c6b;border-radius:99px;padding:3px 11px;flex:0 0 auto;animation:gainPop .5s var(--ease-pop)}
+  @keyframes gainPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  .battlebar{display:flex;height:26px;border-radius:99px;overflow:hidden;margin-top:16px;box-shadow:0 4px 14px rgba(0,0,0,.28)}
+  .battlebar span{display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:#fff;transition:width .7s var(--ease-pop);min-width:0;overflow:hidden;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .battletitle{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);font-weight:var(--fw-bold);color:#fff;opacity:.9;margin-top:18px}
   /* mode emphasis: individual leaderboard vs team board */
   .lead.em-solo{grid-template-columns:1.85fr .62fr}
   .lead.em-solo .tbig{padding:14px 20px} .lead.em-solo .tbig .tn{font-size:var(--fs-h4)} .lead.em-solo .tbig .tv{font-size:var(--fs-h1)}
@@ -193,6 +210,7 @@ async function boot(){
 let driving=false, arena=null;
 function closeArena(){ if(arena){ arena.close(); arena=null; } }
 function onRoomUpdate(){
+  if(room.status==='in_game' && room.current_game!==boardBaseGame){ boardBaseGame=room.current_game; snapBaseline(); }  // freeze pre-game scores for gain/rank-move badges
   if(room.status==='in_game' && Bank.isLive(room.current_game)){
     if(drivenGame!==room.current_game){ closeArena(); drivenGame=room.current_game; runLiveGame(room.current_game); }
     return;  // the live quiz driver owns the screen
@@ -253,18 +271,36 @@ function renderLobby(){
     </div>`;
 }
 
+let boardBase={ pts:{}, rank:{} }, boardBaseGame=null;
+function snapBaseline(){ const s=[...players].sort((a,b)=>(b.points||0)-(a.points||0)); boardBase={pts:{},rank:{}}; s.forEach((p,i)=>{ boardBase.pts[p.id]=p.points||0; boardBase.rank[p.id]=i; }); }
+const MEDALS=['🥇','🥈','🥉'];
 function renderGame(){
   const totals=teamTotals();
   const sorted=[...players].sort((a,b)=>b.points-a.points).slice(0,12);
   const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
+  // biggest gainer since the previous game → 🔥
+  let topGain=0, topGainId=null;
+  players.forEach(p=>{ const g=(p.points||0)-(boardBase.pts[p.id]||0); if(g>topGain){ topGain=g; topGainId=p.id; } });
+  const rows=sorted.map((p,i)=>{
+    const gain=(p.points||0)-(boardBase.pts[p.id]||0);
+    const had=boardBase.rank[p.id];
+    const mv = had==null ? ['new','NEW'] : had>i ? ['up','▲'+(had-i)] : had<i ? ['down','▼'+(i-had)] : ['same','—'];
+    const rk = i<3 ? `<span class="medal">${MEDALS[i]}</span>` : (i+1);
+    const crown = i===0 ? '<span class="lcrown">👑</span>' : '';
+    const fire = (p.id===topGainId && topGain>0) ? '<span class="lfire">🔥</span>' : '';
+    const gainPill = gain>0 ? `<span class="lgain">+${gain}</span>` : '';
+    return `<div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${rk}</span>${avatar(p,'av')}<span class="nm">${p.name}${crown}${fire}</span><span class="lmove ${mv[0]}">${mv[1]}</span>${gainPill}<span class="pt">${p.points}</span></div>`;
+  }).join('');
+  const ghosts=Array.from({length:Math.max(0,8-sorted.length)}).map((_,i)=>`<div class="lrow ghost"><span class="rk">${sorted.length+i+1}</span><span class="av"></span><span class="nm">open seat</span><span class="pt">·</span></div>`).join('');
+  const tt=Math.max(1,totals[0]+totals[1]+totals[2]);
+  const battle=`<div class="battletitle">⚔️ Team Battle</div><div class="battlebar">${Net.TEAM_NAMES.map((n,i)=>`<span style="width:${totals[i]/tt*100}%;background:${Net.TEAM_COLORS[i]}">${totals[i]>0?totals[i]:''}</span>`).join('')}</div>`;
   $('#stage').innerHTML=`
     <div class="lead ${cls}">
       <div class="nowcard">
         <div class="nowhead"><img class="nowicon" src="assets/games/${(room.current_game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'')}.png" alt="" onerror="this.style.display='none'"><div><div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div><h1>${Net.gameLabel(room.current_game)}</h1></div></div>
-        <div class="llist">${sorted.map((p,i)=>`
-          <div class="lrow ${i===0?'top1':i===1?'top2':i===2?'top3':''}"><span class="rk">${i+1}</span>${avatar(p,'av')}<span class="nm">${p.name}</span><span class="pt">${p.points}</span></div>`).join('')}${Array.from({length:Math.max(0,8-sorted.length)}).map((_,i)=>`<div class="lrow ghost"><span class="rk">${sorted.length+i+1}</span><span class="av"></span><span class="nm">open seat</span><span class="pt">·</span></div>`).join('')}</div>
+        <div class="llist">${rows}${ghosts}</div>
       </div>
-      <div class="teamsbig">${mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':''}${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}</div>
+      <div class="teamsbig">${mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':''}${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}${battle}</div>
     </div>`;
 }
 
@@ -305,8 +341,10 @@ function tileHTML(t, variant, cls){
   return `<div class="qtile ${cls||''}" style="background:${t.c}"></div>`;
 }
 // question-phase board on the projector
+const DIFF_LABEL={easy:'🟢 Easy',med:'🟡 Medium',hard:'🔴 Hard'};
 function dispQuestion(game, round, N, q, n, left){
-  const head=`<div class="qtop"><span class="qk">${Bank.gameTitle(game)} · Q${round}/${N}</span><span class="qtimer">${left}</span></div>`;
+  const dc=DIFF_LABEL[(room.state&&room.state.difficulty)||'med'];
+  const head=`<div class="qtop"><span class="qk">${Bank.gameTitle(game)} · ${dc} · Q${round}/${N}</span><span class="qtimer">${left}</span></div>`;
   const foot=`<div class="qfoot"><b>${n}</b> / ${players.length} answered · Answer on your device</div>`;
   let body='';
   if(q.type==='mcq') body=`<div class="qprompt">${q.prompt}${q.hint?`<span class="qhint">${q.hint}</span>`:''}</div>
@@ -335,11 +373,13 @@ function dispReveal(game, round, N, q, note){
 
 async function runLiveGame(game){
   driving=true;
+  Bank.resetUsed(game);                                            // fresh no-repeat pool each play
+  const diff=(room.state&&room.state.difficulty)||'med';
   if(!await showIntro(game, Bank.gameTitle(game), Bank.howto(game))) return;
-  const N=8, QT=20000, RT=4500;   // 20s to answer, then reveal
+  const N=8, QT = diff==='easy' ? 24000 : diff==='hard' ? 13000 : 18000, RT=4500;   // harder = less time
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
-    const q=Bank.makeQuestion(game, round);
+    const q=Bank.makeQuestion(game, round, { difficulty:diff });
     await Net.markRoundStart(room.id, game, round);
     let st=Object.assign({}, room.state, { live: liveState(game, round, N, 'question', q, { endsAt:Date.now()+QT }) });
     room.state=st; await Net.setRoom(room.id,{state:st});
@@ -482,7 +522,7 @@ async function runMotionGame(file){
   $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode });
   try{ arena.sendState(Arena.snapshot(game)); }catch(e){}   // immediate first frame so devices leave the countdown
   // step + broadcast at the tick rate; render interpolated at ~60fps for smooth motion
-  const TICK = game.mode==='trail' ? 82 : game.mode==='maze' ? 90 : 100;
+  const TICK = game.mode==='trail' ? 72 : game.mode==='maze' ? 75 : (game.mode==='hill'||game.mode==='stars') ? 82 : 92;
   let prevSnap=Arena.snapshot(game), curSnap=prevSnap, stepT=performance.now(), raf=0, running=true;
   const frame=()=>{ if(!running) return; const t=Math.min(1,(performance.now()-stepT)/TICK);
     renderArena(ctx, curSnap, { dark:true, prev:prevSnap, t }); raf=requestAnimationFrame(frame); };
