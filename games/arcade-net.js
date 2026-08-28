@@ -205,11 +205,19 @@ export const TEAM_NAMES  = ['Red','Blue','Green'];
 
 /* selectable clay characters for the join screen (avatar = character id) */
 export const CHARACTERS = [
-  { id:'blob',    name:'Blip',   img:'assets/landing/hero-a.png' },
-  { id:'star',    name:'Twinkle',img:'assets/landing/hero-b.png' },
+  { id:'blob',    name:'Blip',    img:'assets/landing/hero-a.png' },
+  { id:'star',    name:'Twinkle', img:'assets/landing/hero-b.png' },
   { id:'party',   name:'Confetti',img:'assets/landing/hero-c.png' },
-  { id:'ninja',   name:'Ninja',  img:'assets/games/number-ninjas.png' },
-  { id:'spy',     name:'Sleuth', img:'assets/games/secret-spy.png' },
-  { id:'monster', name:'Gizmo',  img:'assets/games/build-a-monster.png' },
+  { id:'ninja',   name:'Ninja',   img:'assets/games/number-ninjas.png' },
+  { id:'spy',     name:'Sleuth',  img:'assets/games/secret-spy.png' },
+  { id:'monster', name:'Gizmo',   img:'assets/games/build-a-monster.png' },
+  { id:'robot',   name:'Sprocket',img:'assets/characters/robot.png' },
+  { id:'fox',     name:'Pip',     img:'assets/characters/fox.png' },
+  { id:'cloud',   name:'Nimbus',  img:'assets/characters/cloud.png' },
+  { id:'flower',  name:'Bloom',   img:'assets/characters/flower.png' },
+  { id:'penguin', name:'Waddle',  img:'assets/characters/penguin.png' },
+  { id:'dragon',  name:'Munch',   img:'assets/characters/dragon.png' },
+  { id:'pixel',   name:'Pixel',   img:'assets/characters/pixel.png' },
+  { id:'cosmo',   name:'Cosmo',   img:'assets/characters/astronaut.png' },
 ];
 export function charImg(id){ const c=CHARACTERS.find(x=>x.id===id); return c ? c.img : null; }
