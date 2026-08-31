@@ -55,6 +55,10 @@ export async function getRoomByCode(code){
   const { data } = await sb.from('rooms').select('*').eq('code', code.trim().toUpperCase()).maybeSingle();
   return data;
 }
+export async function getRoom(id){
+  const { data } = await sb.from('rooms').select('*').eq('id', id).maybeSingle();
+  return data;
+}
 export async function listPlayers(roomId){
   const { data } = await sb.from('players').select('*').eq('room_id', roomId).order('created_at');
   return data || [];

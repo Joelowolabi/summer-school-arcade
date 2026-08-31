@@ -166,6 +166,8 @@
   @keyframes winpop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
   .finalepts{font-family:var(--font-heading);font-size:var(--fs-h4);opacity:.85}
   .readywait{text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);margin-top:4px}
+  .recon-spin{width:44px;height:44px;border-radius:50%;border:5px solid var(--purple-100,#e7e0ff);border-top-color:var(--accent-play);animation:reconspin .8s linear infinite}
+  @keyframes reconspin{to{transform:rotate(360deg)}}
   /* green light (reflex) */
   .glplay{flex:1;display:flex;flex-direction:column;min-height:0}
   .glpanel{flex:1;min-height:220px;border-radius:var(--radius-2xl);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;box-shadow:var(--shadow-l);cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;text-align:center;padding:20px}
@@ -316,6 +318,12 @@
   </aside>
   <main class="joincard">
   <div class="card">
+  <!-- reconnecting hint (shown while auto-rejoining a saved room) -->
+  <div id="reconnecting" style="display:none;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:20px 0">
+    <div class="recon-spin"></div>
+    <div style="font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong)">Reconnecting…</div>
+    <p class="sub" style="margin:0">Getting you back into the game.</p>
+  </div>
   <!-- STEP 1: code -->
   <div id="stepCode">
     <div class="kick">Join A Game</div><h1>Enter Code</h1>
@@ -372,18 +380,21 @@ $('#avatars').addEventListener('click', e=>{ const o=e.target.closest('.char-opt
 const qp=new URLSearchParams(location.search);
 if(qp.get('code')) $('#codeIn').value=qp.get('code');
 
-// auto-reconnect when returning from a game (?code present + a saved name)
+// auto-reconnect: use ?code, else the last room this device joined — so a refresh or
+// a dropped connection drops the kid straight back into whatever everyone else is playing.
 (async ()=>{
-  const code=qp.get('code'), savedName=localStorage.getItem('ssa_join_name');
+  const code=(qp.get('code')||localStorage.getItem('ssa_join_room')||'').trim(), savedName=localStorage.getItem('ssa_join_name');
   if(!code || !savedName) return;
+  $('#stepCode').classList.add('hide');
+  $('#reconnecting') && ($('#reconnecting').style.display='flex');   // show a "Reconnecting…" hint, not the code form
   try{
     room = await Net.getRoomByCode(code);
-    if(!room || room.status==='ended') return;
+    if(!room || room.status==='ended'){ $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); return; }
     me = await Net.joinRoom(code, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
     Net.heartbeat(me.id);
-    $('#stepCode').classList.add('hide');
+    if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}
     enterLobby();
-  }catch(e){}
+  }catch(e){ $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); }
 })();
 
 $('#codeBtn').addEventListener('click', checkCode);
@@ -413,6 +424,7 @@ async function join(){
     localStorage.setItem('ssa_join_room', room.code);
     localStorage.setItem('ssa_join_name', name);
     localStorage.setItem('ssa_join_char', chosenAvatar);
+    if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}   // so a later refresh reconnects
     Net.heartbeat(me.id);
     enterLobby();
   }catch(e){

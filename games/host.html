@@ -138,18 +138,30 @@ let room=null, players=[], force=false;
 
 async function boot(){
   try{
-    const r = await Net.createRoom();
-    room = r.room;
-    localStorage.setItem('ssa_host_room', room.id);
-    localStorage.setItem('ssa_host_token', r.hostToken);
+    // resume the last room on a refresh instead of spawning a new one (which would strand every player)
+    let resumed=false;
+    const savedId=localStorage.getItem('ssa_host_room');
+    if(savedId){ try{ const ex=await Net.getRoom(savedId);
+      const fresh = ex && ex.created_at && (Date.now()-new Date(ex.created_at).getTime() < 6*3600*1000);   // only resume a room from the last 6h
+      if(ex && ex.status!=='ended' && fresh){ room=ex; resumed=true; } }catch(e){} }
+    if(!room){ const r=await Net.createRoom(); room=r.room; localStorage.setItem('ssa_host_room',room.id); localStorage.setItem('ssa_host_token',r.hostToken); }
     $('#loading').style.display='none'; $('#main').style.display='grid';
     $('#code').textContent = room.code;
     $('#joinurl').textContent = location.origin + '/games/join.html';
     $('#displayBtn').href = 'display.html?code=' + room.code;
-    renderTeams(); renderPicker(); $('#pickerCard').style.display='block'; render();
-    // live lobby
+    renderTeams(); renderPicker(); render();
+    // live lobby + keep the room fresh (so a resumed host tracks session progress)
     Net.onPlayers(room.id, async ()=>{ players = await Net.listPlayers(room.id); render(); });
+    Net.onRoom(room.id, ({new:r})=>{ room=Object.assign(room, r); });
     players = await Net.listPlayers(room.id); render();
+    // restore the correct panel if we resumed into a running / finished session
+    if(resumed && (room.status==='in_game' || room.status==='results')){
+      if(room.state){ mode=room.state.mode||mode; difficulty=room.state.difficulty||difficulty; }
+      $('#pickerCard').style.display='none'; $('#startBtn').style.display='none'; $('#minNote').style.display='none';
+      $('#sessionCtrl').style.display='block';
+      if(room.status==='results'){ $('#curGame').textContent='Session Complete'; $('#gmeta').textContent='Summary on the display'; $('#nextBtn').disabled=true; }
+      else updateCtrl();
+    } else { $('#pickerCard').style.display='block'; }
   }catch(e){ $('#loading').textContent = 'Could not create a room: '+(e.message||e); }
 }
 
