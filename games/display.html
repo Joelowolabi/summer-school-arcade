@@ -36,6 +36,8 @@
   .joinpanel .k{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.85;font-weight:var(--fw-bold)}
   .joinpanel .roomtitle{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);line-height:1.1;margin:8px 0 0;color:var(--accent-sun);text-wrap:balance}
   .joinpanel .bigcode{font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:78px;letter-spacing:.06em;line-height:1;margin:6px 0}
+  .joinpanel .qr{width:clamp(180px,26vh,300px);height:auto;aspect-ratio:1;background:#fff;border-radius:20px;padding:14px;margin:14px 0 10px;box-shadow:0 12px 34px rgba(0,0,0,.28)}
+  .joinpanel .qrlabel{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);opacity:.95;margin-bottom:4px}
   .joinpanel p{opacity:.9;font-size:var(--fs-body-l);margin:6px 0 0}
   .joinpanel .url{margin-top:16px;background:rgba(255,255,255,.16);border-radius:var(--radius-pill);padding:10px 20px;font-family:var(--font-mono);font-size:var(--fs-body)}
   .roster{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);border-radius:var(--radius-2xl);padding:24px;color:#fff;display:flex;flex-direction:column;min-height:0}
@@ -287,13 +289,16 @@ function render(){
 
 function renderLobby(){
   const totals=teamTotals();
+  const joinURL = location.origin + '/games/join.html?code=' + room.code;
+  const qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=14&qzone=1&color=3E2C6B&data=' + encodeURIComponent(joinURL);
   $('#stage').innerHTML=`
     <div class="lobby">
       <div class="joinpanel">
         <div class="k">Join The Game</div>
         ${(room.settings&&room.settings.name)?`<div class="roomtitle">${room.settings.name}</div>`:''}
         <div class="bigcode">${room.code}</div>
-        <p>On your PC, open the join page and type this code</p>
+        <img class="qr" alt="Scan to join" src="${qrSrc}" onerror="this.style.display='none';var l=this.nextElementSibling;if(l)l.style.display='none'">
+        <div class="qrlabel">📱 Scan to join — or type the code at</div>
         <div class="url">${location.origin}/games/join.html</div>
       </div>
       <div class="roster">

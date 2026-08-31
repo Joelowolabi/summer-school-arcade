@@ -27,6 +27,8 @@
   .roomname:focus{outline:none;border-color:var(--accent-play);border-style:solid;background:#fff}
   .codecard p{color:var(--text-muted);font-size:var(--fs-body);margin:6px 0 0}
   .codecard .joinurl{margin-top:14px;display:inline-block;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:8px 16px;font-family:var(--font-mono);font-size:var(--fs-body-s);color:var(--text-body)}
+  .hostqr{width:172px;height:172px;background:#fff;border-radius:16px;padding:10px;margin:16px auto 6px;display:block;box-shadow:var(--shadow-m)}
+  .qrhint{color:var(--text-muted);font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
   .teams{display:flex;gap:10px;margin:22px 0}
   .tteam{flex:1;border-radius:var(--radius-l);padding:12px;text-align:center;color:#fff}
   .tteam .n{font-size:var(--fs-body-s);opacity:.9;font-weight:var(--fw-medium)}
@@ -85,6 +87,8 @@
       <input id="roomName" class="roomname" maxlength="40" autocomplete="off" placeholder="✏️ Name this room (optional)">
       <p>Students open the join page and type this code</p>
       <span class="joinurl" id="joinurl">…/join.html</span>
+      <img id="hostQr" class="hostqr" alt="Scan to join" onerror="this.style.display='none'">
+      <div class="qrhint">📱 Students can scan this to join</div>
       <div class="teams" id="teams"></div>
       <div class="startrow">
         <button class="btn btn-spark" id="startBtn" disabled style="flex:1">Start Session</button>
@@ -153,6 +157,7 @@ async function boot(){
     $('#code').textContent = room.code;
     $('#roomName').value = (room.settings && room.settings.name) || '';
     $('#joinurl').textContent = location.origin + '/games/join.html';
+    $('#hostQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=344x344&margin=10&qzone=1&color=3E2C6B&data=' + encodeURIComponent(location.origin + '/games/join.html?code=' + room.code);
     $('#displayBtn').href = 'display.html?code=' + room.code;
     renderTeams(); renderPicker(); render();
     // live lobby + keep the room fresh (so a resumed host tracks session progress)

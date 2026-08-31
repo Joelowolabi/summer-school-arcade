@@ -396,19 +396,24 @@ if(qp.get('code')) $('#codeIn').value=qp.get('code');
   const savedName=localStorage.getItem('ssa_join_name');
   const savedAt=+(localStorage.getItem('ssa_join_at')||0);
   const recent = savedAt && (Date.now()-savedAt < 4*3600*1000);   // 4-hour window
-  if(!savedRoom || !savedName || !recent) return;                 // stale or never joined → normal join screen
-  if(urlCode && urlCode!==savedRoom) return;                      // a link to a different room → normal join
-  $('#stepCode').classList.add('hide');
-  $('#reconnecting') && ($('#reconnecting').style.display='flex');
-  try{
-    room = await Net.getRoomByCode(savedRoom);
-    if(!room || room.status==='ended'){ localStorage.removeItem('ssa_join_room'); localStorage.removeItem('ssa_join_at');
-      $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); return; }
-    me = await Net.joinRoom(savedRoom, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
-    Net.heartbeat(me.id);
-    if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}
-    enterLobby();
-  }catch(e){ $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); }
+  const canReconnect = savedRoom && savedName && recent && (!urlCode || urlCode===savedRoom);
+  if(canReconnect){
+    $('#stepCode').classList.add('hide');
+    $('#reconnecting') && ($('#reconnecting').style.display='flex');
+    try{
+      room = await Net.getRoomByCode(savedRoom);
+      if(room && room.status!=='ended'){
+        me = await Net.joinRoom(savedRoom, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
+        Net.heartbeat(me.id);
+        if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}
+        return enterLobby();
+      }
+      localStorage.removeItem('ssa_join_room'); localStorage.removeItem('ssa_join_at');
+    }catch(e){}
+    $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide');
+  }
+  // scanned a QR / opened a link with a code → skip straight to picking a name
+  if(urlCode){ $('#codeIn').value=urlCode; checkCode(); }
 })();
 
 $('#codeBtn').addEventListener('click', checkCode);
