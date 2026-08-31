@@ -22,6 +22,9 @@
   .codecard{text-align:center}
   .codecard .kick{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);color:var(--accent-play);font-weight:var(--fw-bold)}
   .code{font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:56px;letter-spacing:.08em;color:var(--text-strong);margin:10px 0 6px}
+  .roomname{width:100%;max-width:340px;text-align:center;border:1.5px dashed var(--border-soft);background:var(--surface-sunken);border-radius:var(--radius-pill);padding:9px 16px;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h4);color:var(--text-strong);margin:0 auto 6px;display:block}
+  .roomname::placeholder{color:var(--text-muted);font-weight:var(--fw-semibold)}
+  .roomname:focus{outline:none;border-color:var(--accent-play);border-style:solid;background:#fff}
   .codecard p{color:var(--text-muted);font-size:var(--fs-body);margin:6px 0 0}
   .codecard .joinurl{margin-top:14px;display:inline-block;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:8px 16px;font-family:var(--font-mono);font-size:var(--fs-body-s);color:var(--text-body)}
   .teams{display:flex;gap:10px;margin:22px 0}
@@ -79,6 +82,7 @@
     <div class="card codecard">
       <div class="kick">Room Code</div>
       <div class="code" id="code">— — —</div>
+      <input id="roomName" class="roomname" maxlength="40" autocomplete="off" placeholder="✏️ Name this room (optional)">
       <p>Students open the join page and type this code</p>
       <span class="joinurl" id="joinurl">…/join.html</span>
       <div class="teams" id="teams"></div>
@@ -147,6 +151,7 @@ async function boot(){
     if(!room){ const r=await Net.createRoom(); room=r.room; localStorage.setItem('ssa_host_room',room.id); localStorage.setItem('ssa_host_token',r.hostToken); }
     $('#loading').style.display='none'; $('#main').style.display='grid';
     $('#code').textContent = room.code;
+    $('#roomName').value = (room.settings && room.settings.name) || '';
     $('#joinurl').textContent = location.origin + '/games/join.html';
     $('#displayBtn').href = 'display.html?code=' + room.code;
     renderTeams(); renderPicker(); render();
@@ -263,6 +268,9 @@ $('#nextBtn').addEventListener('click', async ()=>{
 });
 $('#endBtn').addEventListener('click', async ()=>{ await Net.endSession(room.id); $('#curGame').textContent='Session Ended'; $('#nextBtn').disabled=true; $('#endBtn').disabled=true; });
 
+let nameTimer=null;
+$('#roomName').addEventListener('input', ()=>{ clearTimeout(nameTimer);
+  nameTimer=setTimeout(async ()=>{ if(!room) return; try{ room.settings = await Net.setRoomName(room.id, $('#roomName').value, room.settings); }catch(e){} }, 500); });
 boot();
 </script>
 </body>

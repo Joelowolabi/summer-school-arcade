@@ -59,6 +59,12 @@ export async function getRoom(id){
   const { data } = await sb.from('rooms').select('*').eq('id', id).maybeSingle();
   return data;
 }
+// give a room a friendly name (stored in settings.name); merges with existing settings
+export async function setRoomName(roomId, name, settings){
+  const merged = Object.assign({}, settings||{}, { name: (name||'').trim().slice(0,40) });
+  await setRoom(roomId, { settings: merged });
+  return merged;
+}
 export async function listPlayers(roomId){
   const { data } = await sb.from('players').select('*').eq('room_id', roomId).order('created_at');
   return data || [];

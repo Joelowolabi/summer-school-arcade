@@ -451,6 +451,7 @@ async function join(){
 async function enterLobby(){
   $('#stepName').classList.add('hide'); $('#stepLobby').classList.remove('hide');
   $('#lobbyCode').textContent=room.code; $('#pbcode').textContent=room.code;
+  $('#lobbyTitle').textContent = (room.settings && room.settings.name) || 'Lobby';
   $('#yourteam').style.background=Net.TEAM_COLORS[me.team];
   const myImg=Net.charImg(me.avatar);
   $('#yourteam').innerHTML=`${myImg?`<span class="avwrap" style="width:26px;height:26px;display:inline-flex">`+`<img src="${myImg}" alt=""></span>`:''}<span>You're on Team ${Net.TEAM_NAMES[me.team]}</span>`;

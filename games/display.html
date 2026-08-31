@@ -34,6 +34,7 @@
   .lobby{flex:1;display:grid;grid-template-columns:420px 1fr;gap:28px;min-height:0}
   .joinpanel{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:var(--radius-2xl);padding:34px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px}
   .joinpanel .k{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);opacity:.85;font-weight:var(--fw-bold)}
+  .joinpanel .roomtitle{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);line-height:1.1;margin:8px 0 0;color:var(--accent-sun);text-wrap:balance}
   .joinpanel .bigcode{font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:78px;letter-spacing:.06em;line-height:1;margin:6px 0}
   .joinpanel p{opacity:.9;font-size:var(--fs-body-l);margin:6px 0 0}
   .joinpanel .url{margin-top:16px;background:rgba(255,255,255,.16);border-radius:var(--radius-pill);padding:10px 20px;font-family:var(--font-mono);font-size:var(--fs-body)}
@@ -290,6 +291,7 @@ function renderLobby(){
     <div class="lobby">
       <div class="joinpanel">
         <div class="k">Join The Game</div>
+        ${(room.settings&&room.settings.name)?`<div class="roomtitle">${room.settings.name}</div>`:''}
         <div class="bigcode">${room.code}</div>
         <p>On your PC, open the join page and type this code</p>
         <div class="url">${location.origin}/games/join.html</div>
