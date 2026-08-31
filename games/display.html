@@ -22,6 +22,8 @@
   .lrow.ghost{opacity:.5;background:rgba(255,255,255,.045)}
   .lrow.ghost .av{background:rgba(255,255,255,.08)!important} .lrow.ghost .nm,.lrow.ghost .pt{opacity:.5}
   .topbar{display:flex;align-items:center;gap:18px;color:#fff}
+  .sndbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:var(--radius-pill);padding:9px 18px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-body);cursor:pointer;transition:background .12s}
+  .sndbtn:hover{background:rgba(255,255,255,.24)} .sndbtn.on{background:var(--accent-sun);color:#3E2C6B;border-color:transparent}
   .brandlogo{height:52px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.22))}
   .topbar .grow{flex:1}
   .codechip{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-pill);padding:10px 22px;font-family:var(--font-mono);font-weight:var(--fw-bold);font-size:var(--fs-h2);letter-spacing:.1em;color:#fff}
@@ -196,6 +198,7 @@
   <div class="topbar">
     <img class="brandlogo" src="../assets/logo-zappy.png" alt="Zappy">
     <div class="grow"></div>
+    <button class="sndbtn" id="sndBtn" title="Toggle sound">🔇 Tap for sound</button>
     <div class="codechip" id="codechip"><small>Room</small> <span id="codeText">—</span></div>
   </div>
   <div class="stage" id="stage">
@@ -213,6 +216,12 @@ import { renderBalloon, renderTug, renderRocket, renderRope } from './mash-rende
 import * as Studio from './studio-core.js';
 import { renderMonster } from './monster.js';
 import * as Social from './social-core.js';
+import { sfx, unlock as sndUnlock, toggleMuted as sndToggle, setMuted as sndSetMuted, isReady as sndReady } from './audio.js';
+// sound is off until the teacher taps once (browser autoplay policy needs a gesture)
+(function(){ const b=document.getElementById('sndBtn'); if(!b) return;
+  let on=false;
+  b.addEventListener('click', ()=>{ sndUnlock(); on=!on; sndSetMuted(!on); b.textContent = on?'🔊 Sound on':'🔈 Muted'; b.classList.toggle('on',on); if(on) sfx.go(); });
+})();
 const $=s=>document.querySelector(s);
 const qp=new URLSearchParams(location.search);
 let room=null, players=[], drivenGame=null;
@@ -345,6 +354,7 @@ function renderSummary(){
       ${teamHasPts?`<div class="fteam">Team <span style="color:${Net.TEAM_COLORS[winTeam]}">${Net.TEAM_NAMES[winTeam]}</span> takes the day! <span style="opacity:.8">· ${totals[winTeam]} pts</span></div>`:''}
     </div>`;
   launchConfetti();
+  try{ sfx.drumroll(); setTimeout(()=>sfx.fanfare(), 1300); }catch(e){}
 }
 let confettiRAF=0;
 function launchConfetti(){
@@ -448,7 +458,7 @@ async function runLiveGame(game){
     let rs=Object.assign({}, room.state, { live: liveState(game, round, N, 'reveal', q, Object.assign({ endsAt:Date.now()+RT }, revExtra)) });
     room.state=rs; await Net.setRoom(room.id,{state:rs});
     players=await Net.listPlayers(room.id);
-    dispReveal(game, round, N, q, note);
+    dispReveal(game, round, N, q, note); sfx.reveal();
     await wait(RT);
   }
   const done=Object.assign({}, room.state, { live:{ game, phase:'done' } });
@@ -496,7 +506,7 @@ async function runGreenLight(game){
     // GREEN — react!
     const greenAt=Date.now();
     await setLive({ family:'greenlight', game, phase:'green', round, total:N, greenAt });
-    glStage('green', round, N);
+    glStage('green', round, N); sfx.go();
     const start=Date.now();
     while(Date.now()-start < WIN){ if(drivenGame!==game) return; await wait(400);
       let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).filter(a=>a.payload&&a.payload.choice===1).length; }catch(e){}
@@ -554,11 +564,11 @@ async function runMotionGame(file){
   const cv=setupArenaCanvas(); const ctx=cv.getContext('2d');
   // countdown / how-to
   for(let n=5;n>=1;n--){ if(drivenGame!==file) return closeArena();
-    arena.sendMeta({ kind:'countdown', n, file, mode:game.mode, title:Arena.motionTitle(file), howto:Arena.motionHowto(file) });
+    arena.sendMeta({ kind:'countdown', n, file, mode:game.mode, title:Arena.motionTitle(file), howto:Arena.motionHowto(file) }); sfx.tick();
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${Arena.motionTitle(file)}</div><div class="ap">${Arena.motionHowto(file)}</div><div class="an">${n}</div></div>`;
     renderArena(ctx, Arena.snapshot(game), { dark:true });
     await wait(1000); }
-  $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode });
+  $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:game.mode }); sfx.go();
   try{ arena.sendState(Arena.snapshot(game)); }catch(e){}   // immediate first frame so devices leave the countdown
   // step + broadcast at the tick rate; render interpolated at ~60fps for smooth motion
   const TICK = game.mode==='trail' ? 72 : game.mode==='maze' ? 75 : (game.mode==='hill'||game.mode==='stars') ? 82 : 92;
@@ -579,7 +589,7 @@ async function runMotionGame(file){
   for(let i=0;i<rank.length;i++){ try{ await Net.addPoints(rank[i], i<curve.length?curve[i]:3); }catch(e){} }
   // final banner
   const fsnap=Arena.snapshot(game); fsnap.over=true; try{ arena.sendState(fsnap); }catch(e){}
-  arena.sendMeta({ kind:'over', file, winner: game.winner ? game.players[game.winner].name : '', msg: game.msg });
+  arena.sendMeta({ kind:'over', file, winner: game.winner ? game.players[game.winner].name : '', msg: game.msg }); sfx.win();
   players=await Net.listPlayers(room.id);
   renderArena(ctx, fsnap, { dark:true });
   const champ=game.winner?game.players[game.winner]:null;
@@ -609,10 +619,10 @@ async function runMashGame(file){
   const draw=(s)=>renderFn(ctx,s,{dark:true});
   const snap=()=>snapFn(game);
   for(let n=5;n>=1;n--){ if(drivenGame!==file) return closeArena();
-    arena.sendMeta({ kind:'countdown', n, file, mode:kind, title:Mash.mashTitle(file), howto:Mash.mashHowto(file) });
+    arena.sendMeta({ kind:'countdown', n, file, mode:kind, title:Mash.mashTitle(file), howto:Mash.mashHowto(file) }); sfx.tick();
     $('#acount').innerHTML=`<div class="acount"><div class="ah">${Mash.mashTitle(file)}</div><div class="ap">${Mash.mashHowto(file)}</div><div class="an">${n}</div></div>`;
     draw(snap()); await wait(1000); }
-  $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:kind });
+  $('#acount').innerHTML=''; arena.sendMeta({ kind:'go', file, mode:kind }); sfx.go();
   startFn(game);
   try{ arena.sendState(snap()); }catch(e){}   // immediate first frame so devices leave the countdown
   const TICK=100;
@@ -633,7 +643,7 @@ async function runMashGame(file){
   else if(kind==='rocket'){ const w=game.players[rank[0]]; winName=w?w.name:''; winMsg = w&&w.launched?'launched first! 🚀':'fuelled the most!'; }
   else if(kind==='rope'){ winName = game.winner!=null ? Net.TEAM_NAMES[game.winner]+' team' : ''; winMsg='climbed to the top! 🧗'; }
   else { winName = game.winner!=null ? Net.TEAM_NAMES[game.winner]+' team' : ''; winMsg='pulled the knot home!'; }
-  arena.sendMeta({ kind:'over', file, winner:winName, msg:winMsg });
+  arena.sendMeta({ kind:'over', file, winner:winName, msg:winMsg }); sfx.win();
   players=await Net.listPlayers(room.id);
   draw(fs);
   $('#ahud').innerHTML=`<span class="atitle">${Mash.mashTitle(file)} — ${winMsg}</span>`;
@@ -648,6 +658,7 @@ async function showIntro(file, title, howto){
   await setLive({ game:file, phase:'intro', title, howto, endsAt });
   for(let n=N;n>=1;n--){ if(drivenGame!==file) return false;
     $('#stage').innerHTML=`<div class="intro"><img class="intro-ic" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div class="intro-k">Get Ready</div><h1 class="intro-t">${title}</h1><div class="intro-how">${howto}</div><div class="intro-n">${n}</div></div>`;
+    if(n<=3) sfx.tick();
     await wait(1000); }
   return true;
 }

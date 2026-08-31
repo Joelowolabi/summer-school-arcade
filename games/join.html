@@ -368,6 +368,10 @@ import { renderBalloon, renderTug, renderRocket, renderRope } from './mash-rende
 import * as Studio from './studio-core.js';
 import { PARTS, PART_KEYS, randomMonster, clampMonster, renderMonster } from './monster.js';
 import * as Social from './social-core.js';
+import { sfx as psfx, unlock as pUnlock, setMuted as pSetMuted } from './audio.js';
+// unlock local audio on the first tap anywhere (browser gesture requirement), start unmuted
+let pSndOn=false;
+window.addEventListener('pointerdown', ()=>{ if(!pSndOn){ pUnlock(); pSetMuted(false); pSndOn=true; } }, {passive:true});
 const $=s=>document.querySelector(s);
 let chosenAvatar=Net.CHARACTERS[0].id, room=null, me=null, players=[], answeredRound=-1;
 
@@ -499,9 +503,9 @@ function renderIntro(live){
 let glKey=null, glState='waiting', glReact=0;
 function glTap(live){
   if(glState!=='waiting') return;
-  if(live.phase==='red'){ glState='jumped';
+  if(live.phase==='red'){ glState='jumped'; try{ psfx.wrong(); }catch(e){}
     Net.submitAnswer(room.id, me.id, live.game, live.round, 0).catch(()=>{}); paintGL(live); }
-  else if(live.phase==='green'){ glState='tapped'; glReact=Math.max(0, Date.now()-(live.greenAt||Date.now()));
+  else if(live.phase==='green'){ glState='tapped'; glReact=Math.max(0, Date.now()-(live.greenAt||Date.now())); try{ psfx.pop(); }catch(e){}
     Net.submitAnswer(room.id, me.id, live.game, live.round, 1).catch(()=>{}); paintGL(live); }
 }
 function paintGL(live){ const panel=$('#glpanel'); if(!panel) return;
@@ -688,7 +692,7 @@ function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
 /* ---- mash controller (Balloon Pop Race, Tug of War) ---- */
 let kArena=null, kFile=null, kSnap=null, kKind=null, kUiFile=null, kTaps=0, kSender=null, kKeyBound=false, kLocalFill=0, kLocalFuel=0, kTugPulse=0, kOvTO=null;
 function mashKeydown(e){ if(e.key===' '||e.key==='Spacebar'){ e.preventDefault(); mashTap(); } }
-function mashTap(){ kTaps++;
+function mashTap(){ kTaps++; try{ psfx.pop(); }catch(e){}
   const btn=$('#ktap'); if(btn){ btn.style.transform='scale(.93)'; setTimeout(()=>{ if($('#ktap')) $('#ktap').style.transform=''; },70); }
   if(kKind==='balloon' && kSnap){ const target=kSnap.target||20; kLocalFill=(kLocalFill+1)%target; drawMash(); }   // instant local inflate
   else if(kKind==='rocket' && kSnap){ const target=kSnap.target||55; kLocalFuel=Math.min(target, kLocalFuel+1); drawMash(); }  // instant local fuel
