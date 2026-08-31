@@ -277,11 +277,11 @@
   .herolead{font-size:clamp(16px,1.5vw,22px);line-height:1.4;opacity:.92;max-width:26ch;margin:0}
   .herochips{display:flex;flex-wrap:wrap;gap:10px}
   .herochip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);border-radius:var(--radius-pill);padding:9px 16px;font-weight:var(--fw-bold);font-size:var(--fs-body-s);color:#fff}
-  .heromascots{display:flex;align-items:flex-end;margin-top:6px}
-  .heromascots img{height:clamp(64px,8vw,116px);width:auto;margin-left:-16px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.3));animation:bobm 3.2s ease-in-out infinite}
+  .heromascots{display:flex;align-items:flex-end;margin-top:6px;max-width:100%}
+  .heromascots img{height:clamp(52px,6.6vw,98px);width:auto;margin-left:-18px;filter:drop-shadow(0 10px 18px rgba(0,0,0,.3));animation:bobm 3.2s ease-in-out infinite}
   .heromascots img:first-child{margin-left:0}
   .heromascots img:nth-child(2){animation-delay:.35s} .heromascots img:nth-child(3){animation-delay:.7s}
-  .heromascots img:nth-child(4){animation-delay:1.05s} .heromascots img:nth-child(5){animation-delay:1.4s} .heromascots img:nth-child(6){animation-delay:1.75s}
+  .heromascots img:nth-child(4){animation-delay:1.05s} .heromascots img:nth-child(5){animation-delay:1.4s} .heromascots img:nth-child(6){animation-delay:1.75s} .heromascots img:nth-child(7){animation-delay:2.1s}
   @keyframes bobm{50%{transform:translateY(-10px)}}
   .heroteams{display:flex;gap:10px}
   .heroteams .ht{background:var(--c);color:#fff;border-radius:var(--radius-pill);padding:7px 18px;font-weight:var(--fw-bold);font-size:var(--fs-body-s)}
@@ -377,24 +377,34 @@ let chosenAvatar=Net.CHARACTERS[0].id, room=null, me=null, players=[], answeredR
 
 // character picker
 $('#avatars').innerHTML = Net.CHARACTERS.map((c,i)=>`<div class="char-opt ${i===0?'sel':''}" data-id="${c.id}"><div class="cimg"><img src="${c.img}" alt="${c.name}"></div><span class="cn">${c.name}</span></div>`).join('');
-$('#heromascots').innerHTML = Net.CHARACTERS.map(c=>`<img src="${c.img}" alt="" onerror="this.style.display='none'">`).join('');
+// curated marquee (the full roster is in the avatar picker) — kept short so it never clips
+const HERO_MASCOTS=['blob','star','party','ninja','robot','fox','dragon'];
+$('#heromascots').innerHTML = HERO_MASCOTS.map(id=>Net.CHARACTERS.find(c=>c.id===id)).filter(Boolean)
+  .map(c=>`<img src="${c.img}" alt="" onerror="this.style.display='none'">`).join('');
 $('#avatars').addEventListener('click', e=>{ const o=e.target.closest('.char-opt'); if(!o) return; chosenAvatar=o.dataset.id; $('#avatars').querySelectorAll('.char-opt').forEach(x=>x.classList.remove('sel')); o.classList.add('sel'); });
 
 // prefill code from ?code= or a saved reconnect
 const qp=new URLSearchParams(location.search);
 if(qp.get('code')) $('#codeIn').value=qp.get('code');
 
-// auto-reconnect: use ?code, else the last room this device joined — so a refresh or
-// a dropped connection drops the kid straight back into whatever everyone else is playing.
+// auto-reconnect — ONLY back into the SAME room this device joined in the last few hours
+// (so a refresh or dropped wifi mid-session drops the kid back in, but opening the app days
+//  later, or scanning a link to a DIFFERENT room, starts a fresh join instead).
 (async ()=>{
-  const code=(qp.get('code')||localStorage.getItem('ssa_join_room')||'').trim(), savedName=localStorage.getItem('ssa_join_name');
-  if(!code || !savedName) return;
+  const urlCode=(qp.get('code')||'').trim().toUpperCase();
+  const savedRoom=(localStorage.getItem('ssa_join_room')||'').trim().toUpperCase();
+  const savedName=localStorage.getItem('ssa_join_name');
+  const savedAt=+(localStorage.getItem('ssa_join_at')||0);
+  const recent = savedAt && (Date.now()-savedAt < 4*3600*1000);   // 4-hour window
+  if(!savedRoom || !savedName || !recent) return;                 // stale or never joined → normal join screen
+  if(urlCode && urlCode!==savedRoom) return;                      // a link to a different room → normal join
   $('#stepCode').classList.add('hide');
-  $('#reconnecting') && ($('#reconnecting').style.display='flex');   // show a "Reconnecting…" hint, not the code form
+  $('#reconnecting') && ($('#reconnecting').style.display='flex');
   try{
-    room = await Net.getRoomByCode(code);
-    if(!room || room.status==='ended'){ $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); return; }
-    me = await Net.joinRoom(code, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
+    room = await Net.getRoomByCode(savedRoom);
+    if(!room || room.status==='ended'){ localStorage.removeItem('ssa_join_room'); localStorage.removeItem('ssa_join_at');
+      $('#reconnecting') && ($('#reconnecting').style.display='none'); $('#stepCode').classList.remove('hide'); return; }
+    me = await Net.joinRoom(savedRoom, savedName, localStorage.getItem('ssa_join_char')||Net.CHARACTERS[0].id);
     Net.heartbeat(me.id);
     if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}
     enterLobby();
@@ -428,6 +438,7 @@ async function join(){
     localStorage.setItem('ssa_join_room', room.code);
     localStorage.setItem('ssa_join_name', name);
     localStorage.setItem('ssa_join_char', chosenAvatar);
+    localStorage.setItem('ssa_join_at', String(Date.now()));   // for the reconnect freshness window
     if(history.replaceState) try{ history.replaceState(null,'','?code='+encodeURIComponent(room.code)); }catch(e){}   // so a later refresh reconnects
     Net.heartbeat(me.id);
     enterLobby();
