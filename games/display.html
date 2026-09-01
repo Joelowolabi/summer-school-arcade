@@ -112,6 +112,10 @@
   .frest .frow .av{width:28px;height:28px}
   .fteam{text-align:center;font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h1);text-wrap:balance}
   #confetti{position:absolute;inset:0;pointer-events:none;z-index:6}
+  #autoadv{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:20;display:none;align-items:center;gap:10px;background:rgba(30,20,60,.92);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:var(--radius-pill);padding:12px 28px;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);box-shadow:0 12px 34px rgba(0,0,0,.42)}
+  #autoadv .aa-dot{width:11px;height:11px;border-radius:50%;background:var(--accent-sun);animation:aapulse 1s infinite}
+  #autoadv b{color:var(--accent-sun);font-variant-numeric:tabular-nums;margin-left:4px}
+  @keyframes aapulse{50%{opacity:.25}}
   .teamsbig{display:flex;flex-direction:column;gap:16px}
   .tbig{border-radius:var(--radius-2xl);padding:22px 26px;color:#fff;display:flex;align-items:center;justify-content:space-between}
   .tbig .tn{font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2)}
@@ -288,6 +292,29 @@ function render(){
   return renderSummary();
 }
 
+/* ---- auto-advance: 10s after a game finishes, move to the next one automatically ---- */
+let autoAdv=null;
+function showAutoChip(secs){ let el=$('#autoadv'); if(!el){ el=document.createElement('div'); el.id='autoadv'; document.body.appendChild(el); }
+  el.style.display='flex'; el.innerHTML=`<span class="aa-dot"></span>Next game in <b>${Math.max(0,secs)}s</b>`; }
+function cancelAutoAdvance(){ if(autoAdv){ clearInterval(autoAdv.iv); autoAdv=null; } const el=$('#autoadv'); if(el) el.style.display='none'; }
+function idleBetweenGames(){ return room && room.status==='in_game' && !driving && drivenGame && drivenGame===room.current_game; }
+function beginAutoAdvance(){
+  const fromIndex=(room.state&&room.state.index)||0;
+  autoAdv={ fromIndex, secs:10, iv:null };
+  const tick=async ()=>{
+    if(!autoAdv) return;
+    if(!idleBetweenGames() || ((room.state&&room.state.index)||0)!==autoAdv.fromIndex){ cancelAutoAdvance(); return; }
+    showAutoChip(autoAdv.secs);
+    if(autoAdv.secs<=0){ const fi=autoAdv.fromIndex; cancelAutoAdvance();
+      try{ const fresh=await Net.getRoom(room.id); if(fresh){ if(((fresh.state&&fresh.state.index)||0)!==fi) return; room=Object.assign(room,fresh); } }catch(e){}
+      if(room.status==='in_game' && ((room.state&&room.state.index)||0)===fi){ try{ await Net.advanceGame(room.id, room); }catch(e){} }
+      return; }
+    autoAdv.secs--;
+  };
+  tick(); autoAdv.iv=setInterval(tick,1000);
+}
+setInterval(()=>{ if(idleBetweenGames()){ if(!autoAdv) beginAutoAdvance(); } else if(autoAdv){ cancelAutoAdvance(); } }, 700);
+
 function renderLobby(){
   const totals=teamTotals();
   const joinURL = location.origin + '/games/join.html?code=' + room.code;
@@ -315,6 +342,15 @@ function snapBaseline(){ const s=[...players].sort((a,b)=>(b.points||0)-(a.point
 const MEDALS=['🥇','🥈','🥉'];
 function renderGame(){
   const totals=teamTotals();
+  if(suspenseOn()){
+    const nowg = Net.gameLabel(room.current_game);
+    $('#stage').innerHTML=`<div class="finale" style="justify-content:center">
+      <div style="font-size:110px">🙈</div>
+      <div class="ftitle">Suspense Mode</div>
+      <p style="font-size:var(--fs-h2);opacity:.92;text-wrap:balance;text-align:center">Scores are hidden until the grand finale.<br>Play your best — the standings are revealed at the end!</p>
+      <div class="fteam" style="opacity:.8;font-size:var(--fs-h3)">Now up · ${nowg} · ${players.filter(p=>p.connected).length} playing</div></div>`;
+    return;
+  }
   const sorted=[...players].sort((a,b)=>b.points-a.points).slice(0,12);
   const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
   // biggest gainer since the previous game → 🔥
@@ -409,8 +445,11 @@ function dispQuestion(game, round, N, q, n, left){
     <div class="qgrid" style="grid-template-columns:repeat(${q.cols},auto)">${q.tiles.map(t=>tileHTML(t,q.variant)).join('')}</div>`;
   $('#stage').innerHTML=`<div class="qwrap">${head}${body}${foot}</div>`;
 }
+function suspenseOn(){ return !!(room && room.state && room.state.suspense); }
 // reveal-phase board on the projector
 function dispReveal(game, round, N, q, note){
+  if(suspenseOn()){ $('#stage').innerHTML=`<div class="qwrap"><div class="qtop"><span class="qk">${Bank.gameTitle(game)} · Q${round}/${N}</span><span class="qk">🔒 Suspense mode</span></div>
+    <div class="center-msg" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px"><div style="font-size:96px">🔒</div><h1 style="font-size:var(--fs-display-m);margin:0">Answers locked in!</h1><p style="opacity:.85;font-size:var(--fs-h3)">Scores stay secret until the grand finale…</p></div></div>`; return; }
   const sorted=[...players].sort((a,b)=>b.points-a.points).slice(0,6);
   const head=`<div class="qtop"><span class="qk">${Bank.gameTitle(game)} · Q${round}/${N}</span><span class="qk">${note}</span></div>`;
   const lead=`<div class="qlead">${sorted.map((p,i)=>`<span class="qlrow"><b>${i+1}</b>${p.name} · ${p.points}</span>`).join('')}</div>`;

@@ -38,6 +38,7 @@
   #scorebar{display:none}
   body.playing #scorebar{display:flex;flex-direction:column;flex:0 0 auto;width:clamp(280px,24vw,360px);background:rgba(0,0,0,.2);border-left:1px solid rgba(255,255,255,.14);padding:74px 18px 22px;gap:12px;overflow-y:auto;color:#fff;z-index:2}
   #scorebar .sb-title{font:var(--type-eyebrow);text-transform:uppercase;letter-spacing:var(--ls-eyebrow);font-weight:var(--fw-bold);opacity:.82;text-align:center}
+  #scorebar .sb-suspense{margin-top:14px;text-align:center;color:var(--text-muted);font-weight:var(--fw-semibold);font-size:var(--fs-body-s);line-height:1.4}
   #scorebar .steams{grid-template-columns:repeat(3,1fr);gap:8px} #scorebar .steam{padding:9px 6px} #scorebar .steam span{font-size:var(--fs-caption)} #scorebar .steam b{font-size:var(--fs-h4)}
   #scorebar .srows{gap:5px;flex:1;min-height:0} #scorebar .srow{padding:7px 12px}
   #scorebar .srow .sr{font-size:var(--fs-caption);width:18px} #scorebar .srow .sav{width:26px;height:26px} #scorebar .srow .sn{font-size:var(--fs-body-s)} #scorebar .srow .sp{font-size:var(--fs-body-s)} #scorebar .srow .sn em{font-size:10px;padding:1px 4px}
@@ -508,7 +509,9 @@ function standingsPanel(){
   return `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>
     <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''} ${i<3?'medaled':''}"><span class="sr">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${i===0?' 👑':''}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
 }
+function suspenseOn(){ return !!(room && room.state && room.state.suspense); }
 function renderScorebar(){ const sb=$('#scorebar'); if(!sb || !document.body.classList.contains('playing') || !me) return;
+  if(suspenseOn()){ sb.innerHTML = `<div class="sb-title">🙈 Suspense</div><div class="sb-suspense">Scores are hidden until the finale — just play your best!</div>`; return; }
   sb.innerHTML = `<div class="sb-title">🏆 Live Scores</div>${standingsPanel()}`; }
 let introKey=null, introIv=null;
 function startIntroTimer(endsAt){ clearInterval(introIv); const tick=()=>{ const el=$('#intron'); if(!el){clearInterval(introIv);return;} el.textContent=Math.max(0,Math.ceil((endsAt-Date.now())/1000)); }; tick(); introIv=setInterval(tick,250); }
@@ -562,7 +565,7 @@ function renderGreenLight(live){
 function getReady(g){ const slug=g.replace(/-3d\.html$/,'').replace(/\.html$/,'');
   $('#waiting').innerHTML=`<div class="ready" style="flex:1;justify-content:center">
     <div class="readyhead"><img class="readyimg" src="assets/games/${slug}.png" alt="" onerror="this.style.display='none'"><div><div class="rk">Get ready…</div><div class="rt">${Net.gameLabel(g)}</div></div></div>
-    <div class="readywait">The host will start the next game shortly — live scores are on the right ✨</div></div>`;
+    <div class="readywait">${suspenseOn()?'🙈 Suspense mode — scores are revealed at the finale!':'The host will start the next game shortly — live scores are on the right ✨'}</div></div>`;
 }
 function renderFinalStandings(){
   const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
@@ -615,6 +618,8 @@ function renderLive(live){
     }));
   } else {  // reveal
     clearInterval(liveTimerIv);
+    if(suspenseOn()){ w.innerHTML=`<div class="livehead">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</div>
+      <div class="ready" style="flex:1;justify-content:center;text-align:center;gap:8px"><div style="font-size:64px">🔒</div><div class="rt" style="font-size:var(--fs-h2)">Locked in!</div><div class="readywait">Results are revealed at the finale — keep going! 🙈</div></div>`; return; }
     let body;
     if(type==='mcq') body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.image?`<img class="liveflag" src="${live.image}" alt="flag" onerror="this.style.display='none'">`:''}${live.prompt}</div>
       <div class="liveopts">${live.options.map((o,i)=>`<div class="liveopt ${i===live.correct?'right':'dim'}" style="background:${i===live.correct?colors[i]:'var(--surface-sunken)'};color:${i===live.correct?'#fff':'var(--text-muted)'}"><span style="${i===live.correct?'':'background:var(--border-soft)'}">${L[i]}</span>${o}${i===live.correct?' ✓':''}</div>`).join('')}</div>`;

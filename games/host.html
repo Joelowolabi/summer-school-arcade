@@ -29,6 +29,9 @@
   .codecard .joinurl{margin-top:14px;display:inline-block;background:var(--surface-sunken);border-radius:var(--radius-pill);padding:8px 16px;font-family:var(--font-mono);font-size:var(--fs-body-s);color:var(--text-body)}
   .hostqr{width:172px;height:172px;background:#fff;border-radius:16px;padding:10px;margin:16px auto 6px;display:block;box-shadow:var(--shadow-m)}
   .qrhint{color:var(--text-muted);font-size:var(--fs-body-s);font-weight:var(--fw-semibold)}
+  .suspense{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border:1.5px solid var(--border-soft);border-radius:var(--radius-l);background:var(--surface-sunken);cursor:pointer;font-size:var(--fs-body-s);color:var(--text-body);line-height:1.35}
+  .suspense input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--accent-play);cursor:pointer}
+  .suspense b{color:var(--text-strong)}
   .teams{display:flex;gap:10px;margin:22px 0}
   .tteam{flex:1;border-radius:var(--radius-l);padding:12px;text-align:center;color:#fff}
   .tteam .n{font-size:var(--fs-body-s);opacity:.9;font-weight:var(--fw-medium)}
@@ -135,6 +138,7 @@
       <button data-d="hard">🔴 Hard</button>
     </div>
     <p style="color:var(--text-muted);font-size:var(--fs-body-s);margin:6px 0 0" id="diffHint">Balanced questions with a fair timer.</p>
+    <label class="suspense" id="suspenseRow"><input type="checkbox" id="suspenseChk"><span><b>🙈 Suspense mode</b> — hide every score &amp; result until the finale. No live leaderboard, no right/wrong until the end.</span></label>
     <div class="gchips" id="gchips"></div>
   </div>
 </div>
@@ -247,6 +251,8 @@ let difficulty='med';
 const DIFF_HINT={ easy:'Simpler questions and a generous timer — great for younger players.', med:'Balanced questions with a fair timer.', hard:'Trickier questions and a tighter clock — for the pros.' };
 function setDiff(d){ difficulty=d; document.querySelectorAll('#diffSeg button').forEach(b=>b.classList.toggle('on', b.dataset.d===d)); $('#diffHint').textContent=DIFF_HINT[d]; }
 document.querySelectorAll('#diffSeg button').forEach(b=>b.addEventListener('click', ()=>setDiff(b.dataset.d)));
+let suspense=false;
+$('#suspenseChk').addEventListener('change', e=>{ suspense=e.target.checked; $('#suspenseRow').style.borderColor = suspense ? 'var(--accent-play)' : 'var(--border-soft)'; });
 document.querySelectorAll('#modeSeg button').forEach(b=>b.addEventListener('click', ()=>setMode(b.dataset.m)));
 $('#selAll').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.add(g.f)); renderPicker(); render(); });
 $('#selNone').addEventListener('click', ()=>{ visibleGames().forEach(g=>selected.delete(g.f)); renderPicker(); render(); });
@@ -257,8 +263,8 @@ $('#startBtn').addEventListener('click', async ()=>{
   if(games.length===0) return;
   $('#pickerCard').style.display='none';
   $('#startBtn').style.display='none'; $('#minNote').style.display='none';
-  await Net.startSession(room.id, games, { mode, difficulty });  // broadcasts to display + players
-  room.state = { games, index:0, mode, difficulty }; room.current_game = games[0]; room.status='in_game';
+  await Net.startSession(room.id, games, { mode, difficulty, suspense });  // broadcasts to display + players
+  room.state = { games, index:0, mode, difficulty, suspense }; room.current_game = games[0]; room.status='in_game';
   $('#sessionCtrl').style.display='block';
   updateCtrl();
 });
