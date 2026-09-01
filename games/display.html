@@ -126,6 +126,7 @@
   .qtimer{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-m);background:rgba(255,255,255,.16);border-radius:var(--radius-pill);min-width:80px;text-align:center;padding:2px 20px}
   .qprompt{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-display-l);letter-spacing:var(--ls-display);text-align:center;line-height:1.08;margin:auto 0;text-wrap:balance}
   .qprompt .qhint{display:block;font-family:var(--font-body);font-weight:var(--fw-regular);font-size:var(--fs-h4);opacity:.8;margin-top:12px}
+  .qflag{display:block;margin:0 auto 8px;height:clamp(140px,30vh,300px);width:auto;border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.34)}
   .qopts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .qopt{display:flex;align-items:center;gap:16px;padding:22px 26px;border-radius:var(--radius-xl);font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:#fff;box-shadow:var(--shadow-m)}
   .qopt.dim{opacity:.4} .qopt.right{outline:4px solid #fff;outline-offset:-4px}
@@ -384,7 +385,7 @@ const OPTC=['#F2683C','#7B5BE8','#3FBF7F','#4F9CF9'], L=['A','B','C','D'];
 // the shared body that players also read: what's on screen right now
 function liveState(game, round, N, phase, q, extra){
   const base={ game, round, total:N, phase, type:q.type, prompt:q.prompt };
-  if(q.type==='mcq'){ base.hint=q.hint||''; base.options=q.options; }
+  if(q.type==='mcq'){ base.hint=q.hint||''; base.options=q.options; if(q.image) base.image=q.image; }
   if(q.type==='vote'){ base.options=q.options; base.colors=q.colors; }
   if(q.type==='grid'){ base.tiles=q.tiles; base.cols=q.cols; base.variant=q.variant; }
   return Object.assign(base, extra||{});
@@ -400,7 +401,7 @@ function dispQuestion(game, round, N, q, n, left){
   const head=`<div class="qtop"><span class="qk">${Bank.gameTitle(game)} · ${dc} · Q${round}/${N}</span><span class="qtimer">${left}</span></div>`;
   const foot=`<div class="qfoot"><b>${n}</b> / ${players.length} answered · Answer on your device</div>`;
   let body='';
-  if(q.type==='mcq') body=`<div class="qprompt">${q.prompt}${q.hint?`<span class="qhint">${q.hint}</span>`:''}</div>
+  if(q.type==='mcq') body=`<div class="qprompt">${q.image?`<img class="qflag" src="${q.image}" alt="flag" onerror="this.style.display='none'">`:''}${q.prompt}${q.hint?`<span class="qhint">${q.hint}</span>`:''}</div>
     <div class="qopts">${q.options.map((o,i)=>`<div class="qopt" style="background:${OPTC[i]}"><span class="ql">${L[i]}</span>${o}</div>`).join('')}</div>`;
   else if(q.type==='vote') body=`<div class="qprompt" style="flex:0">${q.prompt}</div>
     <div class="qvote">${q.options.map((o,i)=>`<div class="qvcard" style="background:${q.colors[i]}"><span class="ql" style="opacity:.85;font-size:var(--fs-h4)">${L[i]}</span>${o}</div>`).join('')}</div>`;
@@ -414,7 +415,7 @@ function dispReveal(game, round, N, q, note){
   const head=`<div class="qtop"><span class="qk">${Bank.gameTitle(game)} · Q${round}/${N}</span><span class="qk">${note}</span></div>`;
   const lead=`<div class="qlead">${sorted.map((p,i)=>`<span class="qlrow"><b>${i+1}</b>${p.name} · ${p.points}</span>`).join('')}</div>`;
   let body='';
-  if(q.type==='mcq') body=`<div class="qprompt" style="font-size:var(--fs-h1)">${q.prompt}</div>
+  if(q.type==='mcq') body=`<div class="qprompt" style="font-size:var(--fs-h1)">${q.image?`<img class="qflag" src="${q.image}" alt="flag" onerror="this.style.display='none'">`:''}${q.prompt}</div>
     <div class="qopts">${q.options.map((o,i)=>`<div class="qopt ${i===q.correct?'right':'dim'}" style="background:${i===q.correct?OPTC[i]:'rgba(255,255,255,.12)'}"><span class="ql">${L[i]}</span>${o}${i===q.correct?' ✓':''}</div>`).join('')}</div>`;
   else if(q.type==='vote'){ const tot=Math.max(1,q.tally[0]+q.tally[1]);
     body=`<div class="qprompt" style="flex:0;font-size:var(--fs-h1)">${q.prompt}</div>
@@ -429,7 +430,9 @@ async function runLiveGame(game){
   Bank.resetUsed(game);                                            // fresh no-repeat pool each play
   const diff=(room.state&&room.state.difficulty)||'med';
   if(!await showIntro(game, Bank.gameTitle(game), Bank.howto(game))) return;
-  const N=8, QT = diff==='easy' ? 16000 : diff==='hard' ? 10000 : 13000, RT=4500;   // snappier clock; harder = less time
+  const N=8, QT = diff==='easy' ? 10000 : diff==='hard' ? 6000 : 8000, RT=4500;   // 8s base clock (easy 10 / hard 6)
+  const diffMult = diff==='hard' ? 1.5 : diff==='easy' ? 1 : 1.2;   // harder questions are worth more
+  const streak={};                                                  // per-player consecutive-correct count
   for(let round=1; round<=N; round++){
     if(drivenGame!==game || room.status!=='in_game') return;
     const q=Bank.makeQuestion(game, round, { difficulty:diff });
@@ -437,14 +440,16 @@ async function runLiveGame(game){
     let st=Object.assign({}, room.state, { live: liveState(game, round, N, 'question', q, { endsAt:Date.now()+QT }) });
     room.state=st; await Net.setRoom(room.id,{state:st});
     // question phase (live "answered" ticker + early finish when everyone's in)
-    const start=Date.now();
+    const start=Date.now(); let n=0, lastN=0, lastChange=start;
     dispQuestion(game, round, N, q, 0, Math.ceil(QT/1000));
     while(Date.now()-start < QT){
       if(drivenGame!==game) return;
-      await wait(1000);
-      let n=0; try{ n=(await Net.readAnswers(room.id, round, game)).length; }catch(e){}
+      await wait(500);
+      try{ n=(await Net.readAnswers(room.id, round, game)).length; }catch(e){}
+      if(n!==lastN){ lastN=n; lastChange=Date.now(); }
       dispQuestion(game, round, N, q, n, Math.max(0,Math.ceil((QT-(Date.now()-start))/1000)));
-      if(activeCount()>0 && n>=activeCount()) break;
+      if(activeCount()>0 && n>=activeCount()) break;               // every connected player answered
+      if(n>0 && Date.now()-lastChange > 2500) break;               // answers stalled → don't make the room wait on no-shows
     }
     if(drivenGame!==game) return;
     // resolve against authoritative server-time order
@@ -457,7 +462,16 @@ async function runLiveGame(game){
       q.tally=tally; q.winner=winner;
       note = winner===-1 ? 'Perfectly split!' : `Majority: ${q.options[winner]}`;
     } else {
-      let rank=0; for(const a of answers){ if(a.payload && a.payload.choice===q.correct){ await Net.addPoints(a.player_id, Bank.speedPoints(rank)); rank++; } }
+      let rank=0; const correct=new Set();
+      for(const a of answers){ if(a.payload && a.payload.choice===q.correct){
+        streak[a.player_id]=(streak[a.player_id]||0)+1;
+        const base=Bank.speedPoints(rank);                            // speed: 15,14,… floor 5
+        const streakBonus=Math.min(10,(streak[a.player_id]-1)*2);     // 🔥 +2 per consecutive correct, cap +10
+        const firstBonus=rank===0?3:0;                                // ⚡ first correct in the room
+        await Net.addPoints(a.player_id, Math.round(base*diffMult)+streakBonus+firstBonus);
+        correct.add(a.player_id); rank++;
+      } }
+      players.forEach(p=>{ if(!correct.has(p.id)) streak[p.id]=0; });  // a miss (or no answer) resets the streak
       note = `${rank} got it`;
     }
     // reveal

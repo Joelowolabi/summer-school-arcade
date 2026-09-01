@@ -131,6 +131,8 @@
   .livehead{font-family:var(--font-display);font-size:var(--fs-body-s);text-transform:uppercase;letter-spacing:.09em;color:var(--accent-play);font-weight:var(--fw-bold);margin-bottom:8px;text-align:center}
   .liveq{font-family:var(--font-display);font-weight:var(--fw-bold);font-size:var(--fs-h2);color:var(--text-strong);line-height:1.15;margin-bottom:16px;text-align:center}
   .liveq .livehint{font-family:var(--font-body);font-weight:var(--fw-regular);font-size:var(--fs-body);color:var(--text-muted);margin-top:6px}
+  .liveflag{display:block;margin:0 auto 10px;height:clamp(90px,22vh,150px);width:auto;border-radius:10px;box-shadow:var(--shadow-m)}
+  .card.play .liveflag{height:clamp(120px,26vh,200px)}
   .liveopts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .liveopt{display:flex;align-items:center;gap:10px;padding:16px;border:0;border-radius:var(--radius-l);color:#fff;font-family:var(--font-heading);font-weight:var(--fw-bold);font-size:var(--fs-h4);cursor:pointer;box-shadow:var(--shadow-s);transition:transform .1s var(--ease-pop)}
   .liveopt:active{transform:scale(.96)} .liveopt[disabled]{cursor:default}
@@ -594,7 +596,7 @@ function renderLive(live){
 
   if(live.phase==='question'){
     let body;
-    if(type==='mcq') body=`<div class="liveq">${live.prompt}${live.hint?`<div class="livehint">${live.hint}</div>`:''}</div>
+    if(type==='mcq') body=`<div class="liveq">${live.image?`<img class="liveflag" src="${live.image}" alt="flag" onerror="this.style.display='none'">`:''}${live.prompt}${live.hint?`<div class="livehint">${live.hint}</div>`:''}</div>
       <div class="liveopts">${live.options.map((o,i)=>`<button class="liveopt tap" data-i="${i}" style="background:${colors[i]}" ${answered?'disabled':''}><span>${L[i]}</span>${o}</button>`).join('')}</div>`;
     else if(type==='vote') body=`<div class="liveq">${live.prompt}</div>
       <div class="livevote">${live.options.map((o,i)=>`<button class="livevcard tap" data-i="${i}" style="background:${live.colors[i]}" ${answered?'disabled':''}>${o}</button>`).join('')}</div>`;
@@ -602,7 +604,7 @@ function renderLive(live){
       <div class="livegrid" style="grid-template-columns:repeat(${live.cols},auto)">${live.tiles.map((t,i)=>live.variant==='shape'
         ?`<button class="livetile shape tap" data-i="${i}" ${answered?'disabled':''}>${Bank.shapeSVG(t.s,t.c,46)}</button>`
         :`<button class="livetile tap" data-i="${i}" style="background:${t.c}" ${answered?'disabled':''}></button>`).join('')}</div>`;
-    w.innerHTML=`<div class="livetop"><span class="livehead" style="margin:0">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</span><span class="livetimer" id="livetimer">–</span></div>${gameIcon(live.game)}${body}
+    w.innerHTML=`<div class="livetop"><span class="livehead" style="margin:0">${Bank.gameTitle(live.game)} · ${live.round} of ${live.total}</span><span class="livetimer" id="livetimer">–</span></div>${live.image?'':gameIcon(live.game)}${body}
       <div class="livenote" id="lnote">${answered?'Locked in — hang tight!':(type==='vote'?'Pick a side, fast!':type==='grid'?'Tap the right one, fast!':'Tap your answer, fast!')}</div>`;
     startLiveTimer(live.endsAt);
     if(!answered) w.querySelectorAll('.tap').forEach(b=>b.addEventListener('click', async ()=>{
@@ -614,7 +616,7 @@ function renderLive(live){
   } else {  // reveal
     clearInterval(liveTimerIv);
     let body;
-    if(type==='mcq') body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
+    if(type==='mcq') body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.image?`<img class="liveflag" src="${live.image}" alt="flag" onerror="this.style.display='none'">`:''}${live.prompt}</div>
       <div class="liveopts">${live.options.map((o,i)=>`<div class="liveopt ${i===live.correct?'right':'dim'}" style="background:${i===live.correct?colors[i]:'var(--surface-sunken)'};color:${i===live.correct?'#fff':'var(--text-muted)'}"><span style="${i===live.correct?'':'background:var(--border-soft)'}">${L[i]}</span>${o}${i===live.correct?' ✓':''}</div>`).join('')}</div>`;
     else if(type==='vote'){ const tot=Math.max(1,(live.tally[0]||0)+(live.tally[1]||0));
       body=`<div class="liveq" style="font-size:var(--fs-h4)">${live.prompt}</div>
