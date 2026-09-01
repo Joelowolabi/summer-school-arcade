@@ -126,6 +126,12 @@ const GAMES=[
   {f:'quick-draw-guess.html', t:'Quick Draw Guess', mode:'Draw & Guess', c:'#F5C81F', tc:'#1E1B26', icon:'M4 20l4-1 10-10-3-3L5 16zM14 6l3 3', d:'Draw the secret word for the room, then race to guess everyone else\'s doodles.'},
   {f:'odd-one-out.html', t:'Odd One Out', mode:'All 30', c:'#8E6FEE', icon:'M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5zM14.5 14.5h4v4h-4z', d:'Every tile is the same shade — except one. Spot and click the odd one fastest.'},
   {f:'number-ninjas.html', t:'Number Ninjas', mode:'All 30', c:'#6B4CD8', icon:'M7 4L5 20M15 4l-2 16M4 9h15M3 15h15', d:'Quick maths and pattern puzzles. Fastest correct answer slices the round.'},
+  {f:'solo-quiz.html?game=true-or-false', slug:'true-or-false', t:'True or False Blitz', mode:'All 30', c:'#3FBF7F', d:'Fact or fib? Tap True or False fast — quicker correct answers score more.'},
+  {f:'solo-quiz.html?game=higher-or-lower', slug:'higher-or-lower', t:'Higher or Lower', mode:'All 30', c:'#4F9CF9', d:'Is the real number higher or lower than shown? Trust your gut, tap fast.'},
+  {f:'solo-quiz.html?game=flag-frenzy', slug:'flag-frenzy', t:'Flag Frenzy', mode:'All 30', c:'#F2683C', d:'A flag flashes up — tap the country it belongs to before the timer runs out.'},
+  {f:'solo-quiz.html?game=guess-the-flag', slug:'guess-the-flag', t:'Guess the Flag', mode:'All 30', c:'#7B5BE8', d:'Real country flags, four choices. How many can you name at speed?'},
+  {f:'solo-quiz.html?game=which-doesnt-belong', slug:'which-doesnt-belong', t:"Which Doesn't Belong", mode:'All 30', c:'#8E6FEE', d:'Three of four go together — spot and tap the odd one out fastest.'},
+  {f:'solo-quiz.html?game=category-tap', slug:'category-tap', t:'Category Tap', mode:'All 30', c:'#F5C81F', tc:'#1E1B26', d:'Tap the item that fits the category — fruit, planet, instrument and more.'},
 ];
 
 function cover(c){ return `linear-gradient(150deg, ${c}, ${shade(c,-18)})`; }
@@ -133,7 +139,7 @@ function shade(hex,p){ const n=parseInt(hex.slice(1),16); let r=n>>16&255,g=n>>8
 
 document.getElementById('libCount').textContent=GAMES.length+' games · host picks the rotation';
 document.getElementById('grid').innerHTML=GAMES.map(g=>{
-  const slug=g.f.replace(/-3d\.html$/,'').replace(/\.html$/,'');
+  const slug=g.slug||g.f.replace(/-3d\.html$/,'').replace(/\.html$/,'');
   return `
   <a class="gcard" href="${g.f}">
     <div class="cover" style="background:${cover(g.c)}">
