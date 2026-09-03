@@ -266,6 +266,33 @@ const GFLAGS = {
 const GFLAG_ALL = [...GFLAGS.easy,...GFLAGS.med,...GFLAGS.hard];
 export function flagURL(iso){ return `https://flagcdn.com/w320/${iso}.png`; }
 
+/* ---------- Guess the Logo (brand logos via logo.clearbit.com — [domain, brand]) ---------- */
+const LOGOS = {
+  easy:[
+    ['apple.com','Apple'],['google.com','Google'],['nike.com','Nike'],['mcdonalds.com','McDonald\'s'],
+    ['youtube.com','YouTube'],['netflix.com','Netflix'],['disney.com','Disney'],['lego.com','LEGO'],
+    ['minecraft.net','Minecraft'],['roblox.com','Roblox'],['coca-cola.com','Coca-Cola'],['amazon.com','Amazon'],
+    ['xbox.com','Xbox'],['playstation.com','PlayStation'],['nintendo.com','Nintendo'],['whatsapp.com','WhatsApp'],
+    ['instagram.com','Instagram'],['tiktok.com','TikTok'],
+  ],
+  med:[
+    ['spotify.com','Spotify'],['adidas.com','Adidas'],['samsung.com','Samsung'],['pepsi.com','Pepsi'],
+    ['snapchat.com','Snapchat'],['tesla.com','Tesla'],['puma.com','Puma'],['starbucks.com','Starbucks'],
+    ['uber.com','Uber'],['twitch.tv','Twitch'],['discord.com','Discord'],['reddit.com','Reddit'],
+    ['paypal.com','PayPal'],['pinterest.com','Pinterest'],['linkedin.com','LinkedIn'],['ikea.com','IKEA'],
+    ['hp.com','HP'],['oreo.com','Oreo'],
+  ],
+  hard:[
+    ['airbnb.com','Airbnb'],['dropbox.com','Dropbox'],['slack.com','Slack'],['zoom.us','Zoom'],
+    ['skype.com','Skype'],['shazam.com','Shazam'],['soundcloud.com','SoundCloud'],['ebay.com','eBay'],
+    ['fedex.com','FedEx'],['bmw.com','BMW'],['audi.com','Audi'],['porsche.com','Porsche'],
+    ['lacoste.com','Lacoste'],['converse.com','Converse'],['burgerking.com','Burger King'],['kfc.com','KFC'],
+    ['subway.com','Subway'],['dominos.com','Domino\'s'],
+  ],
+};
+const LOGO_ALL = [...LOGOS.easy,...LOGOS.med,...LOGOS.hard];
+export function logoURL(domain){ return `https://logo.clearbit.com/${domain}`; }
+
 /* ---------- Which Doesn't Belong (last item is the odd one) ---------- */
 const WDB = {
   easy:[
@@ -334,7 +361,7 @@ const SHAPE_PATH = {
 export function shapeSVG(shape, hex, size){ size=size||64;
   return `<svg width="${size}" height="${size}" viewBox="0 0 80 80" fill="${hex}" stroke="rgba(30,27,38,.14)" stroke-width="1.5" stroke-linejoin="round"><path d="${SHAPE_PATH[shape]||SHAPE_PATH.star}"/></svg>`; }
 
-export function isLive(game){ return /trivia-sprint|number-ninjas|this-or-that|odd-one-out|click-rush|true-or-false|higher-or-lower|flag-frenzy|guess-the-flag|which-doesnt-belong|category-tap/.test(game||''); }
+export function isLive(game){ return /trivia-sprint|number-ninjas|this-or-that|odd-one-out|click-rush|true-or-false|higher-or-lower|flag-frenzy|guess-the-flag|guess-the-logo|which-doesnt-belong|category-tap/.test(game||''); }
 export function gameTitle(game){
   if(/number-ninjas/.test(game)) return 'Number Ninjas';
   if(/this-or-that/.test(game))  return 'This or That';
@@ -342,6 +369,7 @@ export function gameTitle(game){
   if(/click-rush/.test(game))    return 'Click Rush';
   if(/true-or-false/.test(game)) return 'True or False Blitz';
   if(/higher-or-lower/.test(game)) return 'Higher or Lower';
+  if(/guess-the-logo/.test(game)) return 'Guess the Logo';
   if(/guess-the-flag/.test(game)) return 'Guess the Flag';
   if(/flag-frenzy/.test(game))   return 'Flag Frenzy';
   if(/which-doesnt-belong/.test(game)) return "Which Doesn't Belong";
@@ -400,6 +428,9 @@ export function makeQuestion(game, round, opts={}){
   if(/guess-the-flag/.test(game)){ const [iso,name]=pickTiered(GFLAGS,'gf',diff,used); const opts=new Set([name]);
     while(opts.size<4) opts.add(rnd(GFLAG_ALL)[1]); const arr=[...opts].sort(()=>Math.random()-.5);
     return { type:'mcq', image:flagURL(iso), prompt:'', hint:'Which country?', options:arr, correct:arr.indexOf(name) }; }
+  if(/guess-the-logo/.test(game)){ const [domain,name]=pickTiered(LOGOS,'lo',diff,used); const opts=new Set([name]);
+    while(opts.size<4) opts.add(rnd(LOGO_ALL)[1]); const arr=[...opts].sort(()=>Math.random()-.5);
+    return { type:'mcq', image:logoURL(domain), prompt:'', hint:'Which brand?', options:arr, correct:arr.indexOf(name) }; }
   if(/which-doesnt-belong/.test(game)){ const it=pickTiered(WDB,'wdb',diff,used), oddItem=it[3];
     const arr=it.slice().sort(()=>Math.random()-.5);
     return { type:'mcq', prompt:'Which does NOT belong?', options:arr, correct:arr.indexOf(oddItem) }; }
@@ -418,6 +449,7 @@ export function howto(game){
   if(/true-or-false/.test(game)) return 'Is it true or false? Tap fast — quicker correct answers score more!';
   if(/higher-or-lower/.test(game)) return 'Is the real number higher or lower than shown? Tap your guess fast!';
   if(/flag-frenzy/.test(game))   return 'A flag appears — tap the country it belongs to, as fast as you can!';
+  if(/guess-the-logo/.test(game)) return 'A brand logo appears — tap the brand it belongs to, fastest wins!';
   if(/guess-the-flag/.test(game)) return 'A country flag pops up — tap the country it belongs to, fastest wins!';
   if(/which-doesnt-belong/.test(game)) return 'Three of the four go together — tap the odd one out!';
   if(/category-tap/.test(game))  return 'Tap the item that fits the category — fastest correct wins!';
