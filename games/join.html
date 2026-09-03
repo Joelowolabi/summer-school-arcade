@@ -194,7 +194,7 @@
   .livevcard .vpct{font-family:var(--font-heading);font-size:var(--fs-h4);opacity:.9}
   /* grid tiles (Odd One Out / Click Rush) */
   .livegrid{display:grid;gap:10px;justify-content:center}
-  .livetile{border:0;border-radius:var(--radius-l);cursor:pointer;box-shadow:var(--shadow-s);aspect-ratio:1;width:min(22vw,92px);display:flex;align-items:center;justify-content:center;transition:transform .1s var(--ease-pop)}
+  .livetile{border:0;border-radius:var(--radius-l);cursor:pointer;box-shadow:var(--shadow-s);aspect-ratio:1;width:min(16vw,72px);display:flex;align-items:center;justify-content:center;transition:transform .1s var(--ease-pop)}
   .livetile.shape{background:var(--surface-sunken)}
   .livetile:active{transform:scale(.94)} .livetile[disabled]{cursor:default}
   .livetile.picked{outline:3px solid var(--ink-900);outline-offset:-3px} .livetile.right{outline:3px solid var(--accent-grow);outline-offset:-3px} .livetile.dim{opacity:.4}
@@ -458,6 +458,7 @@ async function join(){
 
 async function enterLobby(){
   $('#stepName').classList.add('hide'); $('#stepLobby').classList.remove('hide');
+  if($('#reconnecting')) $('#reconnecting').style.display='none';   // clear the reconnecting spinner
   $('#lobbyCode').textContent=room.code; $('#pbcode').textContent=room.code;
   $('#lobbyTitle').textContent = (room.settings && room.settings.name) || 'Lobby';
   $('#yourteam').style.background=Net.TEAM_COLORS[me.team];
@@ -506,8 +507,10 @@ function avatarMini(p){ const img=Net.charImg(p.avatar);
 function standingsPanel(){
   const sorted=[...players].sort((a,b)=>(b.points||0)-(a.points||0));
   const totals=[0,0,0]; players.forEach(p=>totals[p.team]+=p.points||0);
-  return `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>
-    <div class="srows">${sorted.slice(0,12).map((p,i)=>`<div class="srow ${p.id===me.id?'me':''} ${i<3?'medaled':''}"><span class="sr">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${i===0?' 👑':''}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
+  const mode=(room&&room.state&&room.state.mode)||'mixed';
+  const teamRow = mode==='solo' ? '' : `<div class="steams">${Net.TEAM_NAMES.map((n,i)=>`<div class="steam" style="background:${Net.TEAM_COLORS[i]}"><span>${n}</span><b>${totals[i]}</b></div>`).join('')}</div>`;
+  return `${teamRow}
+    <div class="srows">${sorted.map((p,i)=>`<div class="srow ${p.id===me.id?'me':''} ${i<3?'medaled':''}"><span class="sr">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>${avatarMini(p)}<span class="sn">${p.name}${i===0?' 👑':''}${p.id===me.id?' <em>YOU</em>':''}</span><span class="sp">${p.points||0}</span></div>`).join('')}</div>`;
 }
 function suspenseOn(){ return !!(room && room.state && room.state.suspense); }
 function renderScorebar(){ const sb=$('#scorebar'); if(!sb || !document.body.classList.contains('playing') || !me) return;
@@ -525,15 +528,16 @@ function renderIntro(live){
 let glKey=null, glState='waiting', glReact=0;
 function glTap(live){
   if(glState!=='waiting') return;
-  if(live.phase==='red'){ glState='jumped'; try{ psfx.wrong(); }catch(e){}
+  if(live.phase==='red' || live.phase==='orange'){ glState='jumped'; try{ psfx.wrong(); }catch(e){}
     Net.submitAnswer(room.id, me.id, live.game, live.round, 0).catch(()=>{}); paintGL(live); }
   else if(live.phase==='green'){ glState='tapped'; glReact=Math.max(0, Date.now()-(live.greenAt||Date.now())); try{ psfx.pop(); }catch(e){}
     Net.submitAnswer(room.id, me.id, live.game, live.round, 1).catch(()=>{}); paintGL(live); }
 }
 function paintGL(live){ const panel=$('#glpanel'); if(!panel) return;
   let bg, big, txt;
-  if(live.phase==='red'){
-    if(glState==='jumped'){ bg='#7a1f1f'; big='🚫'; txt='Too early! Wait for green'; }
+  if(live.phase==='red' || live.phase==='orange'){
+    if(glState==='jumped'){ bg='#7a1f1f'; big='🚫'; txt='Too early! Wait for GREEN'; }
+    else if(live.phase==='orange'){ bg='linear-gradient(160deg,#ffb347,#e8870a)'; big='🟠'; txt='NOT YET… wait for GREEN!'; }
     else { bg='linear-gradient(160deg,#ff6060,#c62828)'; big='🔴'; txt='WAIT…'; }
   } else {
     if(glState==='tapped'){ bg='linear-gradient(160deg,#46e37e,#1f9d52)'; big='⚡'; txt=glReact+'ms — nice!'; }
@@ -554,7 +558,7 @@ function renderGreenLight(live){
   }
   const key=live.round+':'+live.phase;
   if(key===glKey && $('#glpanel')){ paintGL(live); return; }
-  if(live.phase==='red' && glKey!==live.round+':red'){ glState='waiting'; glReact=0; }
+  if((live.phase==='red'||live.phase==='orange') && glKey!==live.round+':'+live.phase){ glState='waiting'; glReact=0; }
   glKey=key;
   w.innerHTML=`<div class="glplay">${familyHeader(live.game, live.phase==='green'?'GREEN — tap!':'Wait for green…')}
     <div id="glpanel" class="glpanel"></div></div>`;
@@ -653,7 +657,7 @@ function openMotion(file){
     onMeta:(m)=>onMotionMeta(m),
   });
   // resend the held direction so a dropped broadcast can't leave you stuck
-  clearInterval(mResendIv); mResendIv=setInterval(()=>{ if(mArena&&me&&mDir!=null){ try{ mArena.sendInput({ id:me.id, dir:mDir }); }catch(e){} } }, 300);
+  clearInterval(mResendIv); mResendIv=setInterval(()=>{ if(mArena&&me&&mDir!=null){ try{ mArena.sendInput({ id:me.id, dir:mDir }); }catch(e){} } }, 180);
   cancelAnimationFrame(mRaf); motionRAF();   // smooth ~60fps interpolated render
 }
 function closeMotion(keepUi){ if(mArena){ mArena.close(); mArena=null; } clearInterval(mResendIv); mResendIv=null; cancelAnimationFrame(mRaf); mRaf=null; if(mKeyBound){ document.removeEventListener('keydown', motionKey); mKeyBound=false; } mFile=null; mSnap=null; mPrevSnap=null; mSnapT=0; mPrevT=0; mDir=null; mHeadPulse=0; if(!keepUi) mUiFile=null; }
@@ -694,7 +698,7 @@ function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
   // always re-anchored to the authoritative position each frame ⇒ no snapping. Open arenas lead further.
   const meP=mSnap.players.find(p=>p.id===me.id);
   const open = (mSnap.mode==='hill'||mSnap.mode==='stars'||mSnap.mode==='paint');
-  const maxLead = open ? 1.4 : 0.92;
+  const maxLead = open ? 1.4 : mSnap.mode==='maze' ? 1.1 : 0.92;
   const canLead = meP && meP.alive!==false && !mSnap.over && mDir!=null && moveValid(mSnap, Math.round(meP.x), Math.round(meP.y), mDir);
   mLeadAmt = canLead ? Math.min(maxLead, mLeadAmt+0.26) : Math.max(0, mLeadAmt-0.32);
   const lead = (mLeadAmt>0.01 && mDir!=null) ? { dx:DIRS4[mDir][0], dy:DIRS4[mDir][1], amt:mLeadAmt } : null;
@@ -704,7 +708,13 @@ function drawMotion(t){ const cv=$('#mcanvas'); if(!cv||!mSnap) return;
   if(mh){ mh.textContent = !meP ? '' : meP.alive===false ? "💥 You're out — cheer your team on!" : scoreLabel(mSnap.mode, meP); }
   if(!mSnap.over){ const ov=$('#moverlay'); if(ov && ov.dataset.state!=='over'){ ov.style.display='none'; ov.dataset.state=''; } }  // live snapshot = game started, clear countdown even if 'go' was dropped
 }
-function scoreLabel(mode,p){ return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='maze'?(p.finished?'you finished #'+p.rank:'you: racing'):mode==='hill'?('👑 '+p.score+' on the hill'):mode==='stars'?('⭐ '+p.score+' caught'):('you: '+p.score); }
+function scoreLabel(mode,p){
+  if(mode==='maze'){
+    const timeLeft = mSnap && mSnap.maxTicks && mSnap.tick!=null ? Math.max(0,Math.ceil((mSnap.maxTicks-mSnap.tick)*0.075)) : '';
+    return p.finished ? 'you finished #'+p.rank : `⏱ ${timeLeft}s · racing`;
+  }
+  if(mode==='hill') return p.onHill ? ('👑 '+p.score+' · ON THE HILL! 🔥') : ('👑 '+p.score+' · get to the gold square!');
+  return mode==='snake'?('you: '+p.score+' long'):mode==='trail'?'you: riding!':mode==='paint'?('you: '+p.score+' tiles'):mode==='stars'?('⭐ '+p.score+' caught'):('you: '+p.score); }
 function onMotionMeta(m){ const ov=$('#moverlay'); if(!ov) return;
   if(m.kind==='countdown'){ ov.dataset.state='count'; ov.style.display='flex';
     ov.innerHTML=`<div class="mo-in"><div class="mo-t">${m.title}</div><div class="mo-h">${m.howto}</div><div class="mo-n">${m.n}</div></div>`;

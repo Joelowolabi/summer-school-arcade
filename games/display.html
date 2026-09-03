@@ -145,7 +145,7 @@
   .qvcard.dim{opacity:.45}
   /* grid tiles (Odd One Out / Click Rush) */
   .qgrid{display:grid;gap:14px;flex:1;min-height:0;align-content:center;justify-content:center;margin:auto}
-  .qtile{border-radius:var(--radius-xl);box-shadow:var(--shadow-m);display:flex;align-items:center;justify-content:center;aspect-ratio:1;width:min(15vh,150px)}
+  .qtile{border-radius:var(--radius-xl);box-shadow:var(--shadow-m);display:flex;align-items:center;justify-content:center;aspect-ratio:1;width:min(11vh,110px)}
   .qtile.shape{background:rgba(255,255,255,.14)}
   .qtile.right{outline:6px solid #fff;outline-offset:-6px}
   .qtile.dim{opacity:.35}
@@ -327,7 +327,7 @@ function renderLobby(){
         <div class="bigcode">${room.code}</div>
         <img class="qr" alt="Scan to join" src="${qrSrc}" onerror="this.style.display='none';var l=this.nextElementSibling;if(l)l.style.display='none'">
         <div class="qrlabel">📱 Scan to join — or type the code at</div>
-        <div class="url">${location.origin}/games/join.html</div>
+        <div class="url">zappy.app/join · ${room.code}</div>
       </div>
       <div class="roster">
         <h2>Lobby · <b>${players.filter(p=>p.connected).length}</b>&nbsp;joined</h2>
@@ -351,7 +351,7 @@ function renderGame(){
       <div class="fteam" style="opacity:.8;font-size:var(--fs-h3)">Now up · ${nowg} · ${players.filter(p=>p.connected).length} playing</div></div>`;
     return;
   }
-  const sorted=[...players].sort((a,b)=>b.points-a.points).slice(0,12);
+  const sorted=[...players].sort((a,b)=>b.points-a.points);
   const mode=(room.state&&room.state.mode)||'mixed', cls=mode==='team'?'em-team':mode==='solo'?'em-solo':'';
   // biggest gainer since the previous game → 🔥
   let topGain=0, topGainId=null;
@@ -375,7 +375,7 @@ function renderGame(){
         <div class="nowhead"><img class="nowicon" src="assets/games/${(room.current_game||'').replace(/-3d\.html$/,'').replace(/\.html$/,'')}.png" alt="" onerror="this.style.display='none'"><div><div class="k">${mode==='team'?'Now Playing · Team Mode':mode==='solo'?'Now Playing · Free-for-all':'Now Playing'}</div><h1>${Net.gameLabel(room.current_game)}</h1></div></div>
         <div class="llist">${rows}${ghosts}</div>
       </div>
-      <div class="teamsbig">${mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':''}${Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')}${battle}</div>
+      ${mode==='solo'?'':'<div class="teamsbig">'+(mode==='team'?'<div class="emlabel">🏆 Team Standings</div>':'')+Net.TEAM_NAMES.map((n,i)=>`<div class="tbig" style="background:${Net.TEAM_COLORS[i]}"><span class="tn">${n}</span><span class="tv">${totals[i]}</span></div>`).join('')+battle+'</div>'}
     </div>`;
 }
 
@@ -501,17 +501,20 @@ async function runLiveGame(game){
       q.tally=tally; q.winner=winner;
       note = winner===-1 ? 'Perfectly split!' : `Majority: ${q.options[winner]}`;
     } else {
-      let rank=0; const correct=new Set();
+      let rank=0; const correct=new Set(); let firstBloodName='', topStreakName='', topStreak=0;
       for(const a of answers){ if(a.payload && a.payload.choice===q.correct){
         streak[a.player_id]=(streak[a.player_id]||0)+1;
         const base=Bank.speedPoints(rank);                            // speed: 15,14,… floor 5
         const streakBonus=Math.min(10,(streak[a.player_id]-1)*2);     // 🔥 +2 per consecutive correct, cap +10
         const firstBonus=rank===0?3:0;                                // ⚡ first correct in the room
+        if(rank===0){ const pl=players.find(p=>p.id===a.player_id); firstBloodName=pl?pl.name:'?'; }
+        if(streak[a.player_id]>topStreak){ topStreak=streak[a.player_id]; const pl=players.find(p=>p.id===a.player_id); topStreakName=pl?pl.name:'?'; }
         await Net.addPoints(a.player_id, Math.round(base*diffMult)+streakBonus+firstBonus);
         correct.add(a.player_id); rank++;
       } }
       players.forEach(p=>{ if(!correct.has(p.id)) streak[p.id]=0; });  // a miss (or no answer) resets the streak
-      note = `${rank} got it`;
+      const bonusBits=[]; if(firstBloodName) bonusBits.push(`⚡ ${firstBloodName} was first (+3)`); if(topStreak>=2) bonusBits.push(`🔥 ${topStreakName} on a ×${topStreak} streak`);
+      note = `${rank} got it` + (bonusBits.length ? ' · '+bonusBits.join(' · ') : '');
     }
     // reveal
     const revExtra = q.type==='vote' ? { winner:q.winner, tally:q.tally } : { correct:q.correct };
@@ -528,13 +531,14 @@ async function runLiveGame(game){
 
 /* ---- Green Light (reflex): wait for green, tap fast; tapping on red = out that round ---- */
 function glStage(light, round, N, n){
-  const green = light==='green';
-  const bg = green ? 'radial-gradient(circle at 50% 38%, #46e37e, #1f9d52)' : 'radial-gradient(circle at 50% 38%, #ff6060, #c62828)';
-  const word = green ? 'GREEN — TAP!' : 'WAIT…';
-  const sub  = green ? (n!=null ? `${n} tapped` : 'React now!') : 'Get ready — tap the moment it turns green';
+  const green = light==='green', orange = light==='orange';
+  const bg = green ? 'radial-gradient(circle at 50% 38%, #46e37e, #1f9d52)' : orange ? 'radial-gradient(circle at 50% 38%, #ffb347, #e8870a)' : 'radial-gradient(circle at 50% 38%, #ff6060, #c62828)';
+  const word = green ? 'GREEN — TAP!' : orange ? 'NOT YET…' : 'WAIT…';
+  const emoji = green ? '🟢' : orange ? '🟠' : '🔴';
+  const sub  = green ? (n!=null ? `${n} tapped` : 'React now!') : orange ? 'Almost… but NOT green! Don\'t tap!' : 'Get ready — tap the moment it turns green';
   $('#stage').innerHTML=`<div class="glscreen" style="background:${bg}">
     <div class="qtop" style="position:absolute;top:0;left:0;right:0"><span class="qk">Green Light · Round ${round}/${N}</span></div>
-    <div class="gllight ${green?'go':''}">${green?'🟢':'🔴'}</div>
+    <div class="gllight ${green?'go':''}">${emoji}</div>
     <div class="glword">${word}</div><div class="glsub">${sub}</div></div>`;
 }
 function glResult(round, N, results){
@@ -563,6 +567,19 @@ async function runGreenLight(game){
     const hold = holdBase + Math.floor(Math.random()*holdRand);
     { const t0=Date.now(); while(Date.now()-t0<hold){ if(drivenGame!==game) return; await wait(120); } }
     if(drivenGame!==game) return;
+    // 🟠 ORANGE fake-out — ~40% of rounds have a tricky orange flash before green
+    if(Math.random()<0.4){
+      await setLive({ family:'greenlight', game, phase:'orange', round, total:N });
+      glStage('orange', round, N);
+      const orangeHold = 600 + Math.floor(Math.random()*1200);   // 0.6–1.8s of orange
+      { const t0=Date.now(); while(Date.now()-t0<orangeHold){ if(drivenGame!==game) return; await wait(100); } }
+      if(drivenGame!==game) return;
+      // back to red briefly before green
+      await setLive({ family:'greenlight', game, phase:'red', round, total:N });
+      glStage('red', round, N);
+      { const t0=Date.now(); const redAgain=400+Math.floor(Math.random()*800); while(Date.now()-t0<redAgain){ if(drivenGame!==game) return; await wait(100); } }
+      if(drivenGame!==game) return;
+    }
     // GREEN — react!
     const greenAt=Date.now();
     await setLive({ family:'greenlight', game, phase:'green', round, total:N, greenAt });
@@ -607,9 +624,14 @@ function arenaHUD(game, snap){
     const top=[...snap.players].sort((a,b)=>b.score-a.score)[0];
     right=`<span class="achip">🟢 ${alive} still ${game.mode==='snake'?'slithering':'riding'}</span>`+(top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.score}${game.mode==='snake'?' long':''}</span>`:'');
   } else if(game.mode==='maze'){ const done=snap.players.filter(p=>p.finished).length;
-    right=`<span class="achip">🏁 ${done}/${snap.players.length} finished</span>`;
+    const mazeSecs=Math.max(0,Math.ceil((game.maxTicks-game.tick)*0.075));
+    right=`<span class="achip">🏁 ${done}/${snap.players.length} finished</span><span class="achip">⏱ ${mazeSecs}s</span>`;
   } else if(game.mode==='hill'||game.mode==='stars'){ const top=[...snap.players].sort((a,b)=>b.score-a.score)[0], icon=game.mode==='hill'?'👑':'⭐';
-    right=(top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.score} ${icon}</span>`:'');
+    if(game.mode==='hill'){
+      const onHill=snap.players.filter(p=>p.onHill);
+      right=(onHill.length?`<span class="achip" style="background:#FFD93B;color:#1E1B26">👑 ${onHill.map(p=>p.name).join(', ')} on the hill!</span>`:`<span class="achip">👑 Hill is empty</span>`);
+    }
+    right+=(top?`<span class="achip"><span class="adot" style="background:${top.color}"></span>${top.name} · ${top.score} ${icon}</span>`:'');
     right+=`<span class="achip">⏱ ${Math.max(0,Math.ceil((game.maxTicks-game.tick)*0.1))}s</span>`; }
   $('#ahud').innerHTML=`<span class="atitle">${t}</span><span class="aspacer"></span>${right}`;
 }

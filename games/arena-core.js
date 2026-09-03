@@ -36,7 +36,7 @@ export function motionHowto(file){
     trail:'Steer with the arrow keys. You leave a glowing trail — don\'t hit anyone\'s trail or the wall. Last one riding wins!',
     snake:'Steer with the arrow keys. Eat the glowing pellets to grow. Don\'t crash into a snake or the wall!',
     maze:'Steer with the arrow keys. Race through the maze — first one to reach the exit flag wins!',
-    hill:'Steer onto the glowing 👑 hill and hold it — every moment on the hill scores. Most time on top wins!',
+    hill:'Move onto the glowing 👑 GOLD square! Stand on it to score points every second. Push others off and hold the hill as long as you can — whoever has the most points when the timer runs out wins!',
     stars:'Steer around and scoop up the ⭐ stars as they pop up. Grab the most to win!',
   }[motionMode(file)] || '';
 }
@@ -229,7 +229,8 @@ export function snapshot(s){
     winner:s.winner, msg:s.msg, exit:s.exit||null, pellets:s.pellets,
     teamScore:s.teamScore||null,
     players:s.ids.map(id=>{ const p=s.players[id]; const o={ i:p.i, id:p.id, name:p.name, team:p.team, color:p.color, x:p.x, y:p.y, alive:p.alive, score:p.score, finished:p.finished, rank:p.rank };
-      if(s.mode==='snake') o.body=p.body.map(b=>[b.x,b.y]); return o; }) };
+      if(s.mode==='snake') o.body=p.body.map(b=>[b.x,b.y]);
+      if(s.mode==='hill') o.onHill=inHill(s,p.x,p.y); return o; }) };
   if(s.mode==='paint'||s.mode==='trail') snap.cells=b64enc(s.cells);
   if(s.mode==='maze') snap.walls=b64enc(s.walls);
   if(s.mode==='hill') snap.hill=s.hill;
