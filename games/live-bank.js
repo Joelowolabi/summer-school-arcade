@@ -266,32 +266,70 @@ const GFLAGS = {
 const GFLAG_ALL = [...GFLAGS.easy,...GFLAGS.med,...GFLAGS.hard];
 export function flagURL(iso){ return `https://flagcdn.com/w320/${iso}.png`; }
 
-/* ---------- Guess the Logo (brand logos via logo.clearbit.com — [domain, brand]) ---------- */
+/* ---------- Guess the Logo (clue-based — [clue, brand, bgColor, emoji]) ---------- */
 const LOGOS = {
   easy:[
-    ['apple.com','Apple'],['google.com','Google'],['nike.com','Nike'],['mcdonalds.com','McDonald\'s'],
-    ['youtube.com','YouTube'],['netflix.com','Netflix'],['disney.com','Disney'],['lego.com','LEGO'],
-    ['minecraft.net','Minecraft'],['roblox.com','Roblox'],['coca-cola.com','Coca-Cola'],['amazon.com','Amazon'],
-    ['xbox.com','Xbox'],['playstation.com','PlayStation'],['nintendo.com','Nintendo'],['whatsapp.com','WhatsApp'],
-    ['instagram.com','Instagram'],['tiktok.com','TikTok'],
+    ['Bitten fruit silhouette','Apple','#A2AAAD','🍎'],
+    ['Red, blue, yellow & green "G"','Google','#4285F4','🔍'],
+    ['A swoosh / tick shape','Nike','#111','✔️'],
+    ['Golden arches shaped like an "M"','McDonald\'s','#FFC72C','🍟'],
+    ['Red play button in a rectangle','YouTube','#FF0000','▶️'],
+    ['Red "N" on a dark background','Netflix','#E50914','🎬'],
+    ['Scripted castle silhouette','Disney','#113CCF','🏰'],
+    ['Colourful brick name in bold','LEGO','#D01012','🧱'],
+    ['Pixelated dirt & grass block','Minecraft','#62B047','⛏️'],
+    ['Tilted red square with a hole','Roblox','#E2231A','🎮'],
+    ['Red & white swirly script','Coca-Cola','#F40009','🥤'],
+    ['Curved arrow from A to Z','Amazon','#FF9900','📦'],
+    ['Green "X" in a circle','Xbox','#107C10','🎮'],
+    ['Four coloured shapes: ▲ ○ ✕ □','PlayStation','#003087','🕹️'],
+    ['Red & white mushroom company','Nintendo','#E60012','🍄'],
+    ['Green speech bubble with phone','WhatsApp','#25D366','💬'],
+    ['Rainbow gradient camera icon','Instagram','#E1306C','📸'],
+    ['Black music note with "♪"','TikTok','#010101','🎵'],
   ],
   med:[
-    ['spotify.com','Spotify'],['adidas.com','Adidas'],['samsung.com','Samsung'],['pepsi.com','Pepsi'],
-    ['snapchat.com','Snapchat'],['tesla.com','Tesla'],['puma.com','Puma'],['starbucks.com','Starbucks'],
-    ['uber.com','Uber'],['twitch.tv','Twitch'],['discord.com','Discord'],['reddit.com','Reddit'],
-    ['paypal.com','PayPal'],['pinterest.com','Pinterest'],['linkedin.com','LinkedIn'],['ikea.com','IKEA'],
-    ['hp.com','HP'],['oreo.com','Oreo'],
+    ['Green circle with sound waves','Spotify','#1DB954','🎧'],
+    ['Three slanted stripes','Adidas','#000','👟'],
+    ['Blue oval with white letters','Samsung','#1428A0','📱'],
+    ['Red, white & blue circle','Pepsi','#004B93','🥤'],
+    ['White ghost on yellow','Snapchat','#FFFC00','👻'],
+    ['Stylized "T" — electric car maker','Tesla','#CC0000','🚗'],
+    ['Leaping cat silhouette','Puma','#000','🐆'],
+    ['Green twin-tailed mermaid','Starbucks','#00704A','☕'],
+    ['Black & white "U" — ride service','Uber','#000','🚕'],
+    ['Purple chat icon for gamers','Twitch','#9146FF','🎮'],
+    ['Blue & purple game controller chat','Discord','#5865F2','💬'],
+    ['Orange alien face "Snoo"','Reddit','#FF4500','👽'],
+    ['Two overlapping "P" shapes in blue','PayPal','#003087','💳'],
+    ['Red "P" with a pin — image sharing','Pinterest','#E60023','📌'],
+    ['Blue square with white "in"','LinkedIn','#0A66C2','💼'],
+    ['Blue & yellow — Swedish furniture','IKEA','#0058A3','🪑'],
+    ['Black & white cookies with cream','Oreo','#0F1E45','🍪'],
+    ['Blue circle with white "HP"','HP','#0096D6','💻'],
   ],
   hard:[
-    ['airbnb.com','Airbnb'],['dropbox.com','Dropbox'],['slack.com','Slack'],['zoom.us','Zoom'],
-    ['skype.com','Skype'],['shazam.com','Shazam'],['soundcloud.com','SoundCloud'],['ebay.com','eBay'],
-    ['fedex.com','FedEx'],['bmw.com','BMW'],['audi.com','Audi'],['porsche.com','Porsche'],
-    ['lacoste.com','Lacoste'],['converse.com','Converse'],['burgerking.com','Burger King'],['kfc.com','KFC'],
-    ['subway.com','Subway'],['dominos.com','Domino\'s'],
+    ['Pink/red "A" shape — home rental','Airbnb','#FF5A5F','🏠'],
+    ['Blue open box — cloud storage','Dropbox','#0061FF','📦'],
+    ['Four coloured squares: #, hashtag-style','Slack','#4A154B','💬'],
+    ['Blue camera icon — video calls','Zoom','#2D8CFF','📹'],
+    ['Blue cloud with "S" — old video calls','Skype','#00AFF0','☁️'],
+    ['Blue "S" — music recognition app','Shazam','#0088FF','🎶'],
+    ['Orange cloud with sound waves','SoundCloud','#FF5500','🔊'],
+    ['Red, blue, yellow, green letters','eBay','#E53238','🛒'],
+    ['Purple & orange hidden arrow between E and x','FedEx','#4D148C','📮'],
+    ['Blue & white propeller badge — German cars','BMW','#0066B1','🚘'],
+    ['Four interlocking silver rings','Audi','#000','🔗'],
+    ['Horse crest shield — luxury cars','Porsche','#000','🐴'],
+    ['Green crocodile — French fashion','Lacoste','#004526','🐊'],
+    ['Star-in-circle — classic sneakers','Converse','#000','⭐'],
+    ['Flame-grilled — "Have it your way"','Burger King','#F5EBDC','🍔'],
+    ['Colonel\'s face — fried chicken','KFC','#F40027','🍗'],
+    ['Green & yellow arrows — sandwich shop','Subway','#008C15','🥪'],
+    ['Red, white & blue domino tile — pizza','Domino\'s','#006491','🍕'],
   ],
 };
 const LOGO_ALL = [...LOGOS.easy,...LOGOS.med,...LOGOS.hard];
-export function logoURL(domain){ return `https://logo.clearbit.com/${domain}`; }
 
 /* ---------- Which Doesn't Belong (last item is the odd one) ---------- */
 const WDB = {
@@ -428,9 +466,9 @@ export function makeQuestion(game, round, opts={}){
   if(/guess-the-flag/.test(game)){ const [iso,name]=pickTiered(GFLAGS,'gf',diff,used); const opts=new Set([name]);
     while(opts.size<4) opts.add(rnd(GFLAG_ALL)[1]); const arr=[...opts].sort(()=>Math.random()-.5);
     return { type:'mcq', image:flagURL(iso), prompt:'', hint:'Which country?', options:arr, correct:arr.indexOf(name) }; }
-  if(/guess-the-logo/.test(game)){ const [domain,name]=pickTiered(LOGOS,'lo',diff,used); const opts=new Set([name]);
+  if(/guess-the-logo/.test(game)){ const [clue,name,bg,emoji]=pickTiered(LOGOS,'lo',diff,used); const opts=new Set([name]);
     while(opts.size<4) opts.add(rnd(LOGO_ALL)[1]); const arr=[...opts].sort(()=>Math.random()-.5);
-    return { type:'mcq', image:logoURL(domain), prompt:'', hint:'Which brand?', options:arr, correct:arr.indexOf(name) }; }
+    return { type:'mcq', prompt:emoji+' '+clue, hint:'Which brand?', options:arr, correct:arr.indexOf(name) }; }
   if(/which-doesnt-belong/.test(game)){ const it=pickTiered(WDB,'wdb',diff,used), oddItem=it[3];
     const arr=it.slice().sort(()=>Math.random()-.5);
     return { type:'mcq', prompt:'Which does NOT belong?', options:arr, correct:arr.indexOf(oddItem) }; }
@@ -449,7 +487,7 @@ export function howto(game){
   if(/true-or-false/.test(game)) return 'Is it true or false? Tap fast — quicker correct answers score more!';
   if(/higher-or-lower/.test(game)) return 'Is the real number higher or lower than shown? Tap your guess fast!';
   if(/flag-frenzy/.test(game))   return 'A flag appears — tap the country it belongs to, as fast as you can!';
-  if(/guess-the-logo/.test(game)) return 'A brand logo appears — tap the brand it belongs to, fastest wins!';
+  if(/guess-the-logo/.test(game)) return 'A clue about a famous logo appears — tap the brand it describes, fastest wins!';
   if(/guess-the-flag/.test(game)) return 'A country flag pops up — tap the country it belongs to, fastest wins!';
   if(/which-doesnt-belong/.test(game)) return 'Three of the four go together — tap the odd one out!';
   if(/category-tap/.test(game))  return 'Tap the item that fits the category — fastest correct wins!';
