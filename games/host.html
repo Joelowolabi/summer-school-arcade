@@ -160,7 +160,7 @@ async function boot(){
     $('#loading').style.display='none'; $('#main').style.display='grid';
     $('#code').textContent = room.code;
     $('#roomName').value = (room.settings && room.settings.name) || '';
-    $('#joinurl').textContent = 'zappy.app/join · ' + room.code;
+    $('#joinurl').textContent = 'playzappy.vercel.app/games/join.html · ' + room.code;
     $('#hostQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=344x344&margin=10&qzone=1&color=3E2C6B&data=' + encodeURIComponent(location.origin + '/games/join.html?code=' + room.code);
     $('#displayBtn').href = 'display.html?code=' + room.code;
     renderTeams(); renderPicker(); render();

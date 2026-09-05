@@ -327,7 +327,7 @@ function renderLobby(){
         <div class="bigcode">${room.code}</div>
         <img class="qr" alt="Scan to join" src="${qrSrc}" onerror="this.style.display='none';var l=this.nextElementSibling;if(l)l.style.display='none'">
         <div class="qrlabel">📱 Scan to join — or type the code at</div>
-        <div class="url">zappy.app/join · ${room.code}</div>
+        <div class="url">playzappy.vercel.app/games/join.html · ${room.code}</div>
       </div>
       <div class="roster">
         <h2>Lobby · <b>${players.filter(p=>p.connected).length}</b>&nbsp;joined</h2>
