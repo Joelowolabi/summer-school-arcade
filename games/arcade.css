@@ -34,7 +34,7 @@ body{
 /* board is injected into a wrapper div; dissolve the wrapper so .board is the real
    grid item and inherits the bounded row height (its player list scrolls internally) */
 #boardHost{display:contents}
-@media (max-width:900px){ .layout{grid-template-columns:1fr; grid-template-rows:none; overflow-y:auto} .board{order:-1} }
+@media (max-width:900px){ .layout{grid-template-columns:1fr; grid-template-rows:none; overflow-y:auto} .stage{min-height:60dvh} .board{order:1; max-height:280px; overflow-y:auto} }
 
 .stage{background:var(--surface-page); border-radius:var(--radius-2xl); box-shadow:var(--shadow-xl); padding:24px; display:flex; flex-direction:column; position:relative; overflow:hidden; min-height:0}
 
