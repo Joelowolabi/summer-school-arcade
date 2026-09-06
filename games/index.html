@@ -173,7 +173,6 @@ function renderStandings(){
 renderStandings();
 
 document.getElementById('resetBtn').onclick=()=>{ if(confirm('Reset the whole Season leaderboard to zero?')){ localStorage.removeItem('ssa_season_v1'); localStorage.removeItem('ssa_powerup'); localStorage.removeItem('ssa_title'); renderStandings(); } };
-document.getElementById('hostLink').onclick=()=>alert('Coming next: Host a Game (room code to the projector), player join flow (code → name → avatar → auto team), the lobby, host session rotation across games, and the read-only Shared-Display view.');
 </script>
 </body>
 </html>
